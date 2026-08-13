@@ -337,11 +337,27 @@
                     </button>
                   </form>
                 {% endif %}
+                {% if proj.can_notify_peer_reviews %}
+                  <form method="post" action="{% url 'cadmin_project_notify_peer_reviews' course.slug proj.slug %}" onsubmit="return confirm('Email peer review assignments to students who submitted {{ proj.title }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="cadmin-action-item">
+                      <i class="fas fa-envelope" aria-hidden="true"></i> Notify students of peer reviews
+                    </button>
+                  </form>
+                {% endif %}
                 {% if proj.needs_scoring %}
                   <form method="post" action="{% url 'cadmin_project_score' course.slug proj.slug %}" onsubmit="return confirm('Score all submissions for {{ proj.title }}?');">
                     {% csrf_token %}
                     <button type="submit" class="cadmin-action-item">
                       <i class="fas fa-calculator" aria-hidden="true"></i> Score projects
+                    </button>
+                  </form>
+                {% endif %}
+                {% if proj.can_notify_scores %}
+                  <form method="post" action="{% url 'cadmin_project_notify_scores' course.slug proj.slug %}" onsubmit="return confirm('Email score notifications to all students who submitted {{ proj.title }}?');">
+                    {% csrf_token %}
+                    <button type="submit" class="cadmin-action-item">
+                      <i class="fas fa-envelope" aria-hidden="true"></i> Notify students of scores
                     </button>
                   </form>
                 {% endif %}

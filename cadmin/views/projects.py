@@ -8,7 +8,7 @@ from course_management.datamailer.sync.score_notifications import (
     send_project_score_notification,
 )
 from courses.models.course import Course
-from courses.models.project import Project
+from courses.models.project import Project, ProjectState
 from courses.project_assignment import (
     ProjectActionStatus,
     assign_peer_reviews_for_project,
@@ -85,7 +85,6 @@ def project_assign_reviews(request, course_slug, project_slug):
 
     if status == ProjectActionStatus.OK:
         messages.success(request, message)
-        send_peer_review_assignment_notification(project)
     else:
         messages.warning(request, message)
 
@@ -109,10 +108,59 @@ def project_score(request, course_slug, project_slug):
 
     if status == ProjectActionStatus.OK:
         messages.success(request, message)
-        send_project_score_notification(project)
     else:
         messages.warning(request, message)
 
+    return redirect_after_action(
+        request, "cadmin_course", course_slug=course_slug
+    )
+
+
+@staff_required
+def project_notify_peer_reviews(request, course_slug, project_slug):
+    """Send peer-review assignment emails after reviews are assigned."""
+    if request.method != "POST":
+        return redirect("cadmin_course", course_slug=course_slug)
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+    if project.state != ProjectState.PEER_REVIEWING.value:
+        messages.warning(
+            request,
+            f"Assign peer reviews for {project.title} before notifying students.",
+        )
+    else:
+        send_peer_review_assignment_notification(project)
+        messages.success(
+            request,
+            f"Peer review notifications for {project.title} sent to students.",
+        )
+    return redirect_after_action(
+        request, "cadmin_course", course_slug=course_slug
+    )
+
+
+@staff_required
+def project_notify_scores(request, course_slug, project_slug):
+    """Send project score emails after scoring is complete."""
+    if request.method != "POST":
+        return redirect("cadmin_course", course_slug=course_slug)
+    course = get_object_or_404(Course, slug=course_slug)
+    project = get_object_or_404(
+        Project, course=course, slug=project_slug
+    )
+    if project.state != ProjectState.COMPLETED.value:
+        messages.warning(
+            request,
+            f"Score {project.title} before notifying students.",
+        )
+    else:
+        send_project_score_notification(project)
+        messages.success(
+            request,
+            f"Score notifications for {project.title} sent to students.",
+        )
     return redirect_after_action(
         request, "cadmin_course", course_slug=course_slug
     )

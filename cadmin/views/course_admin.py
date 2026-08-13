@@ -71,6 +71,12 @@ def course_projects_for_admin(course):
         project.needs_scoring = (
             project.state == ProjectState.PEER_REVIEWING.value
         )
+        project.can_notify_peer_reviews = (
+            project.state == ProjectState.PEER_REVIEWING.value
+        )
+        project.can_notify_scores = (
+            project.state == ProjectState.COMPLETED.value
+        )
         extension_fields, extension_label = project_extension_plan(
             project
         )

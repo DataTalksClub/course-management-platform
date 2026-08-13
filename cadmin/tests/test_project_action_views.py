@@ -11,7 +11,7 @@ from cadmin.tests.project_view_base import ProjectCadminViewTestBase
 class ProjectActionViewTests(ProjectCadminViewTestBase):
     @patch("cadmin.views.projects.send_project_score_notification")
     @patch("cadmin.views.projects.score_project")
-    def test_project_score_shows_message(
+    def test_project_score_shows_message_without_notifying(
         self,
         score_project_mock,
         send_score_notification,
@@ -30,7 +30,7 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
         messages = list(response.context["messages"])
         message_count = len(messages)
         self.assertEqual(message_count, 1)
-        send_score_notification.assert_called_once_with(self.project)
+        send_score_notification.assert_not_called()
 
     @patch("cadmin.views.projects.send_project_score_notification")
     @patch("cadmin.views.projects.score_project")
@@ -52,13 +52,57 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
         )
 
         self.assertRedirects(response, next_url)
-        send_score_notification.assert_called_once_with(self.project)
+        send_score_notification.assert_not_called()
 
     @patch("cadmin.views.projects.send_project_score_notification")
-    def test_project_assign_reviews_shows_message(
+    def test_project_notify_scores_sends_for_completed_project(
         self,
         send_score_notification,
     ):
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save(update_fields=["state"])
+        self.login_admin()
+
+        response = self.client.post(
+            self.cadmin_project_notify_scores_url(),
+            follow=True,
+        )
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        send_score_notification.assert_called_once_with(self.project)
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+
+    @patch("cadmin.views.projects.send_project_score_notification")
+    def test_project_notify_scores_requires_completed_project(
+        self,
+        send_score_notification,
+    ):
+        self.login_admin()
+
+        response = self.client.post(
+            self.cadmin_project_notify_scores_url(),
+            follow=True,
+        )
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        send_score_notification.assert_not_called()
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+
+    @patch(
+        "cadmin.views.projects.send_peer_review_assignment_notification"
+    )
+    @patch("cadmin.views.projects.assign_peer_reviews_for_project")
+    def test_project_assign_reviews_shows_message_without_notifying(
+        self,
+        assign_reviews,
+        send_assignment_notification,
+    ):
+        assign_reviews.return_value = (
+            ProjectActionStatus.OK,
+            "Peer reviews assigned",
+        )
         url = self.cadmin_project_assign_reviews_url()
         course_admin_url = self.cadmin_course_url()
 
@@ -69,7 +113,7 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
         messages = list(response.context["messages"])
         message_count = len(messages)
         self.assertEqual(message_count, 1)
-        send_score_notification.assert_not_called()
+        send_assignment_notification.assert_not_called()
 
     @patch(
         "cadmin.views.projects.send_peer_review_assignment_notification"
@@ -88,6 +132,46 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
 
         self.assertRedirects(response, next_url)
         send_assignment_notification.assert_not_called()
+
+    @patch(
+        "cadmin.views.projects.send_peer_review_assignment_notification"
+    )
+    def test_project_notify_peer_reviews_sends_after_assignment(
+        self,
+        send_assignment_notification,
+    ):
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save(update_fields=["state"])
+        self.login_admin()
+
+        response = self.client.post(
+            self.cadmin_project_notify_peer_reviews_url(),
+            follow=True,
+        )
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        send_assignment_notification.assert_called_once_with(self.project)
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+
+    @patch(
+        "cadmin.views.projects.send_peer_review_assignment_notification"
+    )
+    def test_project_notify_peer_reviews_requires_assignment(
+        self,
+        send_assignment_notification,
+    ):
+        self.login_admin()
+
+        response = self.client.post(
+            self.cadmin_project_notify_peer_reviews_url(),
+            follow=True,
+        )
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        send_assignment_notification.assert_not_called()
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
 
 
 class ProjectExtendDeadlineViewTests(ProjectCadminViewTestBase):

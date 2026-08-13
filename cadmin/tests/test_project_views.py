@@ -28,6 +28,18 @@ class ProjectCadminViewTests(ProjectCadminViewTestBase):
         self.assertContains(response, "Score projects")
         self.assertContains(response, score_url)
 
+    def assert_peer_review_notification_action(self, response):
+        notify_url = self.cadmin_project_notify_peer_reviews_url()
+
+        self.assertContains(response, "Notify students of peer reviews")
+        self.assertContains(response, notify_url)
+
+    def assert_project_score_notification_action(self, response):
+        notify_url = self.cadmin_project_notify_scores_url()
+
+        self.assertContains(response, "Notify students of scores")
+        self.assertContains(response, notify_url)
+
     def assert_first_project_submissions_page(self, response):
         self.assertEqual(response.status_code, 200)
         submissions = response.context["submissions"]
@@ -79,6 +91,14 @@ class ProjectCadminViewTests(ProjectCadminViewTestBase):
         response = self.client.get(url)
 
         self.assert_project_scoring_action(response)
+        self.assert_peer_review_notification_action(response)
+
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save(update_fields=["state"])
+
+        response = self.client.get(url)
+
+        self.assert_project_score_notification_action(response)
 
     def test_project_submission_email_links_to_leaderboard_record(self):
         """Project submission email links to the student's leaderboard record."""

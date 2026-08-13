@@ -30,6 +30,12 @@ def apply_project_action_flags(project):
     project.needs_scoring = (
         project.state == ProjectState.PEER_REVIEWING.value
     )
+    project.can_notify_peer_reviews = (
+        project.state == ProjectState.PEER_REVIEWING.value
+    )
+    project.can_notify_scores = (
+        project.state == ProjectState.COMPLETED.value
+    )
 
 
 def project_submissions_context(data):

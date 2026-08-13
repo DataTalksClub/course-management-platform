@@ -42,6 +42,19 @@
                         </button>
                     </form>
                 {% endif %}
+                {% if project.can_notify_peer_reviews %}
+                    <form method="post"
+                          action="{% url 'cadmin_project_notify_peer_reviews' course.slug project.slug %}"
+                          onsubmit="return confirm('Email peer review assignments to students who submitted {{ project.title }}?');">
+                        {% csrf_token %}
+                        <input type="hidden"
+                               name="next"
+                               value="{% url 'cadmin_project_submissions' course.slug project.slug %}">
+                        <button type="submit" class="primer-button primer-button-secondary">
+                            <i class="fas fa-envelope" aria-hidden="true"></i> Notify students of peer reviews
+                        </button>
+                    </form>
+                {% endif %}
                 {% if project.needs_scoring %}
                     <form method="post"
                           action="{% url 'cadmin_project_score' course.slug project.slug %}"
@@ -52,6 +65,19 @@
                                value="{% url 'cadmin_project_submissions' course.slug project.slug %}">
                         <button type="submit" class="primer-button cadmin-primary">
                             <i class="fas fa-calculator" aria-hidden="true"></i> Score projects
+                        </button>
+                    </form>
+                {% endif %}
+                {% if project.can_notify_scores %}
+                    <form method="post"
+                          action="{% url 'cadmin_project_notify_scores' course.slug project.slug %}"
+                          onsubmit="return confirm('Email score notifications to all students who submitted {{ project.title }}?');">
+                        {% csrf_token %}
+                        <input type="hidden"
+                               name="next"
+                               value="{% url 'cadmin_project_submissions' course.slug project.slug %}">
+                        <button type="submit" class="primer-button primer-button-secondary">
+                            <i class="fas fa-envelope" aria-hidden="true"></i> Notify students of scores
                         </button>
                     </form>
                 {% endif %}

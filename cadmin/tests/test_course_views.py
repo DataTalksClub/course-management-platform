@@ -160,3 +160,46 @@ class CourseCadminViewTests(TestCase):
         self.assertNotContains(response, "Needs attention")
         self.assertNotContains(response, "Course Page")
         self.assertNotContains(response, "Dashboard")
+
+    def test_course_admin_shows_separate_project_notification_actions(self):
+        project = Project.objects.create(
+            course=self.course,
+            slug="test-project",
+            title="Test Project",
+            submission_due_date=timezone.now() + timedelta(days=7),
+            peer_review_due_date=timezone.now() + timedelta(days=14),
+            state=ProjectState.PEER_REVIEWING.value,
+        )
+        course_url = reverse(
+            "cadmin_course",
+            kwargs={"course_slug": self.course.slug},
+        )
+        notify_peer_reviews_url = reverse(
+            "cadmin_project_notify_peer_reviews",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": project.slug,
+            },
+        )
+        notify_scores_url = reverse(
+            "cadmin_project_notify_scores",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": project.slug,
+            },
+        )
+
+        self.client.login(**admin_credentials)
+        response = self.client.get(course_url)
+
+        self.assertContains(response, "Notify students of peer reviews")
+        self.assertContains(response, notify_peer_reviews_url)
+        self.assertNotContains(response, notify_scores_url)
+
+        project.state = ProjectState.COMPLETED.value
+        project.save(update_fields=["state"])
+        response = self.client.get(course_url)
+
+        self.assertContains(response, "Notify students of scores")
+        self.assertContains(response, notify_scores_url)
+        self.assertNotContains(response, notify_peer_reviews_url)

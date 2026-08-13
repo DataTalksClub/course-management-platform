@@ -184,12 +184,29 @@ class ProjectCadminViewTestBase(TestCase):
         }
         return reverse("cadmin_project_score", kwargs=kwargs)
 
+    def cadmin_project_notify_scores_url(self):
+        kwargs = {
+            "course_slug": self.course.slug,
+            "project_slug": self.project.slug,
+        }
+        return reverse("cadmin_project_notify_scores", kwargs=kwargs)
+
     def cadmin_project_assign_reviews_url(self):
         kwargs = {
             "course_slug": self.course.slug,
             "project_slug": self.project.slug,
         }
         return reverse("cadmin_project_assign_reviews", kwargs=kwargs)
+
+    def cadmin_project_notify_peer_reviews_url(self):
+        kwargs = {
+            "course_slug": self.course.slug,
+            "project_slug": self.project.slug,
+        }
+        return reverse(
+            "cadmin_project_notify_peer_reviews",
+            kwargs=kwargs,
+        )
 
     def cadmin_course_url(self):
         kwargs = {"course_slug": self.course.slug}

@@ -96,6 +96,11 @@ urlpatterns = [
         name="cadmin_project_assign_reviews",
     ),
     path(
+        "<slug:course_slug>/project/<slug:project_slug>/notify-peer-reviews",
+        projects.project_notify_peer_reviews,
+        name="cadmin_project_notify_peer_reviews",
+    ),
+    path(
         "<slug:course_slug>/project/<slug:project_slug>/extend-deadline",
         projects.project_extend_deadline,
         name="cadmin_project_extend_deadline",
@@ -104,6 +109,11 @@ urlpatterns = [
         "<slug:course_slug>/project/<slug:project_slug>/score",
         projects.project_score,
         name="cadmin_project_score",
+    ),
+    path(
+        "<slug:course_slug>/project/<slug:project_slug>/notify-scores",
+        projects.project_notify_scores,
+        name="cadmin_project_notify_scores",
     ),
     path(
         "<slug:course_slug>/project/<slug:project_slug>/submissions",
