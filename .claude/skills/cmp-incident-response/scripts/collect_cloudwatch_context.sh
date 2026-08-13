@@ -12,6 +12,7 @@ start_time=""
 end_time=""
 profile="${CMP_INVESTIGATOR_PROFILE:-cmp-alert-investigator}"
 region="${AWS_REGION:-eu-west-1}"
+export AWS_PAGER=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -77,7 +78,7 @@ mkdir -p "$output_dir"
 chmod 700 "$output_dir"
 umask 077
 
-aws_cmd=(aws --profile "$profile" --region "$region" --no-cli-pager)
+aws_cmd=(aws --profile "$profile" --region "$region")
 "${aws_cmd[@]}" sts get-caller-identity > "$output_dir/caller-identity.json"
 caller_arn="$(jq -r .Arn "$output_dir/caller-identity.json")"
 case "$caller_arn" in
