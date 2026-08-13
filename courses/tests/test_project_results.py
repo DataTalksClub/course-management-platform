@@ -19,6 +19,8 @@ class ProjectResultsTestCase(ProjectEvaluationTestBase):
             response,
             "No evaluation is available for this submission yet.",
         )
+        self.assertNotContains(response, "Failed")
+        self.assertNotContains(response, "Criteria Breakdown")
         score = response.context["scores"][0]
         self.assertEqual(
             [option["votes"] for option in score.option_vote_counts],

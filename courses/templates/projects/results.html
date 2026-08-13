@@ -35,8 +35,8 @@
   {% else %}
     {% if not has_evaluations %}
       <p class="mt-6 rounded-md border app-border app-surface-muted px-4 py-4 text-sm app-muted">No evaluation is available for this submission yet.</p>
-    {% endif %}
-    <section class="mt-6 grid gap-4 md:grid-cols-3">
+    {% else %}
+      <section class="mt-6 grid gap-4 md:grid-cols-3">
       <div class="rounded-md border app-border app-surface p-4 ">
         <p class="text-xs font-semibold uppercase app-muted">Total score</p>
         <p class="mt-1 text-2xl font-semibold app-heading">{{ submission.total_score }}</p>
@@ -55,8 +55,8 @@
         <p class="text-xs font-semibold uppercase app-muted">Reviewed enough peers</p>
         <p class="mt-1 font-semibold app-heading">{{ submission.reviewed_enough_peers|yesno:"Yes,No" }}</p>
       </div>
-    </section>
-    <div class="mt-6 space-y-6">
+      </section>
+      <div class="mt-6 space-y-6">
       <section class="overflow-hidden rounded-md border app-border app-surface">
         <div class="border-b app-border app-surface-muted px-4 py-3">
           <h2 class="text-base font-semibold app-heading">Criteria Breakdown</h2>
@@ -125,6 +125,7 @@
           </div>
         </section>
       {% endif %}
-    </div>
+      </div>
+    {% endif %}
   {% endif %}
 {% endblock %}
