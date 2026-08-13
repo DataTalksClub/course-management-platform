@@ -104,6 +104,7 @@ class ProjectDataAPITestCase(TestCase):
 
     def expected_submission_data(self, submission):
         return {
+            "id": submission.id,
             "student_id": self.user.id,
             "student_email": self.user.email,
             "github_link": submission.github_link,

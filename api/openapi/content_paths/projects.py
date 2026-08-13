@@ -15,6 +15,9 @@ PROJECT_PATCH_REF = ref("ProjectPatch")
 PROJECT_UPSERT_REF = ref("ProjectUpsert")
 PROJECT_ASSIGN_REVIEWS_RESPONSE_REF = ref("ProjectAssignReviewsResponse")
 PROJECT_SCORE_RESPONSE_REF = ref("ProjectScoreResponse")
+SYSTEM_EVALUATION_REF = ref("SystemEvaluation")
+SYSTEM_EVALUATION_PAGE_REF = ref("SystemEvaluationPage")
+SYSTEM_EVALUATION_CREATE_REF = ref("SystemEvaluationCreate")
 DELETED_REF = ref("Deleted")
 ERROR_REF = ref("Error")
 PROJECTS_LIST_SUCCESS_RESPONSE = response("Project list", PROJECTS_LIST_REF)
@@ -58,6 +61,14 @@ PROJECT_SCORE_BLOCKED_RESPONSE = response(
 )
 PROJECT_UPSERT_UPDATED_RESPONSE = response("Updated project", PROJECT_REF)
 PROJECT_UPSERT_CREATED_RESPONSE = response("Created project", PROJECT_REF)
+SYSTEM_EVALUATION_PAGE_RESPONSE = response(
+    "Submission rubric and system evaluations",
+    SYSTEM_EVALUATION_PAGE_REF,
+)
+SYSTEM_EVALUATION_RESPONSE = response(
+    "System evaluation",
+    SYSTEM_EVALUATION_REF,
+)
 
 PROJECTS_LIST_RESPONSES = {
     "200": PROJECTS_LIST_SUCCESS_RESPONSE,
@@ -237,6 +248,49 @@ PROJECT_SCORE_BY_SLUG_DATA = OperationData(
 )
 PROJECT_SCORE_BY_SLUG_OPERATION = operation(PROJECT_SCORE_BY_SLUG_DATA)
 
+SYSTEM_EVALUATIONS_GET_RESPONSES = {
+    "200": SYSTEM_EVALUATION_PAGE_RESPONSE,
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
+}
+SYSTEM_EVALUATIONS_GET_DATA = OperationData(
+    "api_project_system_evaluations",
+    ["Projects"],
+    "Inspect a submission and its system evaluations",
+    SYSTEM_EVALUATIONS_GET_RESPONSES,
+    description=(
+        "Returns the submission, complete course review rubric, and existing "
+        "system evaluations. Requires a staff token."
+    ),
+)
+SYSTEM_EVALUATIONS_GET_OPERATION = operation(
+    SYSTEM_EVALUATIONS_GET_DATA
+)
+
+SYSTEM_EVALUATIONS_POST_RESPONSES = {
+    "200": SYSTEM_EVALUATION_RESPONSE,
+    "201": SYSTEM_EVALUATION_RESPONSE,
+    "400": INVALID_REQUEST_RESPONSE,
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
+    "409": INVALID_REQUEST_RESPONSE,
+}
+SYSTEM_EVALUATIONS_POST_DATA = OperationData(
+    "api_project_system_evaluations",
+    ["Projects"],
+    "Add a system evaluation to a submission",
+    SYSTEM_EVALUATIONS_POST_RESPONSES,
+    body=request_body(SYSTEM_EVALUATION_CREATE_REF),
+    description=(
+        "Adds an auditable instructor or agent evaluation, recalculates the "
+        "submission's project score, and returns 200 for an idempotent replay. "
+        "Every review criterion must be answered. Requires a staff token."
+    ),
+)
+SYSTEM_EVALUATIONS_POST_OPERATION = operation(
+    SYSTEM_EVALUATIONS_POST_DATA
+)
+
 PROJECT_PATHS_BY_URL_NAME = {
     "api_projects": {
         "get": PROJECTS_LIST_OPERATION,
@@ -264,6 +318,10 @@ PROJECT_PATHS_BY_URL_NAME = {
     },
     "api_project_score_by_slug": {
         "post": PROJECT_SCORE_BY_SLUG_OPERATION,
-    }
+    },
+    "api_project_system_evaluations": {
+        "get": SYSTEM_EVALUATIONS_GET_OPERATION,
+        "post": SYSTEM_EVALUATIONS_POST_OPERATION,
+    },
 
 }

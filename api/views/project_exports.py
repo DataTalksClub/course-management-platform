@@ -20,6 +20,7 @@ from courses.models.project import (
 
 def project_export_submission_data(submission):
     return {
+        "id": submission.id,
         "student_id": submission.student_id,
         "student_email": submission.student.email,
         "github_link": submission.github_link,

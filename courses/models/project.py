@@ -271,6 +271,67 @@ class CriteriaResponse(models.Model):
         return f"{self.criteria.description}: {self.answer}"
 
 
+class SystemProjectEvaluation(models.Model):
+    submission = models.ForeignKey(
+        ProjectSubmission,
+        related_name="system_evaluations",
+        on_delete=models.CASCADE,
+    )
+    created_by = models.ForeignKey(
+        User,
+        related_name="system_project_evaluations",
+        on_delete=models.PROTECT,
+    )
+    idempotency_key = models.CharField(max_length=200)
+    feedback = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["submission", "idempotency_key"],
+                name="unique_system_evaluation_idempotency_key",
+            )
+        ]
+
+    def __str__(self):
+        return f"System evaluation {self.id} for submission {self.submission_id}"
+
+
+class SystemEvaluationCriteriaResponse(models.Model):
+    evaluation = models.ForeignKey(
+        SystemProjectEvaluation,
+        related_name="criteria_responses",
+        on_delete=models.CASCADE,
+    )
+    criteria = models.ForeignKey(
+        ReviewCriteria,
+        on_delete=models.CASCADE,
+    )
+    answer = models.CharField(max_length=255)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["evaluation", "criteria"],
+                name="unique_system_evaluation_criteria_response",
+            )
+        ]
+
+    def get_scores(self):
+        answers = self.answer.split(",")
+        return [
+            self.criteria.options[int(answer) - 1]["score"]
+            for answer in answers
+        ]
+
+    def get_score(self):
+        return sum(self.get_scores())
+
+    def __str__(self):
+        return f"{self.criteria.description}: {self.answer}"
+
+
 class ProjectEvaluationScore(models.Model):
     submission = models.ForeignKey(
         ProjectSubmission, on_delete=models.CASCADE

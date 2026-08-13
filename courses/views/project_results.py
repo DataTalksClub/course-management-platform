@@ -1,6 +1,5 @@
 from collections import defaultdict
 
-from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404, render
 
 from courses.models.course import Course
@@ -11,6 +10,8 @@ from courses.models.project import (
     Project,
     ProjectEvaluationScore,
     ProjectSubmission,
+    SystemEvaluationCriteriaResponse,
+    SystemProjectEvaluation,
 )
 
 
@@ -32,16 +33,21 @@ def answer_option_indexes(answer: str) -> list[int]:
 def _criteria_responses_for_scores(
     submission: ProjectSubmission,
     scores: list[ProjectEvaluationScore],
-) -> QuerySet[CriteriaResponse]:
+) -> list:
     criteria_ids = []
     for score in scores:
         criteria_id = score.review_criteria_id
         criteria_ids.append(criteria_id)
-    return CriteriaResponse.objects.filter(
+    peer_responses = CriteriaResponse.objects.filter(
         review__submission_under_evaluation=submission,
         review__state=PeerReviewState.SUBMITTED.value,
         criteria_id__in=criteria_ids,
     )
+    system_responses = SystemEvaluationCriteriaResponse.objects.filter(
+        evaluation__submission=submission,
+        criteria_id__in=criteria_ids,
+    )
+    return [*peer_responses, *system_responses]
 
 
 def _option_votes_by_criteria(responses):
@@ -73,9 +79,13 @@ def annotate_scores_with_option_votes(
     responses = _criteria_responses_for_scores(submission, scores)
     votes_by_criteria = _option_votes_by_criteria(responses)
     for score in scores:
+        option_votes = votes_by_criteria.get(
+            score.review_criteria_id,
+            defaultdict(int),
+        )
         score.option_vote_counts = _score_option_vote_counts(
             score,
-            votes_by_criteria[score.review_criteria_id],
+            option_votes,
         )
 
 
@@ -106,12 +116,14 @@ def _project_results_context(course, project, user):
     submission = submissions.first()
     scores = _project_results_scores(submission)
     feedback = _project_results_feedback(submission)
+    has_evaluations = _project_results_has_evaluations(submission)
     return {
         "course": course,
         "project": project,
         "submission": submission,
         "scores": scores,
         "feedback": feedback,
+        "has_evaluations": has_evaluations,
         "is_authenticated": True,
     }
 
@@ -125,10 +137,40 @@ def _project_results_scores(submission):
 
 
 def _project_results_feedback(submission):
-    feedback = PeerReview.objects.filter(
+    peer_feedback = PeerReview.objects.filter(
         submission_under_evaluation=submission,
         state=PeerReviewState.SUBMITTED.value,
         note_to_peer__isnull=False,
         note_to_peer__gt="",
     )
-    return list(feedback)
+    feedback = [
+        {
+            "source": "Peer feedback",
+            "text": review.note_to_peer,
+        }
+        for review in peer_feedback
+    ]
+    system_feedback = SystemProjectEvaluation.objects.filter(
+        submission=submission,
+        feedback__gt="",
+    ).order_by("created_at", "id")
+    feedback.extend(
+        {
+            "source": "System evaluation",
+            "text": evaluation.feedback,
+        }
+        for evaluation in system_feedback
+    )
+    return feedback
+
+
+def _project_results_has_evaluations(submission):
+    peer_evaluation_exists = PeerReview.objects.filter(
+        submission_under_evaluation=submission,
+        state=PeerReviewState.SUBMITTED.value,
+    ).exists()
+    if peer_evaluation_exists:
+        return True
+    return SystemProjectEvaluation.objects.filter(
+        submission=submission,
+    ).exists()

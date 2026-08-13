@@ -125,6 +125,25 @@ class OpenAPITestCase(TestCase):
         self.assertIn("put", homework_methods)
         self.assertIn("put", project_methods)
 
+    def test_system_evaluation_route_is_documented(self):
+        spec = build_openapi_spec()
+        methods = spec["paths"][
+            "/api/courses/{course_slug}/projects/by-slug/"
+            "{project_slug}/submissions/{submission_id}/"
+            "system-evaluations/"
+        ]
+
+        self.assertEqual(set(methods), {"get", "post"})
+        self.assertEqual(methods["post"]["security"], [{"TokenAuth": []}])
+        self.assertIn("403", methods["post"]["responses"])
+        request_schema = methods["post"]["requestBody"]["content"][
+            "application/json"
+        ]["schema"]
+        self.assertEqual(
+            request_schema,
+            {"$ref": "#/components/schemas/SystemEvaluationCreate"},
+        )
+
     def test_delete_safety_rules_are_documented(self):
         spec = build_openapi_spec()
 

@@ -33,6 +33,9 @@
   {% elif not submission %}
     <p class="mt-6 rounded-md border app-border app-surface-muted px-4 py-4 text-sm app-muted ">You did not make a submission for this project.</p>
   {% else %}
+    {% if not has_evaluations %}
+      <p class="mt-6 rounded-md border app-border app-surface-muted px-4 py-4 text-sm app-muted">No evaluation is available for this submission yet.</p>
+    {% endif %}
     <section class="mt-6 grid gap-4 md:grid-cols-3">
       <div class="rounded-md border app-border app-surface p-4 ">
         <p class="text-xs font-semibold uppercase app-muted">Total score</p>
@@ -110,11 +113,14 @@
       {% if feedback %}
         <section class="overflow-hidden rounded-md border app-border app-surface">
           <div class="border-b app-border app-surface-muted px-4 py-3">
-            <h2 class="text-base font-semibold app-heading">Peer Feedback</h2>
+            <h2 class="text-base font-semibold app-heading">Evaluation Feedback</h2>
           </div>
           <div class="divide-y app-divide">
-            {% for review in feedback %}
-              <p class="px-4 py-3 text-sm app-text">{{ review.note_to_peer }}</p>
+            {% for item in feedback %}
+              <article class="px-4 py-3 text-sm app-text">
+                <p class="text-xs font-semibold uppercase tracking-wide app-muted">{{ item.source }}</p>
+                <p class="mt-1">{{ item.text }}</p>
+              </article>
             {% endfor %}
           </div>
         </section>

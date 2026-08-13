@@ -1,9 +1,31 @@
 from courses.project_assignment import ProjectActionStatus
 from courses.project_scoring import score_project
+from courses.models import (
+    SystemEvaluationCriteriaResponse,
+    SystemProjectEvaluation,
+)
 from courses.tests.project_score_base import ProjectEvaluationTestBase
 
 
 class ProjectEvaluationTestCase(ProjectEvaluationTestBase):
+
+    def test_project_scoring_includes_system_evaluations(self):
+        evaluation = SystemProjectEvaluation.objects.create(
+            submission=self.submission,
+            created_by=self.user,
+            idempotency_key="fallback-evaluation",
+            feedback="Instructor fallback evaluation.",
+        )
+        SystemEvaluationCriteriaResponse.objects.create(
+            evaluation=evaluation,
+            criteria=self.criteria,
+            answer="2",
+        )
+
+        self.assert_evaluation_score(
+            [("4", 3), ("1", 0)],
+            expected_project_score=1,
+        )
 
     def test_project_evaluation_complete_list_top_score(self):
         answers_and_scores = [("4", 3), ("4", 3), ("3", 2)]

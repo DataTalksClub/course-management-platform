@@ -93,6 +93,58 @@ curl -s -H "Authorization: Token $TOKEN" \
   | python3 -m json.tool
 ```
 
+## Project evaluation fallback
+
+When a project submission has no usable peer evaluation, do not write to the
+database or create a fake peer review. Use the system-evaluation API. Production
+POSTs change student data, so make the proposed rubric answers and feedback
+clear to the user and require explicit authorization for that specific write.
+
+First find the stable submission ID. The project submissions export includes
+`id`, `student_email`, repository details, and the current score:
+
+```bash
+curl -s -H "Authorization: Token $TOKEN" \
+  "https://courses.datatalks.club/api/courses/<course_slug>/projects/<project_slug>/submissions" \
+  | python3 -m json.tool
+```
+
+Then inspect the exact submission. This returns its repository, the full
+rubric, submitted peer evaluations, and prior system evaluations:
+
+```bash
+curl -s -H "Authorization: Token $TOKEN" \
+  "https://courses.datatalks.club/api/courses/<course_slug>/projects/by-slug/<project_slug>/submissions/<submission_id>/system-evaluations/" \
+  | python3 -m json.tool
+```
+
+After evaluating the project, POST one answer for every rubric criterion plus
+written feedback. Answers are one-based option indexes; checkbox answers are
+comma-separated. Use a stable incident or support reference as the idempotency
+key so retries cannot duplicate the evaluation:
+
+```bash
+curl -s -X POST \
+  -H "Authorization: Token $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "idempotency_key": "support-issue-123-attempt-1",
+    "feedback": "Specific, student-facing feedback.",
+    "criteria_responses": [
+      {"criteria_id": 101, "answer": "3"},
+      {"criteria_id": 102, "answer": "1,2"}
+    ]
+  }' \
+  "https://courses.datatalks.club/api/courses/<course_slug>/projects/by-slug/<project_slug>/submissions/<submission_id>/system-evaluations/" \
+  | python3 -m json.tool
+```
+
+The endpoint requires a staff token, records the token user as the author,
+combines the system response with peer responses for project scoring, and does
+not award peer-review participation credit. A new evaluation returns `201`; an
+exact idempotent replay returns `200`; reusing the key for different content
+returns `409`.
+
 ## Where the code is
 
 - Routes: `api/urls.py`

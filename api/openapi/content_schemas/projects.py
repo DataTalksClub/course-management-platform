@@ -92,6 +92,50 @@ PROJECT_CREATE_REQUEST_ONE_OF = [
     PROJECT_CREATE_REF,
     PROJECT_CREATE_ARRAY,
 ]
+SYSTEM_EVALUATION_CRITERIA_RESPONSE_SCHEMA = {
+    "type": "object",
+    "required": ["criteria_id", "answer", "score"],
+    "properties": {
+        "criteria_id": {"type": "integer"},
+        "answer": {"type": "string"},
+        "score": {"type": "integer"},
+    },
+}
+SYSTEM_EVALUATION_CRITERIA_RESPONSE_INPUT_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["criteria_id", "answer"],
+    "properties": {
+        "criteria_id": {"type": "integer"},
+        "answer": {
+            "type": "string",
+            "description": "One-based option index, or comma-separated indexes.",
+        },
+    },
+}
+SYSTEM_EVALUATION_SCHEMA = {
+    "type": "object",
+    "required": [
+        "id",
+        "submission_id",
+        "idempotency_key",
+        "feedback",
+        "created_by_user_id",
+        "created_at",
+        "criteria_responses",
+    ],
+    "properties": {
+        "id": {"type": "integer"},
+        "submission_id": {"type": "integer"},
+        "idempotency_key": {"type": "string"},
+        "feedback": {"type": "string"},
+        "created_by_user_id": {"type": "integer"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "criteria_responses": array_of(
+            SYSTEM_EVALUATION_CRITERIA_RESPONSE_SCHEMA
+        ),
+    },
+}
 
 PROJECT_SCHEMAS = {
     "ProjectSummary": PROJECT_SUMMARY_SCHEMA,
@@ -193,5 +237,60 @@ PROJECT_SCHEMAS = {
             "scored_submissions_count": {"type": "integer"},
             "passed_submissions_count": {"type": "integer"},
         },
-    }
+    },
+    "SystemEvaluationCriteriaResponseInput": (
+        SYSTEM_EVALUATION_CRITERIA_RESPONSE_INPUT_SCHEMA
+    ),
+    "SystemEvaluationCreate": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "idempotency_key",
+            "feedback",
+            "criteria_responses",
+        ],
+        "properties": {
+            "idempotency_key": {"type": "string", "maxLength": 200},
+            "feedback": {"type": "string"},
+            "criteria_responses": array_of(
+                ref("SystemEvaluationCriteriaResponseInput")
+            ),
+        },
+    },
+    "SystemEvaluation": SYSTEM_EVALUATION_SCHEMA,
+    "PeerEvaluation": {
+        "type": "object",
+        "required": [
+            "id",
+            "feedback",
+            "submitted_at",
+            "criteria_responses",
+        ],
+        "properties": {
+            "id": {"type": "integer"},
+            "feedback": {"type": "string"},
+            "submitted_at": {
+                "type": ["string", "null"],
+                "format": "date-time",
+            },
+            "criteria_responses": array_of(
+                SYSTEM_EVALUATION_CRITERIA_RESPONSE_SCHEMA
+            ),
+        },
+    },
+    "SystemEvaluationPage": {
+        "type": "object",
+        "required": [
+            "submission",
+            "criteria",
+            "peer_evaluations",
+            "system_evaluations",
+        ],
+        "properties": {
+            "submission": JSON,
+            "criteria": array_of(JSON),
+            "peer_evaluations": array_of(ref("PeerEvaluation")),
+            "system_evaluations": array_of(ref("SystemEvaluation")),
+        },
+    },
 }

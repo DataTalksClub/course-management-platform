@@ -32,6 +32,8 @@ from .project import (
     ProjectVote,
     ReviewCriteria,
     ReviewCriteriaTypes,
+    SystemEvaluationCriteriaResponse,
+    SystemProjectEvaluation,
 )
 from .wrapped import UserWrappedStatistics, WrappedStatistics
 
@@ -62,6 +64,8 @@ __all__ = (
     "RegistrationCampaign",
     "ReviewCriteria",
     "ReviewCriteriaTypes",
+    "SystemEvaluationCriteriaResponse",
+    "SystemProjectEvaluation",
     "Submission",
     "User",
     "UserWrappedStatistics",

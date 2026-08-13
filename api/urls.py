@@ -11,6 +11,7 @@ from .views import homework_exports
 from .views import homeworks
 from .views import leaderboard_exports
 from .views import project_exports
+from .views import project_system_evaluations
 from .views import projects
 from .views import questions
 from .views import registration_campaigns
@@ -155,6 +156,15 @@ urlpatterns = [
         "courses/<slug:course_slug>/projects/by-slug/<slug:project_slug>/score/",
         projects.project_score_by_slug_view,
         name="api_project_score_by_slug",
+    ),
+    path(
+        (
+            "courses/<slug:course_slug>/projects/by-slug/"
+            "<slug:project_slug>/submissions/<int:submission_id>/"
+            "system-evaluations/"
+        ),
+        project_system_evaluations.project_system_evaluations_view,
+        name="api_project_system_evaluations",
     ),
     # Questions
     path(

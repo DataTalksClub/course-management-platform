@@ -10,6 +10,7 @@ from courses.models.project import (
     ProjectEvaluationScore,
     ProjectSubmission,
     ReviewCriteria,
+    SystemEvaluationCriteriaResponse,
 )
 
 
@@ -42,15 +43,20 @@ def calculate_project_score(
     evaluation_criteria: Iterable[ReviewCriteria],
     reviews: list[PeerReview],
 ) -> tuple[int, list[ProjectEvaluationScore]]:
-    if len(reviews) == 0:
+    responses_by_criteria = responses_grouped_by_criteria(reviews)
+    system_responses = SystemEvaluationCriteriaResponse.objects.filter(
+        evaluation__submission=submission,
+    ).select_related("criteria")
+    for response in system_responses:
+        responses_by_criteria[response.criteria_id].append(response)
+
+    if len(reviews) == 0 and not responses_by_criteria:
         logger.info(f"No reviews found for submission {submission.id}")
         return calculate_median_score(submission, evaluation_criteria)
 
     new_evaluations: list[ProjectEvaluationScore] = []
 
     project_score = 0
-    responses_by_criteria = responses_grouped_by_criteria(reviews)
-
     for responses in responses_by_criteria.values():
         criteria_score, evaluation = score_project_criteria(
             submission, responses
