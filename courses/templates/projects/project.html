@@ -74,7 +74,7 @@
             {% if is_authenticated %}
             <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span class="text-xs font-semibold uppercase app-muted">Status:</span>
-                {% if submission %}
+                {% if has_submission %}
                     <span class="app-badge app-badge-upper app-badge-success">Submitted</span>
                 {% else %}
                     <span class="app-badge app-badge-upper app-badge-neutral">Not submitted</span>
@@ -99,7 +99,7 @@
     </div>
     <div class="mt-6 space-y-3">
         {% if disabled %}
-            {% if submission %}
+            {% if has_submission %}
                 {% if project.state == 'PR' %}
                     <div class="rounded-md border app-alert-warning p-4">
                         The project is currently in the peer-reviewing phase.
@@ -131,7 +131,7 @@
             </a>
         </div>
     {% endif %}
-    {% if accepting_submissions or submission %}
+    {% if accepting_submissions or has_submission %}
     <form method="post" id="project-form" class="needs-validation mt-7 md:mt-8" novalidate>
         {% if is_authenticated %}
             {% csrf_token %}
@@ -235,7 +235,7 @@
         </section>
         <div class="mt-6">
             <div class="text-sm app-muted">
-                {% if submission %}
+                {% if has_submission %}
                     Last saved at:
                     <span>{{ submission.submitted_at|user_datetime:request }}</span>
                 {% else %}
@@ -250,7 +250,7 @@
             {% if accepting_submissions %}
                 <div class="mt-4 flex flex-wrap gap-2 border-t app-border pt-5">
                     {% if is_authenticated %}
-                        {% if not submission %}
+                        {% if not has_submission %}
                             <button id="submit-button"
                                     type="submit"
                                     class="primer-button">

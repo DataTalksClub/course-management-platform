@@ -120,3 +120,25 @@ class ProjectSubmissionInvalidNewViewTestCase(ProjectSubmissionViewTestBase):
         )
         submission_count = self.project_submission_count()
         self.assertEqual(submission_count, 0)
+
+    @mock.patch("requests.head")
+    @mock.patch("requests.get")
+    def test_project_submission_post_invalid_link_shows_not_submitted(
+        self, mock_get, mock_head
+    ):
+        """A failed first-time submission must not be displayed as
+        submitted even though the form echoes the posted values."""
+        self.mock_url_check_status(mock_get, mock_head, 404)
+        data = self.project_submission_data(
+            github_link="https://github.com/alexeygrigorev/404",
+        )
+
+        response = self.post_project(data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Failed to submit the project")
+        self.assertEqual(self.project_submission_count(), 0)
+        self.assertFalse(response.context["has_submission"])
+        self.assertContains(response, "Not submitted")
+        self.assertNotContains(response, ">Submitted<")
+        self.assertContains(response, "Status: Not saved yet")
