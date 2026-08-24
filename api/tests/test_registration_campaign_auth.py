@@ -1,7 +1,7 @@
 from django.test import Client
 
 from accounts.models import CustomUser, Token
-from courses.models import RegistrationCampaign
+from courses.models import CourseRegistration, RegistrationCampaign
 
 from .registration_campaign_base import RegistrationCampaignAPITestBase
 
@@ -35,10 +35,18 @@ class RegistrationCampaignAuthAPITestCase(RegistrationCampaignAPITestBase):
         patch_response = self.patch_campaign(client, patch_payload)
         registrations_url = self.campaign_registrations_url()
         registrations_response = client.get(registrations_url)
+        registrations_create_payload = {
+            "registrations": [{"email": "nonstaff-registrant@example.com"}],
+        }
+        registrations_create_response = self.post_registrations(
+            client,
+            registrations_create_payload,
+        )
         responses = []
         responses.append(create_response)
         responses.append(patch_response)
         responses.append(registrations_response)
+        responses.append(registrations_create_response)
         return responses
 
     def test_registration_campaign_api_requires_auth(self):
@@ -64,3 +72,7 @@ class RegistrationCampaignAuthAPITestCase(RegistrationCampaignAPITestBase):
         self.assertFalse(nonstaff_campaign_exists)
         campaign.refresh_from_db()
         self.assertEqual(campaign.title, "LLM Zoomcamp")
+        nonstaff_registration_exists = CourseRegistration.objects.filter(
+            email_normalized="nonstaff-registrant@example.com",
+        ).exists()
+        self.assertFalse(nonstaff_registration_exists)

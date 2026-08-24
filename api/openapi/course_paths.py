@@ -18,6 +18,10 @@ REGISTRATION_CAMPAIGN_PATCH_REF = ref("RegistrationCampaignPatch")
 REGISTRATION_CAMPAIGN_REGISTRATIONS_REF = ref(
     "RegistrationCampaignRegistrations"
 )
+COURSE_REGISTRATIONS_BULK_CREATE_REF = ref("CourseRegistrationsBulkCreate")
+COURSE_REGISTRATIONS_BULK_CREATE_RESULT_REF = ref(
+    "CourseRegistrationsBulkCreateResult"
+)
 ERROR_REF = ref("Error")
 COURSES_LIST_SUCCESS_RESPONSE = response("Course list", COURSES_LIST_REF)
 COURSES_CREATE_SUCCESS_RESPONSE = response(
@@ -52,6 +56,10 @@ REGISTRATION_CAMPAIGN_PATCH_SUCCESS_RESPONSE = response(
 REGISTRATION_CAMPAIGN_REGISTRATIONS_SUCCESS_RESPONSE = response(
     "Registration campaign registrations",
     REGISTRATION_CAMPAIGN_REGISTRATIONS_REF,
+)
+COURSE_REGISTRATIONS_BULK_CREATE_SUCCESS_RESPONSE = response(
+    "Bulk registration creation results",
+    COURSE_REGISTRATIONS_BULK_CREATE_RESULT_REF,
 )
 
 COURSES_LIST_RESPONSES = {
@@ -182,6 +190,31 @@ REGISTRATION_CAMPAIGN_REGISTRATIONS_OPERATION = operation(
     REGISTRATION_CAMPAIGN_REGISTRATIONS_DATA
 )
 
+COURSE_REGISTRATIONS_BULK_CREATE_RESPONSES = {
+    "201": COURSE_REGISTRATIONS_BULK_CREATE_SUCCESS_RESPONSE,
+    "400": INVALID_REQUEST_RESPONSE,
+    "404": REGISTRATION_CAMPAIGN_NOT_FOUND_RESPONSE,
+}
+COURSE_REGISTRATIONS_BULK_CREATE_BODY = request_body(
+    COURSE_REGISTRATIONS_BULK_CREATE_REF
+)
+COURSE_REGISTRATIONS_BULK_CREATE_DATA = OperationData(
+    "api_registration_campaign_registrations",
+    ["Registration Campaigns"],
+    "Bulk create registrations for a campaign",
+    COURSE_REGISTRATIONS_BULK_CREATE_RESPONSES,
+    body=COURSE_REGISTRATIONS_BULK_CREATE_BODY,
+    description=(
+        "Creates registrations from a list of {email, name, company_name, "
+        "country, role, comment, accepted_newsletter} objects. Existing "
+        "campaign+email registrations are skipped, not overwritten. "
+        "Requires a staff token."
+    ),
+)
+COURSE_REGISTRATIONS_BULK_CREATE_OPERATION = operation(
+    COURSE_REGISTRATIONS_BULK_CREATE_DATA
+)
+
 COURSE_PATHS_BY_URL_NAME = {
     "api_courses_list": {
         "get": COURSES_LIST_OPERATION,
@@ -201,5 +234,6 @@ COURSE_PATHS_BY_URL_NAME = {
     },
     "api_registration_campaign_registrations": {
         "get": REGISTRATION_CAMPAIGN_REGISTRATIONS_OPERATION,
+        "post": COURSE_REGISTRATIONS_BULK_CREATE_OPERATION,
     },
 }

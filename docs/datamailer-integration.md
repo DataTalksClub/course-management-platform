@@ -794,26 +794,52 @@ directly via Datamailer.
 moving a deadline just changes the next run (no campaign to update).
 **Target:** keep; extend the "tighten audience to who still owes work" pattern.
 
-### 4.11 General course announcements (new courses, cohorts, starts, modules) — not built
+### 4.11 General course announcements (new courses, cohorts, starts, modules)
 
 Broad, non-personalized announcements — "a new course is open", "a new cohort is
-launching", "the course starts Monday", "module 3 is live" — are **not
-implemented anywhere today**. The `email_course_updates` preference exists (its
-help text even mentions course-start announcements), but no code sends them.
+launching", "the course starts Monday", "module 3 is live" — are **implemented**,
+driven end-to-end from CMP through Datamailer campaigns. The `email_course_updates`
+preference (§5) gates delivery via the campaign's `course-updates` category tag,
+enforced by Datamailer at send time.
 
 These are **campaign territory, not transactional**: one message to a whole
 audience node, not one-per-learner with per-learner context.
 
 - **Audience:** a tree node — `<all>` for a platform-wide notice, `{course-slug}`
-  for one course/cohort, optionally `{course-slug}` filtered by module progress.
+  for one course/cohort (all registrants), or `{course-slug}:@e` for enrolled only.
 - **Category:** course updates — Datamailer-enforced at delivery (§5).
-- **Mechanism (target):** a Datamailer **campaign** with an external key (Part 2 →
-  Broad course emails / Campaign API, gap #5), so CMP can create / queue / cancel
-  a scheduled announcement and Datamailer snapshots recipients at queue time.
+- **Mechanism:** a Datamailer **campaign** with an external key (Part 2 → Broad
+  course emails / Campaign API, gap #5 — closed), so CMP creates / queues /
+  cancels a scheduled announcement and Datamailer snapshots recipients at queue
+  time. CMP drives this two ways:
 
-**Today:** absent — any such email is sent by hand from the Datamailer operator
-UI. **Target:** CMP-driven campaign API keyed per announcement. ⚠️ depends on the
-campaign API (gap #5).
+  1. **cadmin UI.** Each course's admin page has a "Landing page" link
+     (`cadmin/templates/cadmin/course_admin.html:23-28`) that opens a campaign
+     editor (`cadmin_campaign_create` / `cadmin_campaign_edit` views in
+     `cadmin/views/campaigns.py:23` and `:64`, URLs in `cadmin/urls.py:14-21`).
+     The edit page (`cadmin/templates/cadmin/campaign_form.html`, lines 91-173)
+     has a "Datamailer campaign" section with buttons that POST a
+     `datamailer_action` — Sync draft, Preview, Test send, Queue, Cancel —
+     handled in `cadmin/views/campaign_datamailer.py` (e.g.
+     `queue_datamailer_campaign_action` and `test_send_datamailer_campaign_action`,
+     upserted via `upsert_datamailer_campaign_if_needed`). The payload builder
+     (`course_management/datamailer/payloads/registration_campaigns.py:17-25`)
+     sets `recipient_list_key` to the course slug, so the email reaches every
+     registrant for that course automatically (recipient list keyed by course
+     slug per `course_management/datamailer/keys.py:23-26`).
+  2. **Management command.** `courses/management/commands/datamailer_campaign.py`
+     is a CLI to create / update / queue / preview / test-send / cancel any
+     Datamailer campaign, with `--recipient-list-key <course-slug>` (all
+     registrants) or `<course-slug>:@e` (enrolled only, via
+     `course_enrolled_list_key` in `keys.py:29-30`), mapping to
+     `run_campaign_actions` in
+     `course_management/datamailer/campaign_operations.py:100-128`.
+
+**Today:** implemented — cadmin operators run one-off announcement campaigns per
+course/cohort through the campaign editor, and the management command covers
+scripted or ad hoc sends. **Target:** unchanged; the campaign mechanism itself is
+built, so remaining work here is product polish (e.g. scheduling UX), not the
+integration.
 
 ---
 
@@ -935,7 +961,7 @@ are designing out.
 | Cascade | none — every level written by hand | adding a leaf implies ancestors (gap #8) |
 | Peer-review audience | all project submitters | only those who still owe reviews (gap #2) |
 | Certificate audience | direct send, no list | `{course}:@e:@graduated`-backed |
-| Broad announcements | operator UI campaigns | CMP-driven campaign API with external key (gap #5) |
+| Broad announcements | **CMP-driven campaign API with external key** (§4.11, gap #5 — closed) | unchanged |
 | Submit confirmation + membership | two separate calls | keep separate; no force-send-on-membership in v1 (§7) |
 | Preference granularity | results share `email_submission_confirmations` | v1 uses three category tags (§7) |
 
@@ -1060,7 +1086,7 @@ production rollout.
 | 2 | `peer-review-pending` node *(optional)* — only if a **non-reminder** feature needs to address "who still owes reviews" directly; reminders don't need it (CMP computes the set, §4.10) | Optional targeted addressing | CMP + Datamailer |
 | 3 | `certificate-eligible` / `course-graduates` list | Graduate campaigns; list-backed certs | CMP + Datamailer |
 | 4 | **Force-send-on-membership** flag (opt-in) | Q1, special-case unified add+send | Datamailer |
-| 5 | Campaign API with external key (`PUT /api/campaigns/{key}`, queue, cancel) | CMP-driven broad announcements | Datamailer |
+| 5 | ~~Campaign API with external key (`PUT /api/campaigns/{key}`, queue, cancel)~~ — **closed**: implemented and driven by CMP (cadmin campaign editor + `datamailer_campaign` management command, §4.11) | CMP-driven broad announcements | Datamailer |
 | 6 | Dedicated result / review preference fields | Q3 finer learner control | CMP |
 | 7 | Resubscribe → optionally re-enable CMP preference (today: stored only) | Honor re-opt-in | CMP policy + Datamailer metadata |
 | 8 | **Upward-cascade membership** — adding a member to a node implies all ancestor nodes up to `<all>` | Generic audience tree (§2); CMP stops maintaining parent levels by hand | Datamailer |
@@ -1901,9 +1927,11 @@ pref-results-notifications
 ```
 
 CMP should not use tags as the canonical source for submitter or registrant
-lists — use recipient lists for those. Datamailer currently supports campaign
-creation through the operator UI. The target adds a campaign API with an external
-key (gap #5):
+lists — use recipient lists for those. Datamailer supports campaign creation
+through the operator UI, and, as of gap #5 being closed, also through the campaign
+API with an external key that CMP now drives directly (see §4.11 for the two CMP
+mechanisms — the cadmin campaign editor and the `datamailer_campaign` management
+command):
 
 ```text
 PUT  /api/campaigns/{external_key}

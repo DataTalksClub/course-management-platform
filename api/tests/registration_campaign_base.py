@@ -67,3 +67,12 @@ class RegistrationCampaignAPITestBase(TestCase):
             request_body,
             content_type="application/json",
         )
+
+    def post_registrations(self, client, payload):
+        url = self.campaign_registrations_url()
+        request_body = json.dumps(payload)
+        return client.post(
+            url,
+            request_body,
+            content_type="application/json",
+        )

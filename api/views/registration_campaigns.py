@@ -10,6 +10,9 @@ from api.views.registration_campaign_mutations import (
     clean_campaign_payload,
     created_campaign,
 )
+from api.views.registration_campaign_registration_mutations import (
+    bulk_create_registrations_payload,
+)
 from api.views.registration_campaign_registrations import (
     registration_campaign_registrations_payload,
 )
@@ -95,14 +98,15 @@ def registration_campaign_detail_view(request, campaign_slug):
     return response
 
 
-@token_required
-@require_methods("GET")
-def registration_campaign_registrations_view(request, campaign_slug):
-    staff_error = require_staff_token(request)
-    if staff_error:
-        return staff_error
+def registration_campaign_registrations_create_response(request, campaign):
+    payload, err = bulk_create_registrations_payload(campaign, request)
+    if err:
+        return err
+    response = JsonResponse(payload, status=201)
+    return response
 
-    campaign = get_object_or_404(RegistrationCampaign, slug=campaign_slug)
+
+def registration_campaign_registrations_list_response(request, campaign):
     payload, err = registration_campaign_registrations_payload(
         campaign,
         request.GET,
@@ -111,3 +115,21 @@ def registration_campaign_registrations_view(request, campaign_slug):
         return err
     response = JsonResponse(payload)
     return response
+
+
+@token_required
+@csrf_exempt
+@require_methods("GET", "POST")
+def registration_campaign_registrations_view(request, campaign_slug):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
+    campaign = get_object_or_404(RegistrationCampaign, slug=campaign_slug)
+
+    if request.method == "POST":
+        return registration_campaign_registrations_create_response(
+            request, campaign
+        )
+
+    return registration_campaign_registrations_list_response(request, campaign)

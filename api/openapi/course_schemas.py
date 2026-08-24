@@ -151,6 +151,49 @@ COURSE_REGISTRATION_SCHEMA = model_object_schema(
     ],
     extra_properties=COURSE_REGISTRATION_EXTRA_PROPERTIES,
 )
+COURSE_REGISTRATION_CREATE_ITEM_SCHEMA = model_object_schema(
+    CourseRegistration,
+    [
+        "email",
+        "name",
+        "company_name",
+        "country",
+        "role",
+        "comment",
+        "accepted_newsletter",
+    ],
+    required_fields=["email"],
+)
+COURSE_REGISTRATIONS_BULK_CREATE_SCHEMA = {
+    "type": "object",
+    "required": ["registrations"],
+    "properties": {
+        "registrations": array_of(COURSE_REGISTRATION_CREATE_ITEM_SCHEMA),
+    },
+}
+COURSE_REGISTRATION_CREATE_RESULT_SCHEMA = {
+    "type": "object",
+    "required": ["status"],
+    "properties": {
+        "status": {
+            "type": "string",
+            "enum": ["created", "skipped", "error"],
+        },
+        "email": {"type": "string"},
+        "id": {"type": "integer"},
+        "reason": {"type": "string"},
+        "errors": JSON,
+    },
+}
+COURSE_REGISTRATIONS_BULK_CREATE_RESULT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "created": {"type": "integer"},
+        "skipped": {"type": "integer"},
+        "errors": {"type": "integer"},
+        "results": array_of(COURSE_REGISTRATION_CREATE_RESULT_SCHEMA),
+    },
+}
 
 COURSE_SCHEMAS = {
     "Error": {
@@ -235,4 +278,8 @@ COURSE_SCHEMAS = {
             "registrations": COURSE_REGISTRATION_ARRAY,
         },
     },
+    "CourseRegistrationsBulkCreate": COURSE_REGISTRATIONS_BULK_CREATE_SCHEMA,
+    "CourseRegistrationsBulkCreateResult": (
+        COURSE_REGISTRATIONS_BULK_CREATE_RESULT_SCHEMA
+    ),
 }
