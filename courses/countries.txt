@@ -152,6 +152,7 @@ Kuwait
 Kyrgyzstan
 Laos
 Lebanon
+Macau
 Malaysia
 Maldives
 Mongolia
@@ -243,3 +244,4 @@ Micronesia
 Palau
 Marshall Islands
 New Caledonia
+Guam
