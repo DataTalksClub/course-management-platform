@@ -24,6 +24,7 @@ REGISTRATION_FIELDS = {
     "comment",
     "accepted_newsletter",
 }
+PATCHABLE_REGISTRATION_FIELDS = REGISTRATION_FIELDS - {"email"}
 VALID_ROLES = {choice for choice, _label in CourseRegistration.Role.choices}
 EMAIL_VALIDATOR = EmailValidator()
 
@@ -133,6 +134,57 @@ def built_registration(campaign, item, email_normalized):
         comment=item.get("comment") or "",
         accepted_newsletter=bool(item.get("accepted_newsletter", False)),
     )
+
+
+def update_registration_payload(registration, request):
+    data, err = parse_json_body(request)
+    if err:
+        return None, err
+
+    if not isinstance(data, dict):
+        error = error_response("Body must be an object", "invalid_body")
+        return None, error
+
+    field_error = registration_patch_field_error(data)
+    if field_error:
+        error = error_response(
+            "Registration validation failed",
+            "validation_error",
+            details=field_error,
+        )
+        return None, error
+
+    apply_registration_patch(registration, data)
+    registration.save()
+
+    return registration_to_dict(registration), None
+
+
+def registration_patch_field_error(data):
+    unknown_fields = set(data) - PATCHABLE_REGISTRATION_FIELDS
+    if unknown_fields:
+        field = sorted(unknown_fields)[0]
+        return {"field": f"Unknown field: {field}"}
+
+    if "role" in data:
+        role = data.get("role") or ""
+        if role and role not in VALID_ROLES:
+            return {"role": f"Invalid role: {role}"}
+
+    if "country" in data:
+        country = data.get("country") or ""
+        if country and not region_for_country(country):
+            return {"country": "Select a valid country"}
+
+    return None
+
+
+def apply_registration_patch(registration, data):
+    for field, value in data.items():
+        setattr(registration, field, value)
+
+    if "country" in data:
+        registration.region = region_for_country(registration.country)
 
 
 def results_summary(results):

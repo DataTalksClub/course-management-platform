@@ -95,6 +95,12 @@ urlpatterns = [
         registration_campaigns.registration_campaign_registrations_view,
         name="api_registration_campaign_registrations",
     ),
+    path(
+        "registration-campaigns/<slug:campaign_slug>/registrations/"
+        "<int:registration_id>/",
+        registration_campaigns.registration_campaign_registration_detail_view,
+        name="api_registration_campaign_registration_detail",
+    ),
     # Homeworks
     path(
         "courses/<slug:course_slug>/homeworks/",

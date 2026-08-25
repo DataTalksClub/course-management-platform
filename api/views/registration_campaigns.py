@@ -12,12 +12,16 @@ from api.views.registration_campaign_mutations import (
 )
 from api.views.registration_campaign_registration_mutations import (
     bulk_create_registrations_payload,
+    update_registration_payload,
 )
 from api.views.registration_campaign_registrations import (
     registration_campaign_registrations_payload,
 )
-from api.views.registration_campaign_serializers import campaign_to_dict
-from courses.models.course import RegistrationCampaign
+from api.views.registration_campaign_serializers import (
+    campaign_to_dict,
+    registration_to_dict,
+)
+from courses.models.course import CourseRegistration, RegistrationCampaign
 
 
 def campaigns_list_response():
@@ -133,3 +137,34 @@ def registration_campaign_registrations_view(request, campaign_slug):
         )
 
     return registration_campaign_registrations_list_response(request, campaign)
+
+
+def registration_patch_response(request, registration):
+    data, err = update_registration_payload(registration, request)
+    if err:
+        return err
+    response = JsonResponse(data)
+    return response
+
+
+@token_required
+@csrf_exempt
+@require_methods("GET", "PATCH")
+def registration_campaign_registration_detail_view(
+    request, campaign_slug, registration_id
+):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
+    registration = get_object_or_404(
+        CourseRegistration.objects.select_related("campaign", "course"),
+        campaign__slug=campaign_slug,
+        id=registration_id,
+    )
+
+    if request.method == "PATCH":
+        return registration_patch_response(request, registration)
+
+    response = JsonResponse(registration_to_dict(registration))
+    return response

@@ -25,7 +25,7 @@ class RegistrationCampaignAuthAPITestCase(RegistrationCampaignAPITestBase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["code"], "staff_token_required")
 
-    def non_staff_admin_responses(self, client):
+    def non_staff_admin_responses(self, client, registration):
         create_payload = {
             "slug": "nonstaff-campaign",
             "title": "Nonstaff Campaign",
@@ -42,11 +42,17 @@ class RegistrationCampaignAuthAPITestCase(RegistrationCampaignAPITestBase):
             client,
             registrations_create_payload,
         )
+        registration_patch_response = self.patch_registration(
+            client,
+            registration.id,
+            {"country": "France"},
+        )
         responses = []
         responses.append(create_response)
         responses.append(patch_response)
         responses.append(registrations_response)
         responses.append(registrations_create_response)
+        responses.append(registration_patch_response)
         return responses
 
     def test_registration_campaign_api_requires_auth(self):
@@ -60,10 +66,10 @@ class RegistrationCampaignAuthAPITestCase(RegistrationCampaignAPITestBase):
         self,
     ):
         campaign = self.create_campaign()
-        self.create_registration(campaign)
+        registration = self.create_registration(campaign)
         client = self.non_staff_client()
 
-        for response in self.non_staff_admin_responses(client):
+        for response in self.non_staff_admin_responses(client, registration):
             self.assert_staff_token_required(response)
 
         nonstaff_campaign_exists = RegistrationCampaign.objects.filter(
@@ -76,3 +82,5 @@ class RegistrationCampaignAuthAPITestCase(RegistrationCampaignAPITestBase):
             email_normalized="nonstaff-registrant@example.com",
         ).exists()
         self.assertFalse(nonstaff_registration_exists)
+        registration.refresh_from_db()
+        self.assertEqual(registration.country, "Germany")

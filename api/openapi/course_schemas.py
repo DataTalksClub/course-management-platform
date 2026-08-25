@@ -164,6 +164,17 @@ COURSE_REGISTRATION_CREATE_ITEM_SCHEMA = model_object_schema(
     ],
     required_fields=["email"],
 )
+COURSE_REGISTRATION_PATCH_SCHEMA = model_object_schema(
+    CourseRegistration,
+    [
+        "name",
+        "company_name",
+        "country",
+        "role",
+        "comment",
+        "accepted_newsletter",
+    ],
+)
 COURSE_REGISTRATIONS_BULK_CREATE_SCHEMA = {
     "type": "object",
     "required": ["registrations"],
@@ -282,4 +293,5 @@ COURSE_SCHEMAS = {
     "CourseRegistrationsBulkCreateResult": (
         COURSE_REGISTRATIONS_BULK_CREATE_RESULT_SCHEMA
     ),
+    "CourseRegistrationPatch": COURSE_REGISTRATION_PATCH_SCHEMA,
 }

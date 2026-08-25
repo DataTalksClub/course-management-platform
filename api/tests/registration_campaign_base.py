@@ -50,6 +50,9 @@ class RegistrationCampaignAPITestBase(TestCase):
     def campaign_registrations_url(self):
         return "/api/registration-campaigns/llm-zoomcamp/registrations/"
 
+    def registration_detail_url(self, registration_id):
+        return f"/api/registration-campaigns/llm-zoomcamp/registrations/{registration_id}/"
+
     def post_campaign(self, client, payload):
         url = self.campaign_list_url()
         request_body = json.dumps(payload)
@@ -72,6 +75,15 @@ class RegistrationCampaignAPITestBase(TestCase):
         url = self.campaign_registrations_url()
         request_body = json.dumps(payload)
         return client.post(
+            url,
+            request_body,
+            content_type="application/json",
+        )
+
+    def patch_registration(self, client, registration_id, payload):
+        url = self.registration_detail_url(registration_id)
+        request_body = json.dumps(payload)
+        return client.patch(
             url,
             request_body,
             content_type="application/json",

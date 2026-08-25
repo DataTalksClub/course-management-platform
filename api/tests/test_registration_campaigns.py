@@ -121,3 +121,59 @@ class RegistrationCampaignAPITestCase(RegistrationCampaignAPITestBase):
         self.assertEqual(data["skipped"], 1)
         self.assertEqual(CourseRegistration.objects.count(), 1)
         sync_datamailer.assert_not_called()
+
+    def test_get_registration_detail(self):
+        campaign = self.create_campaign()
+        registration = self.create_registration(campaign)
+
+        response = self.client.get(self.registration_detail_url(registration.id))
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["id"], registration.id)
+        self.assertEqual(data["country"], "Germany")
+
+    def test_patch_registration_country_updates_region(self):
+        campaign = self.create_campaign()
+        registration = self.create_registration(campaign)
+        registration.country = "United States of America"
+        registration.region = "North America"
+        registration.save()
+
+        payload = {"country": "United States"}
+        response = self.patch_registration(
+            self.client, registration.id, payload
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["country"], "United States")
+        self.assertEqual(data["region"], "North America")
+
+        registration.refresh_from_db()
+        self.assertEqual(registration.country, "United States")
+        self.assertEqual(registration.region, "North America")
+
+    def test_patch_registration_rejects_invalid_country(self):
+        campaign = self.create_campaign()
+        registration = self.create_registration(campaign)
+
+        payload = {"country": "Not A Real Country"}
+        response = self.patch_registration(
+            self.client, registration.id, payload
+        )
+
+        self.assertEqual(response.status_code, 400)
+        registration.refresh_from_db()
+        self.assertEqual(registration.country, "Germany")
+
+    def test_patch_registration_rejects_unknown_field(self):
+        campaign = self.create_campaign()
+        registration = self.create_registration(campaign)
+
+        payload = {"email": "changed@example.com"}
+        response = self.patch_registration(
+            self.client, registration.id, payload
+        )
+
+        self.assertEqual(response.status_code, 400)

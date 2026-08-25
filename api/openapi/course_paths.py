@@ -22,6 +22,8 @@ COURSE_REGISTRATIONS_BULK_CREATE_REF = ref("CourseRegistrationsBulkCreate")
 COURSE_REGISTRATIONS_BULK_CREATE_RESULT_REF = ref(
     "CourseRegistrationsBulkCreateResult"
 )
+COURSE_REGISTRATION_REF = ref("CourseRegistration")
+COURSE_REGISTRATION_PATCH_REF = ref("CourseRegistrationPatch")
 ERROR_REF = ref("Error")
 COURSES_LIST_SUCCESS_RESPONSE = response("Course list", COURSES_LIST_REF)
 COURSES_CREATE_SUCCESS_RESPONSE = response(
@@ -60,6 +62,18 @@ REGISTRATION_CAMPAIGN_REGISTRATIONS_SUCCESS_RESPONSE = response(
 COURSE_REGISTRATIONS_BULK_CREATE_SUCCESS_RESPONSE = response(
     "Bulk registration creation results",
     COURSE_REGISTRATIONS_BULK_CREATE_RESULT_REF,
+)
+COURSE_REGISTRATION_DETAIL_SUCCESS_RESPONSE = response(
+    "Registration",
+    COURSE_REGISTRATION_REF,
+)
+COURSE_REGISTRATION_PATCH_SUCCESS_RESPONSE = response(
+    "Updated registration",
+    COURSE_REGISTRATION_REF,
+)
+COURSE_REGISTRATION_NOT_FOUND_RESPONSE = response(
+    "Registration not found",
+    ERROR_REF,
 )
 
 COURSES_LIST_RESPONSES = {
@@ -215,6 +229,41 @@ COURSE_REGISTRATIONS_BULK_CREATE_OPERATION = operation(
     COURSE_REGISTRATIONS_BULK_CREATE_DATA
 )
 
+COURSE_REGISTRATION_DETAIL_RESPONSES = {
+    "200": COURSE_REGISTRATION_DETAIL_SUCCESS_RESPONSE,
+    "404": COURSE_REGISTRATION_NOT_FOUND_RESPONSE,
+}
+COURSE_REGISTRATION_DETAIL_DATA = OperationData(
+    "api_registration_campaign_registration_detail",
+    ["Registration Campaigns"],
+    "Get a single registration",
+    COURSE_REGISTRATION_DETAIL_RESPONSES,
+)
+COURSE_REGISTRATION_DETAIL_OPERATION = operation(
+    COURSE_REGISTRATION_DETAIL_DATA
+)
+
+COURSE_REGISTRATION_PATCH_RESPONSES = {
+    "200": COURSE_REGISTRATION_PATCH_SUCCESS_RESPONSE,
+    "400": INVALID_REQUEST_RESPONSE,
+    "404": COURSE_REGISTRATION_NOT_FOUND_RESPONSE,
+}
+COURSE_REGISTRATION_PATCH_BODY = request_body(COURSE_REGISTRATION_PATCH_REF)
+COURSE_REGISTRATION_PATCH_DATA = OperationData(
+    "api_registration_campaign_registration_detail",
+    ["Registration Campaigns"],
+    "Update a single registration",
+    COURSE_REGISTRATION_PATCH_RESPONSES,
+    body=COURSE_REGISTRATION_PATCH_BODY,
+    description=(
+        "Updates fields on a single registration (e.g. correcting a "
+        "country value). Email cannot be changed. Requires a staff token."
+    ),
+)
+COURSE_REGISTRATION_PATCH_OPERATION = operation(
+    COURSE_REGISTRATION_PATCH_DATA
+)
+
 COURSE_PATHS_BY_URL_NAME = {
     "api_courses_list": {
         "get": COURSES_LIST_OPERATION,
@@ -235,5 +284,9 @@ COURSE_PATHS_BY_URL_NAME = {
     "api_registration_campaign_registrations": {
         "get": REGISTRATION_CAMPAIGN_REGISTRATIONS_OPERATION,
         "post": COURSE_REGISTRATIONS_BULK_CREATE_OPERATION,
+    },
+    "api_registration_campaign_registration_detail": {
+        "get": COURSE_REGISTRATION_DETAIL_OPERATION,
+        "patch": COURSE_REGISTRATION_PATCH_OPERATION,
     },
 }
