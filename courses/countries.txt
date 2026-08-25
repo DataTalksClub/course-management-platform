@@ -110,6 +110,8 @@ Puerto Rico
 Curacao
 Aruba
 Cayman Islands
+British Virgin Islands
+U.S. Virgin Islands
 
 [South America]
 Argentina
@@ -195,6 +197,7 @@ Estonia
 Finland
 France
 Germany
+Gibraltar
 Greece
 Hungary
 Iceland
@@ -244,3 +247,4 @@ Palau
 Marshall Islands
 New Caledonia
 Guam
+Cook Islands
