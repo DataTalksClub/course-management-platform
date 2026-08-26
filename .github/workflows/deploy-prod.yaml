@@ -13,6 +13,9 @@ on:
         description: "Tag to deploy to production (optional)"
         required: false
 
+concurrency:
+  group: deploy-prod
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
