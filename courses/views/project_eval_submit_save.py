@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 
 from django.contrib import messages
+from django.db import transaction
 from django.http import HttpRequest
 from django.utils import timezone
 
@@ -23,24 +24,25 @@ def project_eval_post_submission(
     review: PeerReview,
     review_criteria: Iterable[ReviewCriteria],
 ) -> None:
-    answers_by_field = project_eval_answers_from_post(request.POST)
-    save_project_eval_criteria_responses(
-        review,
-        review_criteria,
-        answers_by_field,
-    )
-    apply_review_learning_in_public_links(request, project, review)
-    apply_review_time_spent(request, project, review)
-    if project.problems_comments_field:
-        problems_comments = request.POST.get("problems_comments", "")
-        review.problems_comments = problems_comments.strip()
+    with transaction.atomic():
+        answers_by_field = project_eval_answers_from_post(request.POST)
+        save_project_eval_criteria_responses(
+            review,
+            review_criteria,
+            answers_by_field,
+        )
+        apply_review_learning_in_public_links(request, project, review)
+        apply_review_time_spent(request, project, review)
+        if project.problems_comments_field:
+            problems_comments = request.POST.get("problems_comments", "")
+            review.problems_comments = problems_comments.strip()
 
-    note_to_peer = request.POST.get("note_to_peer", "")
-    review.note_to_peer = note_to_peer.strip()
+        note_to_peer = request.POST.get("note_to_peer", "")
+        review.note_to_peer = note_to_peer.strip()
 
-    review.submitted_at = timezone.now()
-    review.state = PeerReviewState.SUBMITTED.value
-    review.save()
+        review.submitted_at = timezone.now()
+        review.state = PeerReviewState.SUBMITTED.value
+        review.save()
     criteria_count = len(review_criteria)
     record_event(
         "project.review_submitted",

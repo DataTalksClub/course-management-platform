@@ -177,6 +177,27 @@ class ProjectEvaluationSubmitPostTestCase(ProjectEvaluationTestBase):
         expected_links = self.learning_in_public_review_links()
         self.assert_learning_in_public_links_saved(expected_links)
 
+    def test_eval_submit_post_invalid_learning_in_public_link(self):
+        post_data = self.review_post_data(
+            **{"learning_in_public_links[]": ["not-a-valid-url"]},
+        )
+        response = self.post_eval_submit(post_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Learning in public links must be valid HTTP or HTTPS URLs.",
+            status_code=200,
+        )
+
+        self.peer_review = fetch_fresh(self.peer_review)
+        self.assertEqual(self.peer_review.state, PeerReviewState.TO_REVIEW.value)
+        self.assertIsNone(self.peer_review.submitted_at)
+        criteria_response_exists = CriteriaResponse.objects.filter(
+            review=self.peer_review
+        ).exists()
+        self.assertFalse(criteria_response_exists)
+
     def test_eval_submit_post_already_submitted(self):
         criteria_response_map = self.create_criteria_responses()
         self.mark_peer_review_submitted()

@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 
 from course_management.observability import record_event
@@ -63,16 +64,40 @@ def closed_project_eval_response(
     return response
 
 
+def project_eval_validation_error_response(
+    request,
+    page: ProjectEvalSubmitPage,
+    error: ValidationError,
+):
+    for message in error.messages:
+        messages.error(
+            request,
+            message,
+            extra_tags="alert-danger",
+        )
+    context = project_eval_submit_context(request, page)
+    response = render(request, "projects/eval_submit.html", context)
+    return response
+
+
 def project_eval_submission_response(
     request,
     page: ProjectEvalSubmitPage,
 ):
-    project_eval_post_submission(
-        request,
-        page.project,
-        page.review,
-        page.review_criteria,
-    )
+    try:
+        project_eval_post_submission(
+            request,
+            page.project,
+            page.review,
+            page.review_criteria,
+        )
+    except ValidationError as error:
+        return project_eval_validation_error_response(
+            request,
+            page,
+            error,
+        )
+
     response = redirect(
         "projects_eval",
         course_slug=page.course.slug,
