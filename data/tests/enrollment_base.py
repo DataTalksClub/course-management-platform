@@ -173,9 +173,24 @@ class EnrollmentDataAPIBase(TestCase):
             kwargs={"course_slug": self.course.slug},
         )
 
+    def certificate_notify_url(self):
+        return reverse(
+            "api_course_certificate_notify",
+            kwargs={"course_slug": self.course.slug},
+        )
+
     def post_certificates(self, data):
         url = self.certificate_url()
         body = json.dumps(data)
+        return self.client.post(
+            url,
+            body,
+            content_type="application/json",
+        )
+
+    def post_certificate_notify(self, email):
+        url = self.certificate_notify_url()
+        body = json.dumps({"email": email})
         return self.client.post(
             url,
             body,

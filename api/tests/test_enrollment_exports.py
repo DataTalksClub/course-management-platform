@@ -20,6 +20,7 @@ class EnrollmentExportSuccessAPITestCase(EnrollmentExportsAPITestBase):
             "email": "student@example.com",
             "enrollment_id": enrollment.id,
             "certificate_url": "/certificates/student.pdf",
+            "notify": True,
         }
         updated = []
         updated.append(updated_item)
@@ -33,7 +34,9 @@ class EnrollmentExportSuccessAPITestCase(EnrollmentExportsAPITestBase):
         response_data = response.json()
         self.assertEqual(response_data, expected_response)
 
-    def test_bulk_update_certificates_updates_enrollment_and_notifies(self):
+    def test_bulk_update_certificates_updates_enrollment_without_notifying(
+        self,
+    ):
         enrollment = self.create_enrollment("student@example.com")
 
         with patch(
@@ -46,4 +49,4 @@ class EnrollmentExportSuccessAPITestCase(EnrollmentExportsAPITestBase):
 
         self.assert_single_certificate_response(response, enrollment)
         self.assert_certificate_url(enrollment, "/certificates/student.pdf")
-        send_notification.assert_called_once_with(enrollment)
+        send_notification.assert_not_called()

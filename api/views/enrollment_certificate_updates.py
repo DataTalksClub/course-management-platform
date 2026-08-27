@@ -4,7 +4,6 @@ from courses.models.course import Enrollment, User
 
 from api.views.enrollment_certificate_delivery import (
     persist_certificate_updates,
-    queue_certificate_notifications,
 )
 from api.views.enrollment_certificate_validation import (
     validate_certificate_update_items,
@@ -22,7 +21,6 @@ class CertificateApplyResult:
 @dataclass
 class CertificateApplyBatch:
     enrollments_to_update: dict
-    enrollments_to_notify: dict
     updated: list
     errors: list
 
@@ -33,8 +31,6 @@ class CertificateApplyBatch:
 
         enrollment = result.enrollment
         self.enrollments_to_update[enrollment.id] = enrollment
-        if result.notify:
-            self.enrollments_to_notify[enrollment.id] = enrollment
         self.updated.append(result.updated)
 
 
@@ -49,7 +45,6 @@ def process_certificate_updates(
     course,
     course_slug,
     certificate_updates,
-    notification_sender,
 ):
     valid_updates, errors = validate_certificate_update_items(
         certificate_updates
@@ -66,17 +61,9 @@ def process_certificate_updates(
     )
     errors.extend(apply_batch.errors)
 
-    deliver_certificate_update_batch(apply_batch, notification_sender)
+    persist_certificate_updates(apply_batch.enrollments_to_update)
 
     return apply_batch.updated, errors
-
-
-def deliver_certificate_update_batch(apply_batch, notification_sender):
-    persist_certificate_updates(apply_batch.enrollments_to_update)
-    queue_certificate_notifications(
-        apply_batch.enrollments_to_notify,
-        notification_sender,
-    )
 
 
 def certificate_update_lookups(course, course_slug, valid_updates):
@@ -108,7 +95,6 @@ def certificate_update_lookups(course, course_slug, valid_updates):
 def apply_certificate_updates(valid_updates, lookups):
     batch = CertificateApplyBatch(
         enrollments_to_update={},
-        enrollments_to_notify={},
         updated=[],
         errors=[],
     )
@@ -146,6 +132,7 @@ def apply_certificate_update(update, lookups):
         "email": update["email"],
         "enrollment_id": enrollment.id,
         "certificate_url": update["certificate_path"],
+        "notify": notify,
     }
     return CertificateApplyResult(
         enrollment=enrollment,

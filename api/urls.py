@@ -60,6 +60,11 @@ urlpatterns = [
         name="api_course_certificates",
     ),
     path(
+        "courses/<slug:course_slug>/certificates/notify",
+        enrollment_certificates.notify_enrollment_certificate_view,
+        name="api_course_certificate_notify",
+    ),
+    path(
         "datamailer/events",
         webhooks.datamailer_event_webhook,
         name="api_datamailer_events",

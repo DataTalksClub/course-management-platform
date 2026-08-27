@@ -51,6 +51,7 @@ INTEGRATION_SCHEMAS = {
             "email": {"type": "string"},
             "enrollment_id": {"type": "integer"},
             "certificate_url": {"type": "string"},
+            "notify": {"type": "boolean"},
         },
     },
     "CertificateUpdateError": {
@@ -71,6 +72,25 @@ INTEGRATION_SCHEMAS = {
             "error_count": {"type": "integer"},
             "updated": CERTIFICATE_UPDATE_RESULT_ARRAY,
             "errors": CERTIFICATE_UPDATE_ERROR_ARRAY,
+        },
+    },
+    "CertificateNotifyRequest": {
+        "type": "object",
+        "required": ["email"],
+        "properties": {
+            "email": {"type": "string"},
+        },
+    },
+    "CertificateNotifyResponse": {
+        "type": "object",
+        "required": ["success", "email"],
+        "properties": {
+            "success": {"type": "boolean"},
+            "email": {"type": "string"},
+            "enrollment_id": {"type": "integer"},
+            "certificate_url": {"type": "string"},
+            "code": {"type": "string"},
+            "error": {"type": "string"},
         },
     },
     "DatamailerEvent": {

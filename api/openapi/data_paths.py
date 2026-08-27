@@ -139,7 +139,11 @@ COURSE_CERTIFICATES_BODY = schema_request_body("CertificateUpdateRequest")
 COURSE_CERTIFICATES_DESCRIPTION = (
     "Updates many enrollment certificate URLs in one request. "
     "The response includes per-entry errors for missing users, "
-    "unenrolled users, and invalid entries."
+    "unenrolled users, and invalid entries. This endpoint only persists "
+    "certificate URLs and never sends notifications; each updated entry "
+    "is flagged `notify: true` when it is the enrollment's first "
+    "certificate, and callers should POST those emails one at a time to "
+    "api_course_certificate_notify."
 )
 COURSE_CERTIFICATES_DATA = OperationData(
     "api_course_certificates",
@@ -150,6 +154,38 @@ COURSE_CERTIFICATES_DATA = OperationData(
     description=COURSE_CERTIFICATES_DESCRIPTION,
 )
 COURSE_CERTIFICATES_OPERATION = operation(COURSE_CERTIFICATES_DATA)
+
+COURSE_CERTIFICATE_NOTIFY_SUCCESS_RESPONSE = schema_response(
+    "Certificate notification result",
+    "CertificateNotifyResponse",
+)
+COURSE_CERTIFICATE_NOTIFY_RESPONSES = {
+    "200": COURSE_CERTIFICATE_NOTIFY_SUCCESS_RESPONSE,
+    "400": INVALID_REQUEST_RESPONSE,
+    "404": COURSE_NOT_FOUND_RESPONSE,
+}
+COURSE_CERTIFICATE_NOTIFY_BODY = schema_request_body(
+    "CertificateNotifyRequest"
+)
+COURSE_CERTIFICATE_NOTIFY_DESCRIPTION = (
+    "Sends the certificate-availability notification for a single "
+    "already-uploaded enrollment certificate. Kept separate from the bulk "
+    "upload endpoint so a large graduating class can never turn one "
+    "request into a long chain of synchronous Datamailer calls; callers "
+    "loop over the entries flagged `notify: true` in the upload response "
+    "and call this endpoint once per email."
+)
+COURSE_CERTIFICATE_NOTIFY_DATA = OperationData(
+    "api_course_certificate_notify",
+    ["Course Data"],
+    "Notify a graduate their certificate is available",
+    COURSE_CERTIFICATE_NOTIFY_RESPONSES,
+    body=COURSE_CERTIFICATE_NOTIFY_BODY,
+    description=COURSE_CERTIFICATE_NOTIFY_DESCRIPTION,
+)
+COURSE_CERTIFICATE_NOTIFY_OPERATION = operation(
+    COURSE_CERTIFICATE_NOTIFY_DATA
+)
 
 DATAMAILER_EVENTS_SUCCESS_RESPONSE = schema_response(
     "Datamailer event accepted",
@@ -254,6 +290,9 @@ DATA_PATHS_BY_URL_NAME = {
     },
     "api_course_certificates": {
         "post": COURSE_CERTIFICATES_OPERATION,
+    },
+    "api_course_certificate_notify": {
+        "post": COURSE_CERTIFICATE_NOTIFY_OPERATION,
     },
     "api_datamailer_events": {
         "post": DATAMAILER_EVENTS_OPERATION,
