@@ -78,6 +78,11 @@ class CustomUser(AbstractUser):
         pk_text = str(self.pk)
         return pk_text
 
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.strip().lower()
+        super().save(*args, **kwargs)
+
 
 class Token(models.Model):
     key = models.CharField(max_length=40, primary_key=True)

@@ -76,7 +76,7 @@ def _certificate_notify_email(request):
 
 
 def _enrollment_for_certificate_notification(course, course_slug, email):
-    if not User.objects.filter(email=email).exists():
+    if not User.objects.filter(email__iexact=email).exists():
         error = {
             "email": email,
             "code": "user_not_found",
@@ -85,7 +85,7 @@ def _enrollment_for_certificate_notification(course, course_slug, email):
         return None, error
 
     enrollment = (
-        Enrollment.objects.filter(course=course, student__email=email)
+        Enrollment.objects.filter(course=course, student__email__iexact=email)
         .select_related("student")
         .first()
     )

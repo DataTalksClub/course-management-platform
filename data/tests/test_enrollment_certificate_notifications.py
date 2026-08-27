@@ -128,3 +128,22 @@ class EnrollmentCertificateNotifyAPITestCase(EnrollmentDataAPIBase):
         response = self.client.get(self.certificate_notify_url())
 
         self.assertEqual(response.status_code, 405)
+
+    @patch(
+        "api.views.enrollment_certificates."
+        "send_certificate_availability_notification"
+    )
+    def test_notify_matches_registered_email_case_insensitively(
+        self,
+        send_notification,
+    ):
+        self.user.email = "Mixed.Case@Example.com"
+        self.user.save()
+        self.enrollment.certificate_url = "/certificates/first.pdf"
+        self.enrollment.save()
+
+        response = self.post_certificate_notify("mixed.case@example.com")
+
+        result = response.json()
+        self.assertTrue(result["success"])
+        send_notification.assert_called_once()

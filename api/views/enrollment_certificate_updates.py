@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from django.db.models.functions import Lower
+
 from courses.models.course import Enrollment, User
 
 from api.views.enrollment_certificate_delivery import (
@@ -67,22 +69,30 @@ def process_certificate_updates(
 
 
 def certificate_update_lookups(course, course_slug, valid_updates):
-    emails = []
+    emails_lower = []
     for update in valid_updates:
-        emails.append(update["email"])
+        emails_lower.append(update["email"].strip().lower())
 
     users_by_email = {}
-    users = User.objects.filter(email__in=emails)
+    users = User.objects.annotate(email_lower=Lower("email")).filter(
+        email_lower__in=emails_lower
+    )
     for user in users:
-        users_by_email[user.email] = user
+        users_by_email[user.email_lower] = user
 
     enrollments_by_email = {}
-    enrollments = Enrollment.objects.filter(
-        course=course,
-        student__email__in=emails,
-    ).select_related("student")
+    enrollments = (
+        Enrollment.objects.annotate(
+            student_email_lower=Lower("student__email")
+        )
+        .filter(
+            course=course,
+            student_email_lower__in=emails_lower,
+        )
+        .select_related("student")
+    )
     for enrollment in enrollments:
-        enrollments_by_email[enrollment.student.email] = enrollment
+        enrollments_by_email[enrollment.student_email_lower] = enrollment
 
     lookups = CertificateUpdateLookups(
         course_slug=course_slug,
@@ -110,14 +120,14 @@ def apply_certificate_updates(valid_updates, lookups):
 
 
 def apply_certificate_update(update, lookups):
-    email = update["email"]
+    email_lower = update["email"].strip().lower()
     certificate_path = update["certificate_path"]
 
-    if email not in lookups.users_by_email:
+    if email_lower not in lookups.users_by_email:
         error = user_not_found_error(update)
         return CertificateApplyResult(error=error)
 
-    enrollment = lookups.enrollments_by_email.get(email)
+    enrollment = lookups.enrollments_by_email.get(email_lower)
     if enrollment is None:
         error = not_enrolled_error(update, lookups.course_slug)
         return CertificateApplyResult(error=error)

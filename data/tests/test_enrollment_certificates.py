@@ -84,3 +84,31 @@ class EnrollmentCertificateArrayPayloadAPITestCase(EnrollmentDataAPIBase):
         self.assert_certificate_url(
             self.enrollment, "/certificates/array.pdf"
         )
+
+
+class EnrollmentCertificateEmailCasingAPITestCase(EnrollmentDataAPIBase):
+    def test_bulk_update_matches_registered_email_case_insensitively(self):
+        self.user.email = "Mixed.Case@Example.com"
+        self.user.save()
+
+        data = [
+            {
+                "email": "mixed.case@example.com",
+                "certificate_path": "/certificates/casing.pdf",
+            }
+        ]
+
+        response = self.post_certificates(data)
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        expectation = CertificateUpdateExpectation(
+            result=result,
+            success=True,
+            updated_count=1,
+            error_count=0,
+        )
+        self.assert_certificate_update_result(expectation)
+        self.assert_certificate_url(
+            self.enrollment, "/certificates/casing.pdf"
+        )
