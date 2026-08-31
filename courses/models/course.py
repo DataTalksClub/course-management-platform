@@ -146,6 +146,7 @@ class EmailCampaign(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         SYNCED = "synced", "Synced"
+        QUEUE_PENDING = "queue_pending", "Queue Pending"
         QUEUED = "queued", "Queued"
         CANCELLED = "cancelled", "Cancelled"
 

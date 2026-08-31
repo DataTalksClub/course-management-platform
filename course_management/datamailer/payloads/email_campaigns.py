@@ -3,7 +3,9 @@ from typing import Any
 
 from courses.registration import render_markdown
 
+from ..client import DatamailerConfig
 from ..preference_categories import EMAIL_PREFERENCE_CATEGORIES
+from .score_notifications import add_from_email_if_configured
 from .urls import public_route_url
 
 
@@ -23,6 +25,9 @@ def email_campaign_datamailer_payload(email_campaign) -> dict[str, Any]:
         metadata = payload["metadata"]
         metadata["course_slug"] = course.slug
         metadata["course_title"] = course.title
+    config = DatamailerConfig.from_settings()
+    if config is not None:
+        payload = add_from_email_if_configured(payload, config)
     return payload
 
 

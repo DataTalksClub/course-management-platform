@@ -6,4 +6,5 @@ def email_campaign_to_dict(email_campaign):
         "preview_text": email_campaign.preview_text,
         "body_markdown": email_campaign.body_markdown,
         "status": email_campaign.status,
+        "external_key": email_campaign.external_key,
     }

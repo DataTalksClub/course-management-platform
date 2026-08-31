@@ -15,6 +15,10 @@ from course_management.datamailer.client import (
 from course_management.datamailer.payloads.email_campaigns import (
     email_campaign_datamailer_payload,
 )
+from course_management.datamailer_outbox import (
+    DatamailerOutboxEventData,
+    enqueue_datamailer_outbox_event,
+)
 
 
 DATAMAILER_CAMPAIGN_UPSERT_ACTIONS = {
@@ -81,15 +85,6 @@ def datamailer_campaign_client_or_message(request):
     return DatamailerClient(config)
 
 
-def datamailer_campaign_queue_recipient_count(response):
-    response = response or {}
-    recipient_count = response.get("recipient_count")
-    if recipient_count is None:
-        campaign_payload = response.get("campaign") or {}
-        recipient_count = campaign_payload.get("recipient_count", 0)
-    return recipient_count
-
-
 def sync_datamailer_campaign_action(request, client, email_campaign):
     if email_campaign.status == EmailCampaign.Status.DRAFT:
         email_campaign.status = EmailCampaign.Status.SYNCED
@@ -119,22 +114,29 @@ def test_send_datamailer_campaign_action(request, client, email_campaign):
 
 
 def queue_datamailer_campaign_action(request, client, email_campaign):
-    response = client.campaigns.queue_campaign(email_campaign.external_key)
-    recipient_count = datamailer_campaign_queue_recipient_count(response)
-    email_campaign.status = EmailCampaign.Status.QUEUED
-    email_campaign.queued_at = timezone.now()
-    email_campaign.last_recipient_count = recipient_count
-    email_campaign.save(
-        update_fields=[
-            "status",
-            "queued_at",
-            "last_recipient_count",
-            "updated_at",
-        ]
+    # Queueing dispatches to the campaign's full recipient list, which can
+    # legitimately take Datamailer well over gunicorn's worker timeout to
+    # acknowledge (see DEFAULT_TIMEOUT_SECONDS in datamailer/client.py). Doing
+    # this inline killed a production worker mid-request (2026-08-31
+    # incident), so it's handed off to the async outbox instead of awaited
+    # here — dispatched by the process_datamailer_outbox scheduled job.
+    event_data = DatamailerOutboxEventData(
+        event_type="campaign.queue",
+        idempotency_key=f"email-campaign.queue:{email_campaign.id}",
+        ordering_key=f"email-campaign:{email_campaign.id}",
+        payload={
+            "external_key": email_campaign.external_key,
+            "email_campaign_id": email_campaign.id,
+        },
+        dispatch_immediately=False,
     )
+    enqueue_datamailer_outbox_event(event_data)
+    email_campaign.status = EmailCampaign.Status.QUEUE_PENDING
+    email_campaign.save(update_fields=["status", "updated_at"])
     messages.success(
         request,
-        f"Datamailer campaign queued for {recipient_count} recipient(s).",
+        "Datamailer campaign queue request submitted. It will be sent "
+        "shortly — refresh this page to check status.",
     )
     return None, True
 

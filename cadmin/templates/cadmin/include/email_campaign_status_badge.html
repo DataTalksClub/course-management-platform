@@ -1,5 +1,7 @@
 {% if email_campaign.status == "queued" %}
   <span class="app-badge app-badge-success">{{ email_campaign.get_status_display }}</span>
+{% elif email_campaign.status == "queue_pending" %}
+  <span class="app-badge app-badge-warning">{{ email_campaign.get_status_display }}</span>
 {% elif email_campaign.status == "synced" %}
   <span class="app-badge app-badge-info">{{ email_campaign.get_status_display }}</span>
 {% elif email_campaign.status == "cancelled" %}
