@@ -19,4 +19,4 @@ RUN chmod +x entrypoint.sh docker-entrypoint.sh && \
 
 EXPOSE 80
 ENTRYPOINT ["/code/entrypoint.sh"]
-CMD ["gunicorn", "course_management.wsgi", "--bind", "0.0.0.0:80"]
+CMD ["gunicorn", "course_management.wsgi", "--bind", "0.0.0.0:80", "--timeout", "90"]
