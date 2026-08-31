@@ -3,6 +3,7 @@ from django.urls import path
 from .views import campaigns
 from .views import course_admin
 from .views import datamailer
+from .views import email_campaigns
 from .views import enrollment
 from .views import homework
 from .views import observability
@@ -24,6 +25,16 @@ urlpatterns = [
         "registrations/<slug:campaign_slug>/",
         campaigns.campaign_registrations,
         name="cadmin_campaign_registrations",
+    ),
+    path(
+        "campaigns/<slug:campaign_slug>/emails/new/",
+        email_campaigns.email_campaign_create,
+        name="cadmin_email_campaign_create",
+    ),
+    path(
+        "campaigns/<slug:campaign_slug>/emails/<int:email_campaign_id>/edit/",
+        email_campaigns.email_campaign_edit,
+        name="cadmin_email_campaign_edit",
     ),
     path(
         "datamailer/",

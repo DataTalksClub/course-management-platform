@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from .course import (
     Course,
     CourseRegistration,
+    EmailCampaign,
     Enrollment,
     LeaderboardComplaint,
     RegistrationCampaign,
@@ -45,6 +46,7 @@ __all__ = (
     "Course",
     "CourseRegistration",
     "CriteriaResponse",
+    "EmailCampaign",
     "Enrollment",
     "Homework",
     "HomeworkState",

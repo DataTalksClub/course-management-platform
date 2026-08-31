@@ -1,6 +1,6 @@
 from django.test import Client, TestCase
 
-from courses.models import Course, RegistrationCampaign, User
+from courses.models import Course, EmailCampaign, RegistrationCampaign, User
 
 
 DATAMAILER_SETTINGS = {
@@ -49,6 +49,16 @@ class CampaignCadminViewBase(TestCase):
         defaults.update(overrides)
         return RegistrationCampaign.objects.create(**defaults)
 
+    def create_email_campaign(self, registration_campaign, **overrides):
+        defaults = {
+            "registration_campaign": registration_campaign,
+            "subject": "Class starts Monday",
+            "preview_text": "Learn LLMs",
+            "body_markdown": "## Hi there\n\nClass starts Monday.",
+        }
+        defaults.update(overrides)
+        return EmailCampaign.objects.create(**defaults)
+
     def campaign_edit_payload(self):
         return {
             "title": "LLM Zoomcamp 2026",
@@ -94,17 +104,21 @@ class CampaignCadminViewBase(TestCase):
         self.assertEqual(campaign.title, "LLM Zoomcamp 2026")
         self.assertEqual(campaign.marketing_markdown, "New copy")
 
-    def assert_campaign_draft_upserted(self, upsert_campaign):
+    def assert_email_campaign_draft_upserted(
+        self, upsert_campaign, email_campaign
+    ):
         upsert_campaign.assert_called_once()
         self.assertEqual(
             upsert_campaign.call_args.args[0],
-            "cmp-registration-llm-zoomcamp",
+            email_campaign.external_key,
         )
         payload = upsert_campaign.call_args.args[1]
-        self.assertEqual(payload["subject"], "LLM Zoomcamp")
-        self.assertEqual(payload["preview_text"], "Learn LLMs")
-        self.assertIn("<h2>Register now</h2>", payload["html_body"])
-        self.assertEqual(payload["text_body"], "## Register now")
+        self.assertEqual(payload["subject"], email_campaign.subject)
+        self.assertEqual(
+            payload["preview_text"], email_campaign.preview_text
+        )
+        self.assertIn("<h2>Hi there</h2>", payload["html_body"])
+        self.assertEqual(payload["text_body"], email_campaign.body_markdown)
         self.assertEqual(payload["category_tag"], "course-updates")
         self.assertEqual(payload["recipient_list_key"], self.course.slug)
         self.assertEqual(

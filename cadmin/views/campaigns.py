@@ -7,7 +7,6 @@ from .campaign_forms import (
     campaign_edit_context,
     campaign_form_course,
     campaign_form_initial,
-    handle_campaign_datamailer_post,
     handle_campaign_form_post,
 )
 from .campaign_registration_list import (
@@ -48,18 +47,6 @@ def campaign_create(request):
     return response
 
 
-def campaign_edit_post_result(request, campaign):
-    if request.POST.get("datamailer_action"):
-        post_result = handle_campaign_datamailer_post(
-            request,
-            campaign,
-        )
-        return post_result
-
-    post_result = handle_campaign_form_post(request, campaign)
-    return post_result
-
-
 @staff_required
 def campaign_edit(request, campaign_slug):
     campaigns = RegistrationCampaign.objects.select_related("current_course")
@@ -69,20 +56,14 @@ def campaign_edit(request, campaign_slug):
     )
 
     if request.method == "POST":
-        post_result = campaign_edit_post_result(request, campaign)
+        post_result = handle_campaign_form_post(request, campaign)
         if post_result.response:
             return post_result.response
         form = post_result.form
-        datamailer_preview = post_result.datamailer_preview
     else:
         form = RegistrationCampaignForm(instance=campaign)
-        datamailer_preview = None
 
-    context = campaign_edit_context(
-        campaign,
-        form,
-        datamailer_preview,
-    )
+    context = campaign_edit_context(campaign, form)
     response = render(request, "cadmin/campaign_form.html", context)
     return response
 

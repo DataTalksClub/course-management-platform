@@ -1,0 +1,133 @@
+{% extends 'cadmin/base.html' %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_campaign_edit' campaign.slug %}">{{ campaign.title }}</a></li>
+  {% if email_campaign %}
+    <li>{{ email_campaign.subject }}</li>
+  {% else %}
+    <li>New email campaign</li>
+  {% endif %}
+{% endblock %}
+
+{% block cadmin_content %}
+<section class="cadmin-page-header border-b app-border pb-5">
+  <div class="min-w-0">
+    <p class="text-xs font-semibold uppercase tracking-wide app-muted">Email campaign</p>
+    <h1 class="mt-1 text-2xl font-semibold app-heading md:text-3xl">{{ page_title }}</h1>
+    <p class="mt-1 text-sm app-muted">For {{ campaign.title }}</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'cadmin_campaign_edit' campaign.slug %}" class="primer-button primer-button-secondary">
+      <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to landing page
+    </a>
+  </div>
+</section>
+
+<form method="post" class="mt-6 space-y-7">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+    <div class="rounded-md border app-alert-warning px-4 py-3 text-sm">
+      {{ form.non_field_errors }}
+    </div>
+  {% endif %}
+
+  <section class="space-y-5">
+    {% include 'cadmin/include/campaign_field.html' with field=form.subject %}
+    {% include 'cadmin/include/campaign_field.html' with field=form.preview_text %}
+    {% include 'cadmin/include/campaign_field.html' with field=form.body_markdown %}
+  </section>
+
+  <div class="flex flex-wrap gap-2 border-t app-border pt-5">
+    <button type="submit" class="primer-button cadmin-primary">{{ submit_label }}</button>
+    <a href="{% url 'cadmin_campaign_edit' campaign.slug %}" class="primer-button primer-button-secondary">Cancel</a>
+  </div>
+</form>
+
+{% if email_campaign %}
+  <section class="mt-7 border-t app-border pt-5">
+    <div class="cadmin-section-heading mb-3">
+      <h2 class="text-base font-semibold app-heading">Datamailer</h2>
+      <span class="cadmin-count-badge">{{ datamailer_external_key }}</span>
+    </div>
+
+    <div class="cadmin-metrics-grid">
+      <div class="cadmin-metric">
+        <p class="text-xs font-semibold uppercase app-muted">Status</p>
+        <p class="mt-1 text-sm app-heading">
+          {% include 'cadmin/include/email_campaign_status_badge.html' with email_campaign=email_campaign %}
+        </p>
+      </div>
+      <div class="cadmin-metric">
+        <p class="text-xs font-semibold uppercase app-muted">Recipient list</p>
+        <p class="mt-1 truncate text-sm app-heading" title="{{ datamailer_payload.recipient_list_key|default:'Audience default' }}">
+          {{ datamailer_payload.recipient_list_key|default:"Audience default" }}
+        </p>
+      </div>
+      <div class="cadmin-metric">
+        <p class="text-xs font-semibold uppercase app-muted">Category</p>
+        <p class="mt-1 text-sm app-heading">{{ datamailer_payload.category_tag }}</p>
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-wrap gap-2">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="datamailer_action" value="sync">
+        <button type="submit" class="primer-button cadmin-primary">
+          <i class="fas fa-sync" aria-hidden="true"></i> Sync draft
+        </button>
+      </form>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="datamailer_action" value="preview">
+        <button type="submit" class="primer-button primer-button-secondary">
+          <i class="fas fa-eye" aria-hidden="true"></i> Preview
+        </button>
+      </form>
+      <form method="post" class="flex flex-wrap gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="datamailer_action" value="test_send">
+        <label class="sr-only" for="test_recipients">Test recipients</label>
+        <input
+          id="test_recipients"
+          name="test_recipients"
+          class="form-control min-w-64"
+          placeholder="ops@example.com"
+        >
+        <button type="submit" class="primer-button primer-button-secondary">
+          <i class="fas fa-paper-plane" aria-hidden="true"></i> Test send
+        </button>
+      </form>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="datamailer_action" value="queue">
+        <button type="submit" class="primer-button primer-button-secondary">
+          <i class="fas fa-play" aria-hidden="true"></i> Queue
+        </button>
+      </form>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="datamailer_action" value="cancel">
+        <button type="submit" class="primer-button primer-button-secondary">
+          <i class="fas fa-ban" aria-hidden="true"></i> Cancel
+        </button>
+      </form>
+    </div>
+
+    {% if datamailer_preview %}
+      <div class="mt-5 divide-y app-divide rounded-md border app-border app-surface-muted">
+        <div class="px-3 py-2 text-sm">
+          <p class="text-xs font-semibold uppercase app-muted">Subject</p>
+          <p class="mt-1 app-heading">{{ datamailer_preview.preview.subject|default:datamailer_payload.subject }}</p>
+        </div>
+        <div class="px-3 py-2 text-sm">
+          <p class="text-xs font-semibold uppercase app-muted">Text</p>
+          <pre class="mt-1 whitespace-pre-wrap text-sm app-heading">{{ datamailer_preview.preview.text|default:datamailer_payload.text_body }}</pre>
+        </div>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}
+{% endblock %}

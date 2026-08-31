@@ -88,7 +88,7 @@ class CampaignCadminViewTests(CampaignCadminViewBase):
         self.assertRedirects(response, url)
         self.assert_campaign_updated(campaign)
 
-    def test_campaign_edit_shows_datamailer_campaign_controls(self):
+    def test_campaign_edit_shows_email_campaigns_section(self):
         campaign = self.create_llm_registration_campaign()
         url = reverse(
             "cadmin_campaign_edit",
@@ -99,8 +99,12 @@ class CampaignCadminViewTests(CampaignCadminViewBase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Datamailer campaign")
-        self.assertContains(response, "cmp-registration-llm-zoomcamp")
-        self.assertContains(response, self.course.slug)
-        self.assertContains(response, "Sync draft")
-        self.assertContains(response, "Test send")
+        self.assertContains(response, "Email campaigns")
+        self.assertContains(response, "New email")
+        self.assertContains(
+            response,
+            reverse(
+                "cadmin_email_campaign_create",
+                kwargs={"campaign_slug": campaign.slug},
+            ),
+        )

@@ -12,6 +12,7 @@ from unfold.widgets import (
 from courses.models.course import (
     Course,
     CourseRegistration,
+    EmailCampaign,
     LeaderboardComplaint,
     RegistrationCampaign,
 )
@@ -197,6 +198,26 @@ class RegistrationCampaignAdmin(ModelAdmin):
                 "fields": ["created_at", "updated_at"],
             },
         ),
+    ]
+
+
+@admin.register(EmailCampaign)
+class EmailCampaignAdmin(ModelAdmin):
+    list_display = [
+        "subject",
+        "registration_campaign",
+        "status",
+        "last_recipient_count",
+        "updated_at",
+    ]
+    search_fields = ["subject", "external_key"]
+    list_filter = ["status", "registration_campaign"]
+    readonly_fields = [
+        "external_key",
+        "created_at",
+        "updated_at",
+        "queued_at",
+        "cancelled_at",
     ]
 
 

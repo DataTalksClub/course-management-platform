@@ -122,13 +122,6 @@ class RegistrationCampaign(models.Model):
     is_active = models.BooleanField(default=True)
 
     marketing_markdown = models.TextField(blank=True)
-    email_body_markdown = models.TextField(
-        blank=True,
-        help_text=(
-            "Overrides marketing_markdown as the Datamailer email body. "
-            "Leave blank to reuse the landing-page copy."
-        ),
-    )
     meta_description = models.TextField(blank=True)
     hero_image_url = models.URLField(
         blank=True,
@@ -147,6 +140,56 @@ class RegistrationCampaign(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class EmailCampaign(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        SYNCED = "synced", "Synced"
+        QUEUED = "queued", "Queued"
+        CANCELLED = "cancelled", "Cancelled"
+
+    registration_campaign = models.ForeignKey(
+        RegistrationCampaign,
+        on_delete=models.CASCADE,
+        related_name="email_campaigns",
+    )
+    subject = models.CharField(max_length=200)
+    preview_text = models.CharField(max_length=255, blank=True)
+    body_markdown = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+    external_key = models.CharField(
+        max_length=100, unique=True, editable=False
+    )
+    last_recipient_count = models.PositiveIntegerField(
+        null=True, blank=True
+    )
+    queued_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.subject
+
+    def save(self, *args, **kwargs):
+        if not self.external_key:
+            from course_management.datamailer.keys import (
+                generate_email_campaign_external_key,
+            )
+
+            self.external_key = generate_email_campaign_external_key(
+                self.registration_campaign.slug
+            )
+        super().save(*args, **kwargs)
 
 
 class CourseRegistration(models.Model):

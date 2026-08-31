@@ -8,17 +8,11 @@ from django.shortcuts import redirect
 from courses.models.course import Course
 from cadmin.forms import RegistrationCampaignForm
 
-from .campaign_datamailer import (
-    datamailer_campaign_context,
-    handle_datamailer_campaign_action,
-)
-
 
 @dataclass(frozen=True)
 class CampaignEditPostResult:
     response: object
     form: object
-    datamailer_preview: object
 
 
 _TRAILING_YEAR_RE = re.compile(r"[\s_-]*(\d{4})\s*$")
@@ -92,29 +86,6 @@ def campaign_form_course(form):
     return course
 
 
-def handle_campaign_datamailer_post(request, campaign):
-    datamailer_preview, should_redirect = (
-        handle_datamailer_campaign_action(request, campaign)
-    )
-    if should_redirect:
-        response = redirect(
-            "cadmin_campaign_edit",
-            campaign_slug=campaign.slug,
-        )
-        return CampaignEditPostResult(
-            response=response,
-            form=None,
-            datamailer_preview=None,
-        )
-
-    form = RegistrationCampaignForm(instance=campaign)
-    return CampaignEditPostResult(
-        response=None,
-        form=form,
-        datamailer_preview=datamailer_preview,
-    )
-
-
 def handle_campaign_form_post(request, campaign):
     form = RegistrationCampaignForm(request.POST, instance=campaign)
     if form.is_valid():
@@ -127,25 +98,20 @@ def handle_campaign_form_post(request, campaign):
         return CampaignEditPostResult(
             response=response,
             form=None,
-            datamailer_preview=None,
         )
 
     return CampaignEditPostResult(
         response=None,
         form=form,
-        datamailer_preview=None,
     )
 
 
-def campaign_edit_context(campaign, form, datamailer_preview):
-    datamailer_context = datamailer_campaign_context(campaign)
-    context = {
+def campaign_edit_context(campaign, form):
+    return {
         "form": form,
         "campaign": campaign,
         "course": campaign.current_course,
         "page_title": "Edit registration landing page",
         "submit_label": "Save changes",
-        "datamailer_preview": datamailer_preview,
+        "email_campaigns": campaign.email_campaigns.all(),
     }
-    context.update(datamailer_context)
-    return context

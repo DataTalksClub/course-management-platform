@@ -1,4 +1,5 @@
 import re
+import uuid
 
 from django.utils.text import slugify
 
@@ -46,8 +47,9 @@ def course_graduates_list_key(course) -> str:
     return f"{course.slug}:@e:@graduated"
 
 
-def registration_campaign_external_key(campaign) -> str:
-    return f"cmp-registration-{slugify(campaign.slug)}"
+def generate_email_campaign_external_key(registration_campaign_slug) -> str:
+    suffix = uuid.uuid4().hex[:8]
+    return f"cmp-registration-{slugify(registration_campaign_slug)}-{suffix}"
 
 
 def _object_user_ordering_key(obj) -> str:

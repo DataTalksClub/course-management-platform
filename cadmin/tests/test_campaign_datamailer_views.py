@@ -8,6 +8,7 @@ from cadmin.tests.campaign_view_base import (
     CampaignCadminViewBase,
     admin_credentials,
 )
+from courses.models import EmailCampaign
 
 
 class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
@@ -18,16 +19,17 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
     )
-    def test_campaign_edit_syncs_datamailer_campaign_draft(
+    def test_email_campaign_syncs_datamailer_campaign_draft(
         self, upsert_campaign
     ):
-        campaign = self.create_llm_registration_campaign(
-            meta_description="Learn LLMs",
-            marketing_markdown="## Register now",
-        )
+        campaign = self.create_llm_registration_campaign()
+        email_campaign = self.create_email_campaign(campaign)
         url = reverse(
-            "cadmin_campaign_edit",
-            kwargs={"campaign_slug": campaign.slug},
+            "cadmin_email_campaign_edit",
+            kwargs={
+                "campaign_slug": campaign.slug,
+                "email_campaign_id": email_campaign.id,
+            },
         )
         payload = {"datamailer_action": "sync"}
 
@@ -35,39 +37,11 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
         response = self.client.post(url, payload)
 
         self.assertRedirects(response, url)
-        self.assert_campaign_draft_upserted(upsert_campaign)
-
-    @override_settings(
-        **DATAMAILER_SETTINGS,
-        PUBLIC_BASE_URL="https://courses.example.com",
-    )
-    @patch(
-        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
-    )
-    def test_campaign_edit_sync_prefers_email_body_over_marketing_markdown(
-        self, upsert_campaign
-    ):
-        campaign = self.create_llm_registration_campaign(
-            meta_description="Learn LLMs",
-            marketing_markdown="## Register now",
-            email_body_markdown="## Hi there\n\nClass starts Monday.",
+        self.assert_email_campaign_draft_upserted(
+            upsert_campaign, email_campaign
         )
-        url = reverse(
-            "cadmin_campaign_edit",
-            kwargs={"campaign_slug": campaign.slug},
-        )
-        payload = {"datamailer_action": "sync"}
-
-        self.client.login(**admin_credentials)
-        response = self.client.post(url, payload)
-
-        self.assertRedirects(response, url)
-        upsert_campaign.assert_called_once()
-        payload = upsert_campaign.call_args.args[1]
-        self.assertEqual(
-            payload["text_body"], "## Hi there\n\nClass starts Monday."
-        )
-        self.assertIn("<h2>Hi there</h2>", payload["html_body"])
+        email_campaign.refresh_from_db()
+        self.assertEqual(email_campaign.status, EmailCampaign.Status.SYNCED)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -76,7 +50,7 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
     )
-    def test_campaign_edit_previews_datamailer_campaign(
+    def test_email_campaign_previews_datamailer_campaign(
         self, upsert_campaign, preview_campaign
     ):
         preview_campaign.return_value = {
@@ -86,9 +60,13 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
             }
         }
         campaign = self.create_llm_registration_campaign()
+        email_campaign = self.create_email_campaign(campaign)
         url = reverse(
-            "cadmin_campaign_edit",
-            kwargs={"campaign_slug": campaign.slug},
+            "cadmin_email_campaign_edit",
+            kwargs={
+                "campaign_slug": campaign.slug,
+                "email_campaign_id": email_campaign.id,
+            },
         )
         payload = {"datamailer_action": "preview"}
 
@@ -98,7 +76,7 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
         self.assertEqual(response.status_code, 200)
         upsert_campaign.assert_called_once()
         preview_campaign.assert_called_once_with(
-            "cmp-registration-llm-zoomcamp"
+            email_campaign.external_key
         )
         self.assertContains(response, "Preview subject")
         self.assertContains(response, "Preview text")
@@ -110,13 +88,17 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
     )
-    def test_campaign_edit_sends_datamailer_campaign_test(
+    def test_email_campaign_sends_datamailer_campaign_test(
         self, upsert_campaign, test_send_campaign
     ):
         campaign = self.create_llm_registration_campaign()
+        email_campaign = self.create_email_campaign(campaign)
         url = reverse(
-            "cadmin_campaign_edit",
-            kwargs={"campaign_slug": campaign.slug},
+            "cadmin_email_campaign_edit",
+            kwargs={
+                "campaign_slug": campaign.slug,
+                "email_campaign_id": email_campaign.id,
+            },
         )
         payload = {
             "datamailer_action": "test_send",
@@ -130,7 +112,7 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
         upsert_campaign.assert_called_once()
         expected_recipients = ["ops@example.com", "reviewer@example.com"]
         test_send_campaign.assert_called_once_with(
-            "cmp-registration-llm-zoomcamp",
+            email_campaign.external_key,
             expected_recipients,
         )
 
@@ -141,14 +123,18 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
     )
-    def test_campaign_edit_queues_datamailer_campaign(
+    def test_email_campaign_queues_datamailer_campaign(
         self, upsert_campaign, queue_campaign
     ):
         queue_campaign.return_value = {"recipient_count": 42}
         campaign = self.create_llm_registration_campaign()
+        email_campaign = self.create_email_campaign(campaign)
         url = reverse(
-            "cadmin_campaign_edit",
-            kwargs={"campaign_slug": campaign.slug},
+            "cadmin_email_campaign_edit",
+            kwargs={
+                "campaign_slug": campaign.slug,
+                "email_campaign_id": email_campaign.id,
+            },
         )
         payload = {"datamailer_action": "queue"}
 
@@ -157,9 +143,11 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
 
         self.assertRedirects(response, url)
         upsert_campaign.assert_called_once()
-        queue_campaign.assert_called_once_with(
-            "cmp-registration-llm-zoomcamp"
-        )
+        queue_campaign.assert_called_once_with(email_campaign.external_key)
+        email_campaign.refresh_from_db()
+        self.assertEqual(email_campaign.status, EmailCampaign.Status.QUEUED)
+        self.assertEqual(email_campaign.last_recipient_count, 42)
+        self.assertIsNotNone(email_campaign.queued_at)
 
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
@@ -168,13 +156,17 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
     )
-    def test_campaign_edit_cancels_datamailer_campaign_without_upsert(
+    def test_email_campaign_cancels_datamailer_campaign_without_upsert(
         self, upsert_campaign, cancel_campaign
     ):
         campaign = self.create_llm_registration_campaign()
+        email_campaign = self.create_email_campaign(campaign)
         url = reverse(
-            "cadmin_campaign_edit",
-            kwargs={"campaign_slug": campaign.slug},
+            "cadmin_email_campaign_edit",
+            kwargs={
+                "campaign_slug": campaign.slug,
+                "email_campaign_id": email_campaign.id,
+            },
         )
         payload = {"datamailer_action": "cancel"}
 
@@ -183,6 +175,9 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
 
         self.assertRedirects(response, url)
         upsert_campaign.assert_not_called()
-        cancel_campaign.assert_called_once_with(
-            "cmp-registration-llm-zoomcamp"
+        cancel_campaign.assert_called_once_with(email_campaign.external_key)
+        email_campaign.refresh_from_db()
+        self.assertEqual(
+            email_campaign.status, EmailCampaign.Status.CANCELLED
         )
+        self.assertIsNotNone(email_campaign.cancelled_at)

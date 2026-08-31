@@ -1,6 +1,6 @@
 from django import forms
 
-from courses.models.course import RegistrationCampaign
+from courses.models.course import EmailCampaign, RegistrationCampaign
 
 
 REGISTRATION_CAMPAIGN_TITLE_WIDGET = forms.TextInput(
@@ -30,8 +30,14 @@ REGISTRATION_CAMPAIGN_META_DESCRIPTION_WIDGET = forms.Textarea(
 REGISTRATION_CAMPAIGN_MARKETING_WIDGET = forms.Textarea(
     attrs={"class": "form-control", "rows": 14}
 )
-REGISTRATION_CAMPAIGN_EMAIL_BODY_WIDGET = forms.Textarea(
-    attrs={"class": "form-control", "rows": 10}
+EMAIL_CAMPAIGN_SUBJECT_WIDGET = forms.TextInput(
+    attrs={"class": "form-control"}
+)
+EMAIL_CAMPAIGN_PREVIEW_TEXT_WIDGET = forms.TextInput(
+    attrs={"class": "form-control"}
+)
+EMAIL_CAMPAIGN_BODY_WIDGET = forms.Textarea(
+    attrs={"class": "form-control", "rows": 14}
 )
 
 
@@ -128,7 +134,6 @@ class RegistrationCampaignForm(forms.ModelForm):
             "video_url",
             "meta_description",
             "marketing_markdown",
-            "email_body_markdown",
         ]
         widgets = {
             "title": REGISTRATION_CAMPAIGN_TITLE_WIDGET,
@@ -140,14 +145,12 @@ class RegistrationCampaignForm(forms.ModelForm):
             "video_url": REGISTRATION_CAMPAIGN_VIDEO_URL_WIDGET,
             "meta_description": REGISTRATION_CAMPAIGN_META_DESCRIPTION_WIDGET,
             "marketing_markdown": REGISTRATION_CAMPAIGN_MARKETING_WIDGET,
-            "email_body_markdown": REGISTRATION_CAMPAIGN_EMAIL_BODY_WIDGET,
         }
         labels = {
             "slug": "URL slug",
             "current_course": "Current course edition",
             "hero_image_url": "Hero image URL",
             "video_url": "Video URL",
-            "email_body_markdown": "Email body (optional override)",
         }
         help_texts = {
             "slug": "Public URL: /register/<slug>/",
@@ -156,10 +159,6 @@ class RegistrationCampaignForm(forms.ModelForm):
             "is_active": "Inactive campaigns do not render publicly.",
             "meta_description": "Optional text for previews and search snippets.",
             "marketing_markdown": "Main landing-page body. Markdown is supported.",
-            "email_body_markdown": (
-                "Overrides the landing-page body as the Datamailer email "
-                "content. Leave blank to reuse marketing_markdown."
-            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -171,6 +170,36 @@ class RegistrationCampaignForm(forms.ModelForm):
         if not valid:
             error_field_names = self.errors
             for field_name in error_field_names:
+                if field_name in self.fields:
+                    attrs = self.fields[field_name].widget.attrs
+                    class_name = attrs.get("class", "")
+                    if "is-invalid" not in class_name:
+                        attrs["class"] = f"{class_name} is-invalid".strip()
+        return valid
+
+
+class EmailCampaignForm(forms.ModelForm):
+    class Meta:
+        model = EmailCampaign
+        fields = ["subject", "preview_text", "body_markdown"]
+        widgets = {
+            "subject": EMAIL_CAMPAIGN_SUBJECT_WIDGET,
+            "preview_text": EMAIL_CAMPAIGN_PREVIEW_TEXT_WIDGET,
+            "body_markdown": EMAIL_CAMPAIGN_BODY_WIDGET,
+        }
+        labels = {
+            "preview_text": "Preview text",
+            "body_markdown": "Email body",
+        }
+        help_texts = {
+            "preview_text": "Optional preview snippet shown in inboxes.",
+            "body_markdown": "Email body. Markdown is supported.",
+        }
+
+    def is_valid(self):
+        valid = super().is_valid()
+        if not valid:
+            for field_name in self.errors:
                 if field_name in self.fields:
                     attrs = self.fields[field_name].widget.attrs
                     class_name = attrs.get("class", "")
