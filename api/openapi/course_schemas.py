@@ -1,6 +1,7 @@
 from courses.models.course import (
     Course,
     CourseRegistration,
+    EmailCampaign,
     RegistrationCampaign,
 )
 
@@ -20,6 +21,8 @@ PROJECT_SUMMARY_REF = ref("ProjectSummary")
 PROJECT_SUMMARY_ARRAY = array_of(PROJECT_SUMMARY_REF)
 REGISTRATION_CAMPAIGN_REF = ref("RegistrationCampaign")
 REGISTRATION_CAMPAIGN_ARRAY = array_of(REGISTRATION_CAMPAIGN_REF)
+EMAIL_CAMPAIGN_REF = ref("EmailCampaign")
+EMAIL_CAMPAIGN_ARRAY = array_of(EMAIL_CAMPAIGN_REF)
 REGISTRATION_COUNT_REF = ref("RegistrationCount")
 REGISTRATION_COUNT_ARRAY = array_of(REGISTRATION_COUNT_REF)
 REGISTRATION_STATS_REF = ref("RegistrationStats")
@@ -131,6 +134,21 @@ REGISTRATION_CAMPAIGN_INPUT_PROPERTIES = {
     **REGISTRATION_CAMPAIGN_BASE_PROPERTIES,
     "current_course": REGISTRATION_CAMPAIGN_CURRENT_COURSE_INPUT_SCHEMA,
 }
+EMAIL_CAMPAIGN_EXTRA_PROPERTIES = {
+    "registration_campaign": {
+        "type": "string",
+        "description": "Slug of the parent registration campaign.",
+    },
+}
+EMAIL_CAMPAIGN_SCHEMA = model_object_schema(
+    EmailCampaign,
+    ["id", "subject", "preview_text", "body_markdown", "status"],
+    extra_properties=EMAIL_CAMPAIGN_EXTRA_PROPERTIES,
+)
+EMAIL_CAMPAIGN_INPUT_PROPERTIES = model_properties(
+    EmailCampaign,
+    ["subject", "preview_text", "body_markdown"],
+)
 COURSE_REGISTRATION_EXTRA_PROPERTIES = {
     "campaign": {"type": "string"},
     "course": {"type": ["string", "null"]},
@@ -287,6 +305,20 @@ COURSE_SCHEMAS = {
             "campaign": REGISTRATION_CAMPAIGN_REF,
             "stats": REGISTRATION_STATS_REF,
             "registrations": COURSE_REGISTRATION_ARRAY,
+        },
+    },
+    "EmailCampaign": EMAIL_CAMPAIGN_SCHEMA,
+    "EmailCampaignCreate": {
+        "type": "object",
+        "required": ["subject"],
+        "additionalProperties": False,
+        "properties": EMAIL_CAMPAIGN_INPUT_PROPERTIES,
+    },
+    "EmailCampaignsList": {
+        "type": "object",
+        "required": ["email_campaigns"],
+        "properties": {
+            "email_campaigns": EMAIL_CAMPAIGN_ARRAY,
         },
     },
     "CourseRegistrationsBulkCreate": COURSE_REGISTRATIONS_BULK_CREATE_SCHEMA,

@@ -4,6 +4,7 @@ from .openapi.spec import openapi_json_view
 from .views import course_exports
 from .views import courses
 from .views import datamailer_send_audits
+from .views import email_campaigns
 from .views import enrollment_certificates
 from .views import enrollment_graduates
 from .views import health
@@ -105,6 +106,11 @@ urlpatterns = [
         "<int:registration_id>/",
         registration_campaigns.registration_campaign_registration_detail_view,
         name="api_registration_campaign_registration_detail",
+    ),
+    path(
+        "registration-campaigns/<slug:campaign_slug>/emails/",
+        email_campaigns.registration_campaign_emails_view,
+        name="api_registration_campaign_emails",
     ),
     # Homeworks
     path(

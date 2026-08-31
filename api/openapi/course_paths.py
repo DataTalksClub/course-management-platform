@@ -18,6 +18,9 @@ REGISTRATION_CAMPAIGN_PATCH_REF = ref("RegistrationCampaignPatch")
 REGISTRATION_CAMPAIGN_REGISTRATIONS_REF = ref(
     "RegistrationCampaignRegistrations"
 )
+EMAIL_CAMPAIGNS_LIST_REF = ref("EmailCampaignsList")
+EMAIL_CAMPAIGN_REF = ref("EmailCampaign")
+EMAIL_CAMPAIGN_CREATE_REF = ref("EmailCampaignCreate")
 COURSE_REGISTRATIONS_BULK_CREATE_REF = ref("CourseRegistrationsBulkCreate")
 COURSE_REGISTRATIONS_BULK_CREATE_RESULT_REF = ref(
     "CourseRegistrationsBulkCreateResult"
@@ -58,6 +61,14 @@ REGISTRATION_CAMPAIGN_PATCH_SUCCESS_RESPONSE = response(
 REGISTRATION_CAMPAIGN_REGISTRATIONS_SUCCESS_RESPONSE = response(
     "Registration campaign registrations",
     REGISTRATION_CAMPAIGN_REGISTRATIONS_REF,
+)
+EMAIL_CAMPAIGNS_LIST_SUCCESS_RESPONSE = response(
+    "Email campaign list",
+    EMAIL_CAMPAIGNS_LIST_REF,
+)
+EMAIL_CAMPAIGN_CREATE_SUCCESS_RESPONSE = response(
+    "Created email campaign",
+    EMAIL_CAMPAIGN_REF,
 )
 COURSE_REGISTRATIONS_BULK_CREATE_SUCCESS_RESPONSE = response(
     "Bulk registration creation results",
@@ -204,6 +215,43 @@ REGISTRATION_CAMPAIGN_REGISTRATIONS_OPERATION = operation(
     REGISTRATION_CAMPAIGN_REGISTRATIONS_DATA
 )
 
+EMAIL_CAMPAIGNS_RESPONSES = {
+    "200": EMAIL_CAMPAIGNS_LIST_SUCCESS_RESPONSE,
+    "404": REGISTRATION_CAMPAIGN_NOT_FOUND_RESPONSE,
+}
+EMAIL_CAMPAIGNS_DATA = OperationData(
+    "api_registration_campaign_emails",
+    ["Registration Campaigns"],
+    "List email campaigns for a registration campaign",
+    EMAIL_CAMPAIGNS_RESPONSES,
+    description=(
+        "Lists the draft/synced/queued/cancelled email campaigns for a "
+        "registration campaign. Requires a staff token."
+    ),
+)
+EMAIL_CAMPAIGNS_OPERATION = operation(EMAIL_CAMPAIGNS_DATA)
+
+EMAIL_CAMPAIGN_CREATE_RESPONSES = {
+    "201": EMAIL_CAMPAIGN_CREATE_SUCCESS_RESPONSE,
+    "400": INVALID_REQUEST_RESPONSE,
+    "404": REGISTRATION_CAMPAIGN_NOT_FOUND_RESPONSE,
+}
+EMAIL_CAMPAIGN_CREATE_BODY = request_body(EMAIL_CAMPAIGN_CREATE_REF)
+EMAIL_CAMPAIGN_CREATE_DATA = OperationData(
+    "api_registration_campaign_emails",
+    ["Registration Campaigns"],
+    "Create an email campaign",
+    EMAIL_CAMPAIGN_CREATE_RESPONSES,
+    body=EMAIL_CAMPAIGN_CREATE_BODY,
+    description=(
+        "Creates a draft email campaign under a registration campaign. "
+        "This only defines content (subject/preview_text/body_markdown) — "
+        "sending (sync/preview/test send/queue) is only available from the "
+        "cadmin web interface, never via this API. Requires a staff token."
+    ),
+)
+EMAIL_CAMPAIGN_CREATE_OPERATION = operation(EMAIL_CAMPAIGN_CREATE_DATA)
+
 COURSE_REGISTRATIONS_BULK_CREATE_RESPONSES = {
     "201": COURSE_REGISTRATIONS_BULK_CREATE_SUCCESS_RESPONSE,
     "400": INVALID_REQUEST_RESPONSE,
@@ -288,5 +336,9 @@ COURSE_PATHS_BY_URL_NAME = {
     "api_registration_campaign_registration_detail": {
         "get": COURSE_REGISTRATION_DETAIL_OPERATION,
         "patch": COURSE_REGISTRATION_PATCH_OPERATION,
+    },
+    "api_registration_campaign_emails": {
+        "get": EMAIL_CAMPAIGNS_OPERATION,
+        "post": EMAIL_CAMPAIGN_CREATE_OPERATION,
     },
 }
