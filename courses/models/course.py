@@ -122,6 +122,13 @@ class RegistrationCampaign(models.Model):
     is_active = models.BooleanField(default=True)
 
     marketing_markdown = models.TextField(blank=True)
+    email_body_markdown = models.TextField(
+        blank=True,
+        help_text=(
+            "Overrides marketing_markdown as the Datamailer email body. "
+            "Leave blank to reuse the landing-page copy."
+        ),
+    )
     meta_description = models.TextField(blank=True)
     hero_image_url = models.URLField(
         blank=True,

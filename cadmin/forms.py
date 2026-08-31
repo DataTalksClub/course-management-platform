@@ -30,6 +30,9 @@ REGISTRATION_CAMPAIGN_META_DESCRIPTION_WIDGET = forms.Textarea(
 REGISTRATION_CAMPAIGN_MARKETING_WIDGET = forms.Textarea(
     attrs={"class": "form-control", "rows": 14}
 )
+REGISTRATION_CAMPAIGN_EMAIL_BODY_WIDGET = forms.Textarea(
+    attrs={"class": "form-control", "rows": 10}
+)
 
 
 class HomeworkSubmissionEditForm(forms.Form):
@@ -125,6 +128,7 @@ class RegistrationCampaignForm(forms.ModelForm):
             "video_url",
             "meta_description",
             "marketing_markdown",
+            "email_body_markdown",
         ]
         widgets = {
             "title": REGISTRATION_CAMPAIGN_TITLE_WIDGET,
@@ -136,12 +140,14 @@ class RegistrationCampaignForm(forms.ModelForm):
             "video_url": REGISTRATION_CAMPAIGN_VIDEO_URL_WIDGET,
             "meta_description": REGISTRATION_CAMPAIGN_META_DESCRIPTION_WIDGET,
             "marketing_markdown": REGISTRATION_CAMPAIGN_MARKETING_WIDGET,
+            "email_body_markdown": REGISTRATION_CAMPAIGN_EMAIL_BODY_WIDGET,
         }
         labels = {
             "slug": "URL slug",
             "current_course": "Current course edition",
             "hero_image_url": "Hero image URL",
             "video_url": "Video URL",
+            "email_body_markdown": "Email body (optional override)",
         }
         help_texts = {
             "slug": "Public URL: /register/<slug>/",
@@ -150,6 +156,10 @@ class RegistrationCampaignForm(forms.ModelForm):
             "is_active": "Inactive campaigns do not render publicly.",
             "meta_description": "Optional text for previews and search snippets.",
             "marketing_markdown": "Main landing-page body. Markdown is supported.",
+            "email_body_markdown": (
+                "Overrides the landing-page body as the Datamailer email "
+                "content. Leave blank to reuse marketing_markdown."
+            ),
         }
 
     def __init__(self, *args, **kwargs):

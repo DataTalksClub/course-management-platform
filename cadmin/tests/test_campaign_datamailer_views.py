@@ -37,6 +37,38 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
         self.assertRedirects(response, url)
         self.assert_campaign_draft_upserted(upsert_campaign)
 
+    @override_settings(
+        **DATAMAILER_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    @patch(
+        "course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign"
+    )
+    def test_campaign_edit_sync_prefers_email_body_over_marketing_markdown(
+        self, upsert_campaign
+    ):
+        campaign = self.create_llm_registration_campaign(
+            meta_description="Learn LLMs",
+            marketing_markdown="## Register now",
+            email_body_markdown="## Hi there\n\nClass starts Monday.",
+        )
+        url = reverse(
+            "cadmin_campaign_edit",
+            kwargs={"campaign_slug": campaign.slug},
+        )
+        payload = {"datamailer_action": "sync"}
+
+        self.client.login(**admin_credentials)
+        response = self.client.post(url, payload)
+
+        self.assertRedirects(response, url)
+        upsert_campaign.assert_called_once()
+        payload = upsert_campaign.call_args.args[1]
+        self.assertEqual(
+            payload["text_body"], "## Hi there\n\nClass starts Monday."
+        )
+        self.assertIn("<h2>Hi there</h2>", payload["html_body"])
+
     @override_settings(**DATAMAILER_SETTINGS)
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.preview_campaign"

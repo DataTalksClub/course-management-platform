@@ -29,7 +29,8 @@ def registration_campaign_payload_data(
     campaign,
 ) -> RegistrationCampaignPayloadData:
     body_text = (
-        campaign.marketing_markdown.strip()
+        campaign.email_body_markdown.strip()
+        or campaign.marketing_markdown.strip()
         or campaign.meta_description.strip()
         or campaign.title
     )
