@@ -1,4 +1,4 @@
-from courses.models import HomeworkState
+from courses.models import AnswerTypes, HomeworkState
 from courses.scoring import HomeworkScoringStatus, score_homework_submissions
 
 from .scoring_base import HomeworkScoringBase, fetch_fresh
@@ -89,3 +89,40 @@ class HomeworkScoringWorkflowTests(HomeworkScoringBase):
 
         self.course = fetch_fresh(self.course)
         self.assertTrue(self.course.first_homework_scored)
+
+    def assert_scoring_blocked_by_missing_correct_answer(self, question):
+        submission = self.create_submission_with_answers(
+            self.student1, self.enrollment1, self.scoring_answers_student1()
+        )
+
+        status, message = score_homework_submissions(self.homework.id)
+
+        self.assertEqual(status, HomeworkScoringStatus.FAIL)
+        self.assertIn("no correct answer", message)
+        self.assertIn(question.text, message)
+        self.homework = fetch_fresh(self.homework)
+        self.assertEqual(self.homework.state, HomeworkState.OPEN.value)
+        submission = fetch_fresh(submission)
+        self.assertEqual(submission.total_score, 0)
+
+    def test_scoring_blocked_when_free_form_correct_answer_missing(self):
+        question = self.questions[0]
+        question.correct_answer = ""
+        question.save()
+
+        self.assert_scoring_blocked_by_missing_correct_answer(question)
+
+    def test_scoring_blocked_when_choice_correct_answer_missing(self):
+        question = self.questions[3]
+        question.correct_answer = None
+        question.save()
+
+        self.assert_scoring_blocked_by_missing_correct_answer(question)
+
+    def test_scoring_allowed_when_any_question_has_no_correct_answer(self):
+        question = self.questions[0]
+        question.answer_type = AnswerTypes.ANY.value
+        question.correct_answer = ""
+        question.save()
+
+        self.score_homework_and_assert_ok()

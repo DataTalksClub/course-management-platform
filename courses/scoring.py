@@ -16,8 +16,10 @@ from .homework_score_calculation import update_score
 
 from .models.homework import (
     Answer,
+    AnswerTypes,
     Homework,
     HomeworkState,
+    Question,
     Submission,
 )
 
@@ -53,7 +55,25 @@ def _homework_scoring_error(homework, homework_id, force=False):
         and not force
     ):
         return f"Homework {homework_id} is already scored."
+    if missing := _questions_missing_correct_answer(homework):
+        question_list = "; ".join(question.text for question in missing)
+        return (
+            f"Homework {homework_id} has questions with no correct answer: "
+            f"{question_list}. Set the correct answers "
+            "(or use answer type Any) before scoring."
+        )
     return None
+
+
+def _questions_missing_correct_answer(homework):
+    questions = Question.objects.filter(homework=homework).order_by("id")
+    missing = []
+    for question in questions:
+        if question.answer_type == AnswerTypes.ANY.value:
+            continue
+        if not (question.correct_answer or "").strip():
+            missing.append(question)
+    return missing
 
 
 def _answers_by_submission(answers):
