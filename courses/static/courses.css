@@ -1953,12 +1953,15 @@ body.dark-mode [class*="text-red-700"] {
   outline: none;
   position: relative;
   vertical-align: baseline;
-  transform: translateY(-0.04em);
 }
 
 /* Anchor the tooltip to the label row rather than to the icon: an icon sitting
-   near the right edge would otherwise push its tooltip off-screen. */
+   near the right edge would otherwise push its tooltip off-screen. The label
+   must be a block so a short label still gives the tooltip room, and the icon
+   must not be transformed: a transform would make the icon the containing
+   block again and squeeze the tooltip to one word per line. */
 label:has(.form-help-icon) {
+  display: block;
   position: relative;
 }
 
