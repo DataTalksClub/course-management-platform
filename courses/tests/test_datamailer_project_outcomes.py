@@ -10,7 +10,7 @@ from course_management.datamailer.sync.score_notifications import (
     send_project_score_notification,
 )
 from courses.tests.datamailer_project_score_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerProjectScoreTestBase,
     ProjectScoreListSendExpectation,
 )
@@ -18,7 +18,7 @@ from courses.tests.datamailer_project_score_base import (
 
 class DatamailerProjectOutcomeTest(DatamailerProjectScoreTestBase):
     @override_settings(
-        **DATAMAILER_SETTINGS,
+        **RELAY_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     def test_project_passed_recipient_list_payload_targets_passed_outcome(
@@ -48,7 +48,7 @@ class DatamailerProjectOutcomeTest(DatamailerProjectScoreTestBase):
         self.assertEqual(member["metadata"]["total_score"], 98)
         self.assertTrue(member["metadata"]["passed"])
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_list"
     )

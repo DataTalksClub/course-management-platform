@@ -25,12 +25,12 @@ from course_management.datamailer.sync.notifications import (
 )
 from courses.models import Course, CourseRegistration, RegistrationCampaign
 
-DATAMAILER_SETTINGS = {
-    "DATAMAILER_URL": "https://datamailer.example.com",
-    "DATAMAILER_API_KEY": "secret-token",
-    "DATAMAILER_CLIENT": "dtc-courses",
-    "DATAMAILER_AUDIENCE": "dtc-courses",
-    "DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY": True,
+RELAY_SETTINGS = {
+    "RELAY_URL": "https://relay.example.com",
+    "RELAY_API_KEY": "secret-token",
+    "RELAY_CLIENT": "dtc-courses",
+    "RELAY_AUDIENCE": "dtc-courses",
+    "RELAY_OUTBOX_DISPATCH_IMMEDIATELY": True,
 }
 
 
@@ -230,7 +230,7 @@ def assert_registration_member_removed(
 
 class DatamailerRegistrationConfirmationPayloadTest(TestCase):
     @override_settings(
-        **DATAMAILER_SETTINGS,
+        **RELAY_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     def test_registration_confirmation_payload(self):
@@ -243,7 +243,7 @@ class DatamailerRegistrationConfirmationPayloadTest(TestCase):
 
 class DatamailerRegistrationConfirmationSendTest(TestCase):
     @override_settings(
-        **DATAMAILER_SETTINGS,
+        **RELAY_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
@@ -268,7 +268,7 @@ class DatamailerRegistrationConfirmationSendTest(TestCase):
 
 
 class DatamailerRegistrationMembershipSyncTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )
@@ -290,7 +290,7 @@ class DatamailerRegistrationMembershipSyncTest(TestCase):
 
 
 class DatamailerRegistrationMembershipRemovalTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.remove"
     )

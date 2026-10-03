@@ -231,42 +231,42 @@ CLOUDWATCH_APP_METRIC_REGION = os.getenv(
     os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "")),
 )
 
-DATAMAILER_URL = os.getenv("DATAMAILER_URL", "")
-DATAMAILER_API_KEY = os.getenv("DATAMAILER_API_KEY", "")
-DATAMAILER_CLIENT = os.getenv("DATAMAILER_CLIENT", "")
-DATAMAILER_AUDIENCE = os.getenv("DATAMAILER_AUDIENCE", "")
-DATAMAILER_FROM_EMAIL = os.getenv("DATAMAILER_FROM_EMAIL", "")
-DATAMAILER_STRICT = os.getenv("DATAMAILER_STRICT", "0") == "1"
-DATAMAILER_TIMEOUT_SECONDS = float(
-    os.getenv("DATAMAILER_TIMEOUT_SECONDS", "60")
+RELAY_URL = os.getenv("RELAY_URL", "")
+RELAY_API_KEY = os.getenv("RELAY_API_KEY", "")
+RELAY_CLIENT = os.getenv("RELAY_CLIENT", "")
+RELAY_AUDIENCE = os.getenv("RELAY_AUDIENCE", "")
+RELAY_FROM_EMAIL = os.getenv("RELAY_FROM_EMAIL", "")
+RELAY_STRICT = os.getenv("RELAY_STRICT", "0") == "1"
+RELAY_TIMEOUT_SECONDS = float(
+    os.getenv("RELAY_TIMEOUT_SECONDS", "60")
 )
-# When enabled, transactional sends carry Datamailer's "dry_run" flag: the full
+# When enabled, transactional sends carry Relay's "dry_run" flag: the full
 # prod send path runs (outbox -> dispatch -> /api/transactional/send -> audit) but
-# Datamailer renders the email and returns it inline without delivering. Used by
+# Relay renders the email and returns it inline without delivering. Used by
 # the e2e smoke suite (and any non-delivering deployment) to mimic prod safely.
-DATAMAILER_TRANSACTIONAL_DRY_RUN = (
-    os.getenv("DATAMAILER_TRANSACTIONAL_DRY_RUN", "0") == "1"
+RELAY_TRANSACTIONAL_DRY_RUN = (
+    os.getenv("RELAY_TRANSACTIONAL_DRY_RUN", "0") == "1"
 )
-DATAMAILER_WEBHOOK_TOKEN = os.getenv("DATAMAILER_WEBHOOK_TOKEN", "")
-DATAMAILER_IMPORT_S3_BUCKET = os.getenv("DATAMAILER_IMPORT_S3_BUCKET", "")
-DATAMAILER_IMPORT_S3_PREFIX = os.getenv(
-    "DATAMAILER_IMPORT_S3_PREFIX", "datamailer-imports"
+RELAY_WEBHOOK_TOKEN = os.getenv("RELAY_WEBHOOK_TOKEN", "")
+RELAY_IMPORT_S3_BUCKET = os.getenv("RELAY_IMPORT_S3_BUCKET", "")
+RELAY_IMPORT_S3_PREFIX = os.getenv(
+    "RELAY_IMPORT_S3_PREFIX", "relay-imports"
 ).strip("/")
-DATAMAILER_IMPORT_URL_EXPIRES_SECONDS_VALUE = os.getenv(
-    "DATAMAILER_IMPORT_URL_EXPIRES_SECONDS", "3600"
+RELAY_IMPORT_URL_EXPIRES_SECONDS_VALUE = os.getenv(
+    "RELAY_IMPORT_URL_EXPIRES_SECONDS", "3600"
 )
-DATAMAILER_IMPORT_URL_EXPIRES_SECONDS = int(
-    DATAMAILER_IMPORT_URL_EXPIRES_SECONDS_VALUE
+RELAY_IMPORT_URL_EXPIRES_SECONDS = int(
+    RELAY_IMPORT_URL_EXPIRES_SECONDS_VALUE
 )
-DATAMAILER_IMPORT_S3_REGION = os.getenv("DATAMAILER_IMPORT_S3_REGION", "")
-DATAMAILER_SYNC_ON_USER_CREATE = (
-    os.getenv("DATAMAILER_SYNC_ON_USER_CREATE", "1") == "1"
+RELAY_IMPORT_S3_REGION = os.getenv("RELAY_IMPORT_S3_REGION", "")
+RELAY_SYNC_ON_USER_CREATE = (
+    os.getenv("RELAY_SYNC_ON_USER_CREATE", "1") == "1"
 )
 # Dispatch outbox events inline (True) or defer to the scheduled processor
 # (False, the production default). Tests set this to True so sync helpers fire
 # without an explicit process_due_datamailer_outbox call.
-DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY = (
-    os.getenv("DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY", "0") == "1"
+RELAY_OUTBOX_DISPATCH_IMMEDIATELY = (
+    os.getenv("RELAY_OUTBOX_DISPATCH_IMMEDIATELY", "0") == "1"
 )
 
 # Cache configuration

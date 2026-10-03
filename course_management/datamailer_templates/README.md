@@ -17,7 +17,7 @@ uv run python manage.py upsert_datamailer_templates --template-key peer-review-a
 ```
 
 This `PUT`s each template to Datamailer (`/api/transactional/templates/{key}`)
-using the `DATAMAILER_*` settings. View them at `<DATAMAILER_URL>/templates/`.
+using the `RELAY_*` settings. View them at `<RELAY_URL>/templates/`.
 
 ## What triggers each template
 

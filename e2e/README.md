@@ -31,7 +31,7 @@ talks to the remote server over HTTP and a browser.
 | 3. Enrollment & identity (create/find student, impersonate, profile) | `tests/test_02_enrollment.py` | browser (loginas) |
 | 4. Homework flow (submit via UI, confirmation, score, leaderboard) | `tests/test_03_homework.py` | browser + API |
 | 5. Project flow (submit via UI, assign reviews, score, stats) | `tests/test_04_project.py` | browser + API |
-| 6. Email verification (homework + project confirmation emails) | `tests/test_03/04` (`@pytest.mark.email`) + `tests/test_06` (client unit tests) | CMP send audit (Datamailer dry-run render) |
+| 6. Email verification (homework + project confirmation emails) | `tests/test_03/04` (`@pytest.mark.email`) + `tests/test_06` (client unit tests) | CMP send audit (Relay dry-run render) |
 | 7. Dashboards & stats render | `tests/test_05_dashboards.py` | browser |
 | 8. Teardown + pre-run sweep + clean assert | `tests/test_99_teardown.py` | browser + API |
 
@@ -40,8 +40,8 @@ talks to the remote server over HTTP and a browser.
 Email checks mimic the production path but deliver nothing. CMP's real
 outbox → dispatch → `POST /api/transactional/send` → `DatamailerSendAudit`
 pipeline runs exactly as in prod, except the target deployment sets
-`DATAMAILER_TRANSACTIONAL_DRY_RUN=1`. CMP then adds Datamailer's `dry_run` flag
-to every transactional send: Datamailer runs the identical validate/render
+`RELAY_TRANSACTIONAL_DRY_RUN=1`. CMP then adds Relay's `dry_run` flag
+to every transactional send: Relay runs the identical validate/render
 pipeline and returns the rendered email inline **without** sending, queuing, or
 persisting anything.
 
@@ -64,8 +64,8 @@ context) contains `/homework/` / `/project/`.
 **What runs now vs. what's gated.** The client logic is covered by
 `tests/test_06_send_audit_client.py` (no-network unit tests — path, query
 params, response shape, poll/timeout, body matching). The **live** email
-assertions in `test_03/04` need the target deployment to have Datamailer
-configured **and** `DATAMAILER_TRANSACTIONAL_DRY_RUN=1`; when no matching audit
+assertions in `test_03/04` need the target deployment to have Relay
+configured **and** `RELAY_TRANSACTIONAL_DRY_RUN=1`; when no matching audit
 appears, they **xfail** (a fast pre-check avoids burning the poll timeout) so
 the suite stays green until dry-run is switched on.
 

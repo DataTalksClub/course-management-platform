@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import override_settings
 
 from courses.tests.deadline_reminder_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DeadlineReminderTestBase,
 )
 from courses.tests.deadline_reminder_homework import (
@@ -16,7 +16,7 @@ from courses.tests.deadline_reminder_homework import (
 
 class HomeworkDeadlineReminderCommandTest(DeadlineReminderTestBase):
     @override_settings(
-        **DATAMAILER_SETTINGS,
+        **RELAY_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(

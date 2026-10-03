@@ -76,7 +76,7 @@ def test_project_confirmation_email(send_audits, run_state):
 
     Verification reads CMP's own ``DatamailerSendAudit`` over HTTP: the prod
     path runs (outbox -> dispatch -> /api/transactional/send -> audit) with
-    ``DATAMAILER_TRANSACTIONAL_DRY_RUN=1``, so the render is returned inline and
+    ``RELAY_TRANSACTIONAL_DRY_RUN=1``, so the render is returned inline and
     nothing is delivered. xfails cleanly when no audit appears.
     """
     require_project(run_state)
@@ -90,7 +90,7 @@ def test_project_confirmation_email(send_audits, run_state):
     except SendAuditTimeout as exc:
         pytest.xfail(
             "No project-confirmation send audit found; ensure Datamailer is "
-            "configured on the target with DATAMAILER_TRANSACTIONAL_DRY_RUN=1. "
+            "configured on the target with RELAY_TRANSACTIONAL_DRY_RUN=1. "
             f"({exc})"
         )
     assert audit["template_key"] == PROJECT_CONFIRMATION_TEMPLATE

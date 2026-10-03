@@ -8,11 +8,11 @@ from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 
 
-DATAMAILER_SETTINGS = {
-    "DATAMAILER_URL": "https://datamailer.example.com",
-    "DATAMAILER_API_KEY": "secret-token",
-    "DATAMAILER_CLIENT": "dtc-courses",
-    "DATAMAILER_AUDIENCE": "dtc-courses",
+RELAY_SETTINGS = {
+    "RELAY_URL": "https://relay.example.com",
+    "RELAY_API_KEY": "secret-token",
+    "RELAY_CLIENT": "dtc-courses",
+    "RELAY_AUDIENCE": "dtc-courses",
 }
 
 
@@ -104,7 +104,7 @@ class DatamailerCampaignCommandTest(TestCase):
         )
         self.assertIn("queue: ok", command_output)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_datamailer_campaign_command_upserts_and_runs_actions(self):
         with (
             patch(
@@ -137,7 +137,7 @@ class DatamailerCampaignCommandTest(TestCase):
         )
         self.assert_campaign_actions_ran(expectation)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_datamailer_campaign_command_requires_body(self):
         with self.assertRaisesMessage(
             CommandError,
@@ -153,7 +153,7 @@ class DatamailerCampaignCommandTest(TestCase):
                 *command_args,
             )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_datamailer_campaign_command_requires_category_tag(self):
         with self.assertRaisesMessage(CommandError, "--category-tag is required."):
             command_args = [
@@ -170,7 +170,7 @@ class DatamailerCampaignCommandTest(TestCase):
                 *command_args,
             )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_datamailer_campaign_command_rejects_queue_and_cancel(self):
         with self.assertRaisesMessage(
             CommandError,
@@ -190,7 +190,7 @@ class DatamailerCampaignCommandTest(TestCase):
                 *command_args,
             )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign")
     def test_datamailer_campaign_command_wraps_request_errors(
         self,

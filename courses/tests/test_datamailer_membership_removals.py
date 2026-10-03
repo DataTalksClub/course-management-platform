@@ -8,14 +8,14 @@ from course_management.datamailer.sync.membership_removals import (
     remove_project_submission_from_datamailer,
 )
 from courses.tests.datamailer_membership_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerMembershipBase,
 )
 
 
 class DatamailerMembershipRemovalTest(DatamailerMembershipBase):
     @override_settings(
-        **DATAMAILER_SETTINGS,
+        **RELAY_SETTINGS,
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
@@ -37,7 +37,7 @@ class DatamailerMembershipRemovalTest(DatamailerMembershipBase):
 
         self.assert_enrollment_members_removed(remove_member, course, enrollment)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.remove"
     )
@@ -60,7 +60,7 @@ class DatamailerMembershipRemovalTest(DatamailerMembershipBase):
             submission,
         )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.remove"
     )

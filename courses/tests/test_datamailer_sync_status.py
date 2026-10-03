@@ -9,11 +9,11 @@ from course_management.datamailer.sync.status import (
     get_transactional_message_status,
 )
 
-from .datamailer_settings import DATAMAILER_SETTINGS
+from .datamailer_settings import RELAY_SETTINGS
 
 
 class DatamailerContactSyncStatusTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.contact_status"
     )
@@ -27,7 +27,7 @@ class DatamailerContactSyncStatusTest(TestCase):
         self.assertEqual(result, {"exists": True})
         contact_status.assert_called_once_with("student@example.com")
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.contact_history"
     )
@@ -41,7 +41,7 @@ class DatamailerContactSyncStatusTest(TestCase):
         self.assertEqual(result, {"transactional_messages": []})
         contact_history.assert_called_once_with(42, limit=5)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("course_management.datamailer.sync.status.get_contact_history")
     @patch("course_management.datamailer.sync.status.get_contact_status")
     def test_get_email_status_combines_status_and_history(
@@ -71,7 +71,7 @@ class DatamailerContactSyncStatusTest(TestCase):
         contact_history.assert_called_once_with(42, limit=5)
 
 class DatamailerMessageSyncStatusTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_transactional.DatamailerTransactionalClient.transactional_message_status"
     )

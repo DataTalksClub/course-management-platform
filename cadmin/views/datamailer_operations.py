@@ -17,7 +17,7 @@ from .datamailer_send_audits import (
 )
 
 
-DATAMAILER_RECIPIENT_LIST_KINDS = [
+RELAY_RECIPIENT_LIST_KINDS = [
     "registrations",
     "enrollments",
     "homework",
@@ -26,7 +26,7 @@ DATAMAILER_RECIPIENT_LIST_KINDS = [
     "graduates",
 ]
 
-DATAMAILER_OPERATOR_COMMANDS = (
+RELAY_OPERATOR_COMMANDS = (
     {
         "title": "Bootstrap contacts",
         "description": "Load active CMP users into Datamailer contacts.",
@@ -96,6 +96,6 @@ def datamailer_operations_context():
         "send_by_status": send_by_status,
         "send_by_type": send_by_type,
         "recent_failed_sends": recent_failed_sends,
-        "operator_commands": DATAMAILER_OPERATOR_COMMANDS,
-        "recipient_list_kinds": DATAMAILER_RECIPIENT_LIST_KINDS,
+        "operator_commands": RELAY_OPERATOR_COMMANDS,
+        "recipient_list_kinds": RELAY_RECIPIENT_LIST_KINDS,
     }

@@ -7,13 +7,13 @@ from django.test import override_settings
 from django.utils import timezone
 
 from courses.tests.datamailer_outbox_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerOutboxTestBase,
 )
 
 
 class DatamailerOutboxStatusCommandTest(DatamailerOutboxTestBase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )

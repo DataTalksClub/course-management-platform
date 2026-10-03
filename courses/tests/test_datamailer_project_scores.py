@@ -5,7 +5,7 @@ from course_management.datamailer.payloads.project_scores import (
     project_score_notification_payload,
 )
 from courses.tests.datamailer_project_score_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerProjectScoreTestBase,
     ScorePayloadExpectation,
 )
@@ -13,8 +13,8 @@ from courses.tests.datamailer_project_score_base import (
 
 class DatamailerProjectScoreTest(DatamailerProjectScoreTestBase):
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses",
+        **RELAY_SETTINGS,
+        RELAY_FROM_EMAIL="courses",
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     def test_project_score_notification_payload_targets_project_submitters(
@@ -37,7 +37,7 @@ class DatamailerProjectScoreTest(DatamailerProjectScoreTestBase):
         self.assert_project_score_context(payload)
         self.assert_project_score_member(member, submission)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_project_score_notification_dedupes_student_submissions(self):
         project, latest = self.create_duplicate_project_submissions()
 
@@ -49,7 +49,7 @@ class DatamailerProjectScoreTest(DatamailerProjectScoreTestBase):
             latest,
         )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_project_score_notification_includes_submitters(self):
         project, _ = self.create_project_score_submission()
 

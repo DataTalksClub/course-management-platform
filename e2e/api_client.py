@@ -355,7 +355,7 @@ class CmpApiClient:
 
         Mirrors the production email path: every send goes outbox -> dispatch
         -> ``/api/transactional/send`` -> ``DatamailerSendAudit``. With
-        ``DATAMAILER_TRANSACTIONAL_DRY_RUN=1`` on the target, the audit's
+        ``RELAY_TRANSACTIONAL_DRY_RUN=1`` on the target, the audit's
         ``response_payload`` carries the rendered subject/bodies without
         anything being delivered.
         """
@@ -415,7 +415,7 @@ class CmpApiClient:
             f"template_key={template_key!r} / body~={body_contains!r} within "
             f"{timeout}s. Seen: {[a.get('idempotency_key') for a in seen]!r}. "
             "Is Datamailer configured on the target with "
-            "DATAMAILER_TRANSACTIONAL_DRY_RUN=1?"
+            "RELAY_TRANSACTIONAL_DRY_RUN=1?"
         )
 
 

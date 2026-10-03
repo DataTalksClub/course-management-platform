@@ -8,7 +8,7 @@ from .datamailer_webhook_base import DatamailerWebhookTestBase
 class DatamailerWebhookUnsubscribePreferenceTest(
     DatamailerWebhookTestBase,
 ):
-    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    @override_settings(RELAY_WEBHOOK_TOKEN="secret-token")
     def test_webhook_unsubscribe_records_known_preference(self):
         user = self.create_student_user()
         payload = {
@@ -28,7 +28,7 @@ class DatamailerWebhookUnsubscribePreferenceTest(
         event = DatamailerContactEvent.objects.get()
         self.assertEqual(event.preference_key, "email_deadline_reminders")
 
-    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    @override_settings(RELAY_WEBHOOK_TOKEN="secret-token")
     def test_webhook_unsubscribe_records_preference_from_metadata(self):
         user = self.create_student_user()
         metadata = {
@@ -53,7 +53,7 @@ class DatamailerWebhookUnsubscribePreferenceTest(
 
 
 class DatamailerWebhookUnsubscribeEventTest(DatamailerWebhookTestBase):
-    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    @override_settings(RELAY_WEBHOOK_TOKEN="secret-token")
     def test_webhook_unsubscribe_without_preference_only_records_event(self):
         user = self.create_student_user()
         payload = {
@@ -74,7 +74,7 @@ class DatamailerWebhookUnsubscribeEventTest(DatamailerWebhookTestBase):
 
 
 class DatamailerWebhookResubscribeTest(DatamailerWebhookTestBase):
-    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    @override_settings(RELAY_WEBHOOK_TOKEN="secret-token")
     def test_webhook_records_resubscribe_without_preference_change(self):
         user = self.create_student_user()
         payload = {

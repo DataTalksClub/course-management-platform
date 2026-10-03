@@ -5,15 +5,15 @@ from course_management.datamailer.payloads.homework_scores import (
     homework_score_notification_payload,
 )
 from courses.tests.datamailer_homework_score_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerHomeworkScoreTestBase,
 )
 
 
 class DatamailerHomeworkScorePayloadTest(DatamailerHomeworkScoreTestBase):
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses",
+        **RELAY_SETTINGS,
+        RELAY_FROM_EMAIL="courses",
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     def test_homework_score_notification_payload_targets_homework_submitters(
@@ -34,7 +34,7 @@ class DatamailerHomeworkScorePayloadTest(DatamailerHomeworkScoreTestBase):
         self.assert_homework_score_context_urls(payload)
         self.assert_homework_score_member(member, submission)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_homework_score_notification_payload_dedupes_student_submissions(
         self,
     ):
@@ -50,7 +50,7 @@ class DatamailerHomeworkScorePayloadTest(DatamailerHomeworkScoreTestBase):
         self.assertEqual(member["email"], "learner@example.com")
         self.assertEqual(member["metadata"]["total_score"], 9)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_homework_score_notification_includes_submitters(self):
         homework = self.create_homework()
         user = self.create_user("learner@example.com")

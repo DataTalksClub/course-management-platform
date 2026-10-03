@@ -6,7 +6,7 @@ from .datamailer_webhook_base import DatamailerWebhookTestBase
 
 
 class DatamailerWebhookTransactionalEventTest(DatamailerWebhookTestBase):
-    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    @override_settings(RELAY_WEBHOOK_TOKEN="secret-token")
     def test_webhook_records_transactional_failure_event(self):
         payload = {
             "event_id": "evt-tx-failed-1",
@@ -30,7 +30,7 @@ class DatamailerWebhookTransactionalEventTest(DatamailerWebhookTestBase):
             123,
         )
 
-    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    @override_settings(RELAY_WEBHOOK_TOKEN="secret-token")
     def test_webhook_records_transactional_skipped_event(self):
         payload = {
             "event_id": "evt-tx-skipped-1",
@@ -47,7 +47,7 @@ class DatamailerWebhookTransactionalEventTest(DatamailerWebhookTestBase):
 
 
 class DatamailerWebhookMessageEventTest(DatamailerWebhookTestBase):
-    @override_settings(DATAMAILER_WEBHOOK_TOKEN="secret-token")
+    @override_settings(RELAY_WEBHOOK_TOKEN="secret-token")
     def test_webhook_records_message_lifecycle_event(self):
         payload = {
             "event_id": "evt-message-clicked-1",

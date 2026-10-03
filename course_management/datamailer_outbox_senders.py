@@ -71,7 +71,7 @@ def send_campaign_queue_event(client, payload):
     return response
 
 
-DATAMAILER_OUTBOX_EVENT_SENDERS = {
+RELAY_OUTBOX_EVENT_SENDERS = {
     "recipient_list.member_upsert": send_recipient_list_member_upsert_event,
     "recipient_list.member_remove": send_recipient_list_member_remove_event,
     "recipient_list.members_bulk_upsert": (
@@ -83,7 +83,7 @@ DATAMAILER_OUTBOX_EVENT_SENDERS = {
 
 
 def send_event(client, event_type: str, payload: dict[str, Any]):
-    sender = DATAMAILER_OUTBOX_EVENT_SENDERS.get(event_type)
+    sender = RELAY_OUTBOX_EVENT_SENDERS.get(event_type)
     if sender is None:
         raise ValueError(
             f"Unsupported Datamailer outbox event type: {event_type}"

@@ -194,30 +194,30 @@ Response:
 In local development, the version comes from the `VERSION` environment
 variable and falls back to `local-development-build-version-not-configured`.
 
-## Datamailer
+## Relay
 
-The platform can sync created users and course enrollments to Datamailer.
+The platform syncs users and course enrollments and sends email through Relay.
 
 Set all required environment variables to enable the integration:
 
 ```bash
-export DATAMAILER_URL="https://datamailer.dtcdev.click"
-export DATAMAILER_API_KEY="<token>"
-export DATAMAILER_CLIENT="dtc-courses"
-export DATAMAILER_AUDIENCE="dtc-courses"
-export DATAMAILER_FROM_EMAIL="courses"
+export RELAY_URL="https://relay.dtcdev.click"
+export RELAY_API_KEY="<token>"
+export RELAY_CLIENT="dtc-courses"
+export RELAY_AUDIENCE="dtc-courses"
+export RELAY_FROM_EMAIL="courses"
 ```
 
 Optional settings:
 
 ```bash
-export DATAMAILER_STRICT="0"
-export DATAMAILER_SYNC_ON_USER_CREATE="1"
+export RELAY_STRICT="0"
+export RELAY_SYNC_ON_USER_CREATE="1"
 ```
 
-With `DATAMAILER_STRICT=0`, Datamailer API failures are logged and don't
-break signup or enrollment flows. Set `DATAMAILER_STRICT=1` only when those
-flows should fail on Datamailer errors.
+With `RELAY_STRICT=0`, Relay API failures are logged and don't
+break signup or enrollment flows. Set `RELAY_STRICT=1` only when those
+flows should fail on Relay errors.
 
 `PUBLIC_BASE_URL` is used for links in delivered transactional email. Set it
 when sending email from a local server so messages contain public HTTPS links
@@ -230,17 +230,17 @@ export PUBLIC_BASE_URL="https://dev.courses.datatalks.club"
 ## Non-delivering email verification (dry run)
 
 To exercise the transactional email path without delivering anything, set
-`DATAMAILER_TRANSACTIONAL_DRY_RUN=1`. CMP then adds Datamailer's `dry_run` flag
+`RELAY_TRANSACTIONAL_DRY_RUN=1`. CMP then adds Relay's `dry_run` flag
 to every `POST /api/transactional/send`: the identical prod pipeline runs
-(outbox -> dispatch -> send -> `DatamailerSendAudit`), but Datamailer renders
+(outbox -> dispatch -> send -> `DatamailerSendAudit`), but Relay renders
 the email and returns it inline without sending, queuing, or persisting
-anything.
+anything. `DatamailerSendAudit` is retained as a historical database model name;
+it does not select or configure the old service.
 
 The rendered subject/bodies land in the audit's `response_payload["rendered"]`,
 which CMP exposes over HTTP at `GET /api/datamailer/send-audits`
 (filter by `email` / `template_key` / `idempotency_key`). The e2e smoke suite
-uses this to verify confirmation emails safely. This replaces the old local
-Datamailer capture/testbed compose stack.
+uses this to verify confirmation emails safely.
 
 Deadline reminder emails are triggered by a short CMP management command:
 
@@ -254,8 +254,8 @@ task. The recurring trigger (an EventBridge/CloudWatch rule targeting
 invocation role are provisioned via Terraform in `DataTalksClub/infra-terraform`,
 alongside the CMP ECS service. CMP doesn't configure the schedule.
 
-The scheduled task exits after reconciling Datamailer recipient lists and
-triggering Datamailer list sends. Datamailer handles per-recipient delivery
+The scheduled task exits after reconciling Relay recipient lists and
+triggering Relay list sends. Relay handles per-recipient delivery
 asynchronously.
 
 Every event is attempted even if an earlier one fails; each failure is written
@@ -268,16 +268,16 @@ curl -s -H "Authorization: Token $TOKEN" \
 ```
 
 Bulk sends post the whole recipient list inline, so they use a longer HTTP
-timeout than transactional sends (`DATAMAILER_TIMEOUT_SECONDS`, default 60).
-Don't lower it: hanging up mid-request makes Datamailer abandon the dispatch it
+timeout than transactional sends (`RELAY_TIMEOUT_SECONDS`, default 60).
+Don't lower it: hanging up mid-request makes Relay abandon the dispatch it
 is partway through, stranding every not-yet-sent message at `queued` with no
 error and no retry, while CMP records a failure for work that partly succeeded.
 
-Datamailer transactional template keys are stable code-level constants in CMP.
+Relay transactional template keys are stable code-level constants in CMP.
 Don't configure one environment variable per template.
 
-The CMP/Datamailer integration, including the conceptual design and API
-reference, is documented in
+The CMP/Relay integration, including the conceptual design and API reference,
+is documented in the historically named
 [`docs/datamailer-integration.md`](docs/datamailer-integration.md).
 
 ## API Data Access

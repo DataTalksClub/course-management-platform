@@ -6,13 +6,13 @@ from django.test import override_settings
 
 from accounts.models import CustomUser
 from courses.tests.datamailer_contact_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerContactBase,
 )
 
 
 class DatamailerContactBackfillTest(DatamailerContactBase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.bulk_import_contacts"
     )
@@ -34,7 +34,7 @@ class DatamailerContactBackfillTest(DatamailerContactBase):
         self.assert_first_contact_import_payload(bulk_import)
         self.assert_contact_import_output(out)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.bulk_import_contacts"
     )
@@ -55,7 +55,7 @@ class DatamailerContactBackfillTest(DatamailerContactBase):
         self.assertIn("Prepared 1 contact batch(es), 1 contact(s).", output)
         self.assertIn("batch 1: 1 contact(s)", output)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.bulk_import_contacts"
     )

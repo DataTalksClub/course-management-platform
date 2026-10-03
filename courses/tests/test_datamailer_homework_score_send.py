@@ -13,7 +13,7 @@ from course_management.datamailer.sync.score_notifications import (
     send_homework_score_notification,
 )
 from courses.tests.datamailer_homework_score_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerHomeworkScoreTestBase,
     HomeworkScoreListSendExpectation,
 )
@@ -22,7 +22,7 @@ from courses.tests.datamailer_homework_score_base import (
 class DatamailerHomeworkScoreSendSuccessTest(
     DatamailerHomeworkScoreTestBase
 ):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_list"
     )
@@ -63,7 +63,7 @@ class DatamailerHomeworkScoreSendSuccessTest(
 class DatamailerHomeworkScoreSendFailureTest(
     DatamailerHomeworkScoreTestBase
 ):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListSendClient.send_to_list"
     )

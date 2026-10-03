@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from courses.models import Homework
 from courses.tests.deadline_reminder_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DeadlineReminderTestBase,
 )
 from data.models import DatamailerSendAudit, DatamailerSendAuditStatus
@@ -42,7 +42,7 @@ class DeadlineReminderFailureIsolationTest(DeadlineReminderTestBase):
         )
         return first, second
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(SEND_TARGET)
     def test_second_reminder_is_sent_when_first_one_fails(self, send_transient):
         now = self.reminder_run_time()
@@ -64,7 +64,7 @@ class DeadlineReminderFailureIsolationTest(DeadlineReminderTestBase):
         # Both events must have been attempted, not just the first.
         self.assertEqual(send_transient.call_count, 2)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(SEND_TARGET)
     def test_failure_is_reported_on_stderr_with_reason(self, send_transient):
         now = self.reminder_run_time()
@@ -89,7 +89,7 @@ class DeadlineReminderFailureIsolationTest(DeadlineReminderTestBase):
         self.assertIn("homework-1", error_output)
         self.assertIn("timed out", error_output)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(SEND_TARGET)
     def test_failed_send_records_error_on_audit(self, send_transient):
         now = self.reminder_run_time()

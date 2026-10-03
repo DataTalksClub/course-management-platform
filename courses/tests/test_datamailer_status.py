@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 
-from .datamailer_settings import DATAMAILER_SETTINGS
+from .datamailer_settings import RELAY_SETTINGS
 
 
 def run_datamailer_status_command(*args):
@@ -14,7 +14,7 @@ def run_datamailer_status_command(*args):
 
 
 class DatamailerStatusCommandTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch("courses.management.commands.datamailer_status.get_email_status")
     def test_datamailer_status_command_prints_email_history(
         self,
@@ -57,7 +57,7 @@ class DatamailerStatusCommandTest(TestCase):
         self.assertIn("Recent campaign recipients:\n  none", output)
         get_status.assert_called_once_with("student@example.com", limit=10)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "courses.management.commands.datamailer_status."
         "get_transactional_message_status"

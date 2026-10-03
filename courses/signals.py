@@ -29,7 +29,7 @@ def sync_user_to_datamailer(sender, instance, created, **kwargs):
     if not created:
         return
 
-    if not getattr(settings, "DATAMAILER_SYNC_ON_USER_CREATE", True):
+    if not getattr(settings, "RELAY_SYNC_ON_USER_CREATE", True):
         return
 
     callback = partial(sync_contact, instance)

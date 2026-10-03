@@ -11,13 +11,13 @@ from course_management.datamailer.payloads.base import (
 from course_management.datamailer.sync.contacts import sync_contact
 from courses.models import Course
 from courses.tests.datamailer_contact_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerContactBase,
 )
 
 
 class DatamailerContactTest(DatamailerContactBase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     def test_contact_payload_includes_course_subscription_data(self):
         user, course = self.create_contact_payload_fixture()
 
@@ -38,7 +38,7 @@ class DatamailerContactTest(DatamailerContactBase):
         expected_tags.append("course-cohort-ml-zoomcamp")
         self.assertEqual(tags, expected_tags)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )
@@ -52,7 +52,7 @@ class DatamailerContactTest(DatamailerContactBase):
 
         upsert.assert_called_once()
 
-    @override_settings(**DATAMAILER_SETTINGS, DATAMAILER_STRICT=True)
+    @override_settings(**RELAY_SETTINGS, RELAY_STRICT=True)
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.upsert_contact"
     )

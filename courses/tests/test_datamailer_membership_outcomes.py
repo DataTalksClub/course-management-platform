@@ -6,13 +6,13 @@ from course_management.datamailer.sync.memberships import (
     sync_project_passed_outcome_to_datamailer,
 )
 from courses.tests.datamailer_membership_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerMembershipBase,
 )
 
 
 class DatamailerMembershipOutcomeTest(DatamailerMembershipBase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )
@@ -31,7 +31,7 @@ class DatamailerMembershipOutcomeTest(DatamailerMembershipBase):
         upsert_contact.assert_called_once()
         self.assert_project_passed_member_upserted(upsert_member, project)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.remove"
     )

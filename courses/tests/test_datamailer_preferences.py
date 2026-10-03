@@ -8,11 +8,11 @@ from course_management.datamailer.preferences import (
     update_email_preferences_for_user,
 )
 
-from .datamailer_settings import DATAMAILER_SETTINGS
+from .datamailer_settings import RELAY_SETTINGS
 
 
 class DatamailerPreferencesTest(TestCase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.contact_preferences"
     )
@@ -59,7 +59,7 @@ class DatamailerPreferencesTest(TestCase):
             category_tags=category_tags,
         )
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_contacts.DatamailerContactClient.update_contact_preferences"
     )

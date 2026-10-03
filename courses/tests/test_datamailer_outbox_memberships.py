@@ -10,13 +10,13 @@ from course_management.datamailer.sync.memberships import (
     sync_enrollment_to_datamailer,
 )
 from courses.tests.datamailer_outbox_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerOutboxTestBase,
 )
 
 
 class DatamailerOutboxMembershipTest(DatamailerOutboxTestBase):
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )
@@ -34,8 +34,8 @@ class DatamailerOutboxMembershipTest(DatamailerOutboxTestBase):
 
 
 class DatamailerOutboxProcessingTest(DatamailerOutboxTestBase):
-    @override_settings(DATAMAILER_OUTBOX_DISPATCH_IMMEDIATELY=False)
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(RELAY_OUTBOX_DISPATCH_IMMEDIATELY=False)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_recipient_lists.DatamailerRecipientListMemberClient.upsert"
     )
