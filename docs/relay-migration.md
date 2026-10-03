@@ -51,6 +51,13 @@ Relay's CloudFront terminates AWS WAF:
 - Request bodies over 8 KiB are rejected (managed common rule set).
 - A per-IP rate limit applies (300 requests / 5 minutes in the reference
   config).
+- The common rule set's `CrossSiteScripting_BODY` rule false-positives on
+  inline CSS: any request body containing `style="..."` (every CMP email
+  template's `html_body`, and campaign bodies with styled HTML) is
+  rejected with 403. aws-infra `main/relay/edge.tf` counts this rule
+  instead of blocking it; **until that change is applied** (needs AWS),
+  template publishing through the WAF is blocked, so
+  `upsert_datamailer_templates` fails on styled templates.
 
 CMP's client chunks member-array payloads (transient reminder lists,
 bulk member syncs) under the body limit — see
@@ -64,3 +71,26 @@ lifecycle) to `https://courses.datatalks.club/api/datamailer/events`
 with `Authorization: Bearer <cmp_webhook_token>`; CMP validates the
 token against `RELAY_WEBHOOK_TOKEN`. The endpoint path keeps its
 historical name.
+
+## Remaining steps (need AWS access)
+
+The AWS Gate was closed during the migration, so these apply-time steps
+are pending:
+
+1. Create the Secrets Manager secrets:
+   ```bash
+   aws secretsmanager create-secret --name course-management/relay-api-key \
+     --secret-string '<the cmp-production client key>'
+   aws secretsmanager create-secret --name course-management/relay-webhook-token \
+     --secret-string '<token from the migration record>'
+   ```
+2. Apply terraform in `aws-infra` (`main/relay` for the WAF rule change,
+   `main/cmp` for the task-definition env), then redeploy CMP dev/prod.
+3. After the WAF change is live, republish the three templates whose
+   inline CSS the WAF was blocking (`peer-review-assignment`,
+   `registration-confirmation`, and refresh
+   `certificate-availability-notification`):
+   `uv run python manage.py upsert_datamailer_templates`
+4. Recipient lists rebuild from CMP data on first use; to pre-populate,
+   run `sync_datamailer_recipient_lists` against the deployed
+   environment (large lists via `--import-by-reference`).
