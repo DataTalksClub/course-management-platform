@@ -75,22 +75,36 @@ historical name.
 ## Remaining steps (need AWS access)
 
 The AWS Gate was closed during the migration, so these apply-time steps
-are pending:
+are pending. Access goes through aws-infra PR #70
+(`feat/cmp-relay-cutover-access`): it fixes a duplicated
+`relay_webhook_token` block that breaks any `main/cmp` plan, and adds a
+scoped `cmp-relay-cutover` IAM role (trusted by the sandbox
+`phone-aws-sandbox-role`, same pattern as `cmp-alert-investigator`) for
+the steps marked "agent". After merge, the operator applies:
 
-1. Create the Secrets Manager secrets:
-   ```bash
-   aws secretsmanager create-secret --name course-management/relay-api-key \
-     --secret-string '<the cmp-production client key>'
-   aws secretsmanager create-secret --name course-management/relay-webhook-token \
-     --secret-string '<token from the migration record>'
-   ```
-2. Apply terraform in `aws-infra` (`main/relay` for the WAF rule change,
-   `main/cmp` for the task-definition env), then redeploy CMP dev/prod.
+```bash
+cd main/cmp && terraform apply   # creates relay-webhook-token container + the cutover role
+cd ../relay && terraform apply   # WAF: CrossSiteScripting_BODY rule → count
+```
+
+Then the agent (via `AWS_PROFILE=cmp-relay-cutover`):
+
+1. `PutSecretValue` on `course-management/relay-api-key` (the
+   cmp-production key) and `course-management/relay-webhook-token`
+   (values already provisioned on the relay client).
+2. Register RELAY_* task-def revisions with
+   `.tmp/cutover_taskdef.py apply dev` (drops DATAMAILER_*; the live dev
+   def has run the Relay-only code unconfigured since 0482090 deployed)
+   and `apply prod --no-roll` (CI's `deploy-prod` reads the latest
+   family revision, so the manual prod deploy swaps env+image in one
+   roll — trigger it after the dev roll verifies).
 3. After the WAF change is live, republish the three templates whose
    inline CSS the WAF was blocking (`peer-review-assignment`,
    `registration-confirmation`, and refresh
    `certificate-availability-notification`):
    `uv run python manage.py upsert_datamailer_templates`
-4. Recipient lists rebuild from CMP data on first use; to pre-populate,
+4. Verify with `RELAY_TRANSACTIONAL_DRY_RUN=1` and the sink address
+   only — no real-template sends to real addresses.
+5. Recipient lists rebuild from CMP data on first use; to pre-populate,
    run `sync_datamailer_recipient_lists` against the deployed
    environment (large lists via `--import-by-reference`).
