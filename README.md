@@ -201,7 +201,7 @@ The platform syncs users and course enrollments and sends email through Relay.
 Set all required environment variables to enable the integration:
 
 ```bash
-export RELAY_URL="https://relay.dtcdev.click"
+export RELAY_URL="https://relay.datatalks.club"
 export RELAY_API_KEY="<token>"
 export RELAY_CLIENT="dtc-courses"
 export RELAY_AUDIENCE="dtc-courses"

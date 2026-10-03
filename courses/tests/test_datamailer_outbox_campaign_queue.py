@@ -9,7 +9,7 @@ from course_management.datamailer_outbox import (
 )
 from courses.models import Course, EmailCampaign, RegistrationCampaign
 from courses.tests.datamailer_outbox_base import (
-    DATAMAILER_SETTINGS,
+    RELAY_SETTINGS,
     DatamailerOutboxTestBase,
 )
 from data.models import DatamailerOutboxStatus
@@ -46,7 +46,7 @@ class DatamailerOutboxCampaignQueueTest(DatamailerOutboxTestBase):
         )
         return enqueue_datamailer_outbox_event(event_data)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.queue_campaign"
     )
@@ -60,7 +60,7 @@ class DatamailerOutboxCampaignQueueTest(DatamailerOutboxTestBase):
         email_campaign.refresh_from_db()
         self.assertEqual(email_campaign.status, EmailCampaign.Status.DRAFT)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.queue_campaign"
     )
@@ -82,7 +82,7 @@ class DatamailerOutboxCampaignQueueTest(DatamailerOutboxTestBase):
         self.assertEqual(email_campaign.last_recipient_count, 42)
         self.assertIsNotNone(email_campaign.queued_at)
 
-    @override_settings(**DATAMAILER_SETTINGS)
+    @override_settings(**RELAY_SETTINGS)
     @patch(
         "course_management.datamailer.client_campaigns.DatamailerCampaignClient.queue_campaign"
     )

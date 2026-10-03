@@ -45,8 +45,8 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
         self.assertEqual(email_campaign.status, EmailCampaign.Status.SYNCED)
 
     @override_settings(
-        **DATAMAILER_SETTINGS,
-        DATAMAILER_FROM_EMAIL="courses",
+        **RELAY_SETTINGS,
+        RELAY_FROM_EMAIL="courses",
         PUBLIC_BASE_URL="https://courses.example.com",
     )
     @patch(
