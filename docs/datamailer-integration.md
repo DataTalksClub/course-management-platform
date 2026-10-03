@@ -1,5 +1,12 @@
 # CMP ↔ Datamailer Integration (Conceptual)
 
+> **Note (October 2026):** CMP now sends through Relay
+> (`https://relay.datatalks.club`) instead of the old Datamailer service.
+> The client API contract described here carried over to Relay; see
+> [relay-migration.md](relay-migration.md) for the migration record and
+> current configuration. This document remains as the conceptual and
+> API-contract reference.
+
 **Purpose of this document: describe the state we want to be in — how the CMP ↔
 Datamailer integration *should* work — and what we need to do to get there.**
 It is a design document, not a description of the current code. Current behaviour
