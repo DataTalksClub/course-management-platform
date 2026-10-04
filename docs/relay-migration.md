@@ -72,39 +72,36 @@ with `Authorization: Bearer <cmp_webhook_token>`; CMP validates the
 token against `RELAY_WEBHOOK_TOKEN`. The endpoint path keeps its
 historical name.
 
-## Remaining steps (need AWS access)
+## Cutover log (completed 2026-10-04)
 
-The AWS Gate was closed during the migration, so these apply-time steps
-are pending. Access goes through aws-infra PR #70
-(`feat/cmp-relay-cutover-access`): it fixes a duplicated
-`relay_webhook_token` block that breaks any `main/cmp` plan, and adds a
-scoped `cmp-relay-cutover` IAM role (trusted by the sandbox
-`phone-aws-sandbox-role`, same pattern as `cmp-alert-investigator`) for
-the steps marked "agent". After merge, the operator applies:
+All apply-time steps are done. aws-infra PR #70 created the relay
+secrets and the scoped `cmp-relay-cutover` role; PR #72 fixed the
+follow-up it missed (the ECS execution role's `ecs-secrets-access`
+policy lacked `relay-webhook-token`, which crash-looped every new task
+after the #70 apply removed the `datamailer-api-key` grant — prod
+deploys were frozen until it landed).
 
-```bash
-cd main/cmp && terraform apply   # creates relay-webhook-token container + the cutover role
-cd ../relay && terraform apply   # WAF: CrossSiteScripting_BODY rule → count
-```
+Sequence as executed:
 
-Then the agent (via `AWS_PROFILE=cmp-relay-cutover`):
+1. 2026-10-03: `main/cmp` + `main/relay` applies; secret values set
+   (`relay-api-key`, `relay-webhook-token`); contacts (33,841) and all
+   49 non-default preference sets migrated.
+2. 2026-10-04 ~10:14 UTC: dev stable on the Relay task definition
+   (drops `DATAMAILER_*` env/secret, sets `RELAY_URL`, `RELAY_CLIENT`,
+   `RELAY_AUDIENCE`, `RELAY_FROM_EMAIL`, both secrets).
+3. 2026-10-04 ~10:16 UTC: prod deploy rolled onto the Relay task
+   definition; health verified. `RELAY_WEBHOOK_TOKEN` live —
+   `/api/datamailer/events` accepts Relay callbacks.
+4. 2026-10-04 ~10:25 UTC: all 8 transactional templates published
+   (the WAF `CrossSiteScripting_BODY` count-change was already live, so
+   styled templates upsert cleanly).
+5. 2026-10-04 ~10:27 UTC: transactional dry-run validated against the
+   sink address only (no real sends) — render and from-address
+   (`courses@datatalks.club`) confirmed.
 
-1. `PutSecretValue` on `course-management/relay-api-key` (the
-   cmp-production key) and `course-management/relay-webhook-token`
-   (values already provisioned on the relay client).
-2. Register RELAY_* task-def revisions with
-   `.tmp/cutover_taskdef.py apply dev` (drops DATAMAILER_*; the live dev
-   def has run the Relay-only code unconfigured since 0482090 deployed)
-   and `apply prod --no-roll` (CI's `deploy-prod` reads the latest
-   family revision, so the manual prod deploy swaps env+image in one
-   roll — trigger it after the dev roll verifies).
-3. After the WAF change is live, republish the three templates whose
-   inline CSS the WAF was blocking (`peer-review-assignment`,
-   `registration-confirmation`, and refresh
-   `certificate-availability-notification`):
-   `uv run python manage.py upsert_datamailer_templates`
-4. Verify with `RELAY_TRANSACTIONAL_DRY_RUN=1` and the sink address
-   only — no real-template sends to real addresses.
-5. Recipient lists rebuild from CMP data on first use; to pre-populate,
-   run `sync_datamailer_recipient_lists` against the deployed
-   environment (large lists via `--import-by-reference`).
+Known leftover: the five webhook callbacks from the 2026-10-03 one-off
+deliverability test exhausted their 8 retries just before the fix
+landed and stay `failed` (admin API has no retry for them; test-message
+events only, nothing to do). Recipient lists rebuild from CMP data on
+first use; pre-populate with `sync_datamailer_recipient_lists`
+(`--import-by-reference` for large lists) if needed.
