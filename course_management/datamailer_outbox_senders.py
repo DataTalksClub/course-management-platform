@@ -53,6 +53,40 @@ def campaign_queue_recipient_count(response):
     return recipient_count
 
 
+def send_homework_score_notification_event(_client, payload):
+    import requests
+
+    from courses.models.homework import Homework
+    from course_management.datamailer.sync.score_notifications import (
+        send_homework_score_notification,
+    )
+
+    homework = Homework.objects.get(pk=payload["homework_id"])
+    result = send_homework_score_notification(homework)
+    if result is None:
+        raise requests.RequestException(
+            "Homework score notification was not acknowledged"
+        )
+    return result
+
+
+def send_project_score_notification_event(_client, payload):
+    import requests
+
+    from courses.models.project import Project
+    from course_management.datamailer.sync.score_notifications import (
+        send_project_score_notification,
+    )
+
+    project = Project.objects.get(pk=payload["project_id"])
+    result = send_project_score_notification(project)
+    if result is None:
+        raise requests.RequestException(
+            "Project score notification was not acknowledged"
+        )
+    return result
+
+
 def send_campaign_queue_event(client, payload):
     from courses.models.course import EmailCampaign
 
@@ -79,6 +113,8 @@ RELAY_OUTBOX_EVENT_SENDERS = {
     ),
     "contact.erase": send_contact_erase_event,
     "campaign.queue": send_campaign_queue_event,
+    "homework.score_notification": send_homework_score_notification_event,
+    "project.score_notification": send_project_score_notification_event,
 }
 
 

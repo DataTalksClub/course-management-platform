@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
 from course_management.datamailer.sync.score_notifications import (
-    send_homework_score_notification,
+    queue_homework_score_notification,
 )
 from courses.models.course import Course
 from courses.models.homework import Homework, HomeworkState, Question
@@ -137,10 +137,11 @@ def homework_notify_scores(request, course_slug, homework_slug):
             request, "cadmin_course", course_slug=course_slug
         )
 
-    send_homework_score_notification(homework)
+    queue_homework_score_notification(homework)
     messages.success(
         request,
-        f"Score notifications for {homework.title} sent to students.",
+        f"Score notifications for {homework.title} queued. "
+        "They will be sent shortly.",
     )
 
     return redirect_after_action(

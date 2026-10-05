@@ -5,7 +5,7 @@ from course_management.datamailer.sync.peer_review_notifications import (
     send_peer_review_assignment_notification,
 )
 from course_management.datamailer.sync.score_notifications import (
-    send_project_score_notification,
+    queue_project_score_notification,
 )
 from courses.models.course import Course
 from courses.models.project import Project, ProjectState
@@ -156,10 +156,11 @@ def project_notify_scores(request, course_slug, project_slug):
             f"Score {project.title} before notifying students.",
         )
     else:
-        send_project_score_notification(project)
+        queue_project_score_notification(project)
         messages.success(
             request,
-            f"Score notifications for {project.title} sent to students.",
+            f"Score notifications for {project.title} queued. "
+            "They will be sent shortly.",
         )
     return redirect_after_action(
         request, "cadmin_course", course_slug=course_slug

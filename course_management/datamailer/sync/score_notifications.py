@@ -2,7 +2,13 @@ from typing import Any
 
 import requests
 
+from course_management.datamailer_outbox import (
+    DatamailerOutboxEventData,
+    enqueue_datamailer_outbox_event,
+)
+
 from ..client import DatamailerConfig
+from ..keys import homework_submitters_list_key, project_submitters_list_key
 from ..payloads.homework_scores import homework_score_notification_payload
 from ..payloads.project_outcomes import (
     project_passed_recipient_list_payload,
@@ -15,6 +21,37 @@ from .recipient_list_send import (
     send_recipient_list_transactional_and_audit,
     sync_members_before_recipient_list_send_or_audit,
 )
+
+
+def queue_homework_score_notification(homework):
+    # Bulk-upserting hundreds of homework submitters and then sending the
+    # list is several Datamailer round-trips. Doing that in the cadmin
+    # request blocked the only gunicorn worker past its timeout
+    # (2026-10-05 cmp-prod-alb-unhealthy-hosts), so the send is handed off
+    # to the async outbox instead of awaited here.
+    event_data = DatamailerOutboxEventData(
+        event_type="homework.score_notification",
+        idempotency_key=(
+            f"homework-score:{homework.course.slug}:{homework.slug}"
+        ),
+        ordering_key=homework_submitters_list_key(homework),
+        payload={"homework_id": homework.pk},
+        dispatch_immediately=False,
+    )
+    return enqueue_datamailer_outbox_event(event_data)
+
+
+def queue_project_score_notification(project):
+    event_data = DatamailerOutboxEventData(
+        event_type="project.score_notification",
+        idempotency_key=(
+            f"project-score:{project.course.slug}:{project.slug}"
+        ),
+        ordering_key=project_submitters_list_key(project),
+        payload={"project_id": project.pk},
+        dispatch_immediately=False,
+    )
+    return enqueue_datamailer_outbox_event(event_data)
 
 
 def send_homework_score_notification(homework) -> dict[str, Any] | None:

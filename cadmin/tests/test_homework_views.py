@@ -1,9 +1,12 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from cadmin.tests.campaign_view_base import RELAY_SETTINGS
+from cadmin.tests.homework_view_base import HomeworkCadminViewTestBase
 from courses.models import (
     HomeworkState,
     User,
@@ -11,7 +14,7 @@ from courses.models import (
     Question,
     QuestionTypes,
 )
-from cadmin.tests.homework_view_base import HomeworkCadminViewTestBase
+from data.models import DatamailerOutboxEvent, DatamailerOutboxStatus
 
 
 class HomeworkCadminSubmissionViewTests(HomeworkCadminViewTestBase):
@@ -246,7 +249,7 @@ class HomeworkCadminSearchTests(HomeworkCadminViewTestBase):
 
 
 class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
-    @patch("cadmin.views.homework.send_homework_score_notification")
+    @patch("cadmin.views.homework.queue_homework_score_notification")
     def test_homework_score_shows_message_without_notifying(
         self, send_score_notification
     ):
@@ -279,11 +282,11 @@ class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
         self.assertEqual(messages_count, 1)
         send_score_notification.assert_not_called()
 
-    @patch("cadmin.views.homework.send_homework_score_notification")
+    @patch("cadmin.views.homework.queue_homework_score_notification")
     def test_homework_notify_scores_sends_notification(
         self, send_score_notification
     ):
-        """The notify action emails students for a scored homework."""
+        """The notify action queues score emails for a scored homework."""
         self.homework.state = HomeworkState.SCORED.value
         self.homework.save(update_fields=["state"])
         self.login_admin()
@@ -302,7 +305,52 @@ class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
 
-    @patch("cadmin.views.homework.send_homework_score_notification")
+    @override_settings(**RELAY_SETTINGS)
+    @patch(
+        "course_management.datamailer.client_recipient_lists."
+        "DatamailerRecipientListSendClient.send_to_list"
+    )
+    @patch(
+        "course_management.datamailer.client_recipient_lists."
+        "DatamailerRecipientListMemberClient.bulk_upsert"
+    )
+    def test_homework_notify_scores_does_not_block_on_datamailer(
+        self, bulk_upsert, send_list
+    ):
+        """Notify-scores must not wait for Datamailer in the request.
+
+        Production 2026-10-05: a gunicorn worker timed out on
+        /cadmin/ml-zoomcamp-2026/homework/hw01/notify-scores (969
+        submitters, chunked bulk upsert plus list send), was SIGKILLed,
+        and ALB marked the only prod task unhealthy.
+        """
+        bulk_upsert.return_value = {"updated_count": 0}
+        send_list.return_value = {"enqueued_count": 1}
+        self.homework.state = HomeworkState.SCORED.value
+        self.homework.save(update_fields=["state"])
+        self.create_homework_submission()
+        self.login_admin()
+        url = reverse(
+            "cadmin_homework_notify_scores",
+            kwargs={
+                "course_slug": self.course.slug,
+                "homework_slug": self.homework.slug,
+            },
+        )
+
+        response = self.client.post(url, follow=True)
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        bulk_upsert.assert_not_called()
+        send_list.assert_not_called()
+        event = DatamailerOutboxEvent.objects.get()
+        self.assertEqual(event.event_type, "homework.score_notification")
+        self.assertEqual(event.status, DatamailerOutboxStatus.PENDING)
+        self.assertEqual(event.payload, {"homework_id": self.homework.pk})
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+
+    @patch("cadmin.views.homework.queue_homework_score_notification")
     def test_homework_notify_scores_requires_scored_homework(
         self, send_score_notification
     ):

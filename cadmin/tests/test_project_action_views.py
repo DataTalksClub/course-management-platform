@@ -9,7 +9,7 @@ from cadmin.tests.project_view_base import ProjectCadminViewTestBase
 
 
 class ProjectActionViewTests(ProjectCadminViewTestBase):
-    @patch("cadmin.views.projects.send_project_score_notification")
+    @patch("cadmin.views.projects.queue_project_score_notification")
     @patch("cadmin.views.projects.score_project")
     def test_project_score_shows_message_without_notifying(
         self,
@@ -32,7 +32,7 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
         self.assertEqual(message_count, 1)
         send_score_notification.assert_not_called()
 
-    @patch("cadmin.views.projects.send_project_score_notification")
+    @patch("cadmin.views.projects.queue_project_score_notification")
     @patch("cadmin.views.projects.score_project")
     def test_project_score_can_redirect_back_to_project_submissions(
         self,
@@ -54,7 +54,7 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
         self.assertRedirects(response, next_url)
         send_score_notification.assert_not_called()
 
-    @patch("cadmin.views.projects.send_project_score_notification")
+    @patch("cadmin.views.projects.queue_project_score_notification")
     def test_project_notify_scores_sends_for_completed_project(
         self,
         send_score_notification,
@@ -73,7 +73,7 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
 
-    @patch("cadmin.views.projects.send_project_score_notification")
+    @patch("cadmin.views.projects.queue_project_score_notification")
     def test_project_notify_scores_requires_completed_project(
         self,
         send_score_notification,
