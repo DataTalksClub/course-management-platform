@@ -5,7 +5,6 @@ from django.test import TestCase, override_settings
 from accounts.models import CustomUser
 from course_management.datamailer.preferences import (
     get_email_preferences_for_user,
-    update_email_preferences_for_user,
 )
 
 from .datamailer_settings import RELAY_SETTINGS
@@ -57,45 +56,4 @@ class DatamailerPreferencesTest(TestCase):
         contact_preferences.assert_called_once_with(
             "student@example.com",
             category_tags=category_tags,
-        )
-
-    @override_settings(**RELAY_SETTINGS)
-    @patch(
-        "course_management.datamailer.client_contacts.DatamailerContactClient.update_contact_preferences"
-    )
-    def test_update_email_preferences_for_user_writes_datamailer_categories(
-        self,
-        update_contact_preferences,
-    ):
-        user = CustomUser.objects.create_user(
-            username="student",
-            email="student@example.com",
-        )
-        updated_preferences = {
-            "email_submission_confirmations": False,
-            "email_course_updates": True,
-        }
-
-        result = update_email_preferences_for_user(
-            user,
-            updated_preferences,
-        )
-
-        self.assertTrue(result)
-        expected_updates = []
-        submission_preference = {
-            "tag": "submission-results",
-            "label": "Homework and project submissions",
-            "enabled": False,
-        }
-        expected_updates.append(submission_preference)
-        course_preference = {
-            "tag": "course-updates",
-            "label": "General course-related emails",
-            "enabled": True,
-        }
-        expected_updates.append(course_preference)
-        update_contact_preferences.assert_called_once_with(
-            "student@example.com",
-            expected_updates,
         )

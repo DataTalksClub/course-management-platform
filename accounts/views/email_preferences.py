@@ -4,10 +4,11 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
+from course_management.datamailer.client import datamailer_enabled
 from course_management.observability import record_event
 from course_management.datamailer.preferences import (
+    enqueue_email_preference_update_for_user,
     get_email_preferences_for_user,
-    update_email_preferences_for_user,
 )
 
 
@@ -27,6 +28,9 @@ class EmailPreferenceUpdate:
 @login_required
 @require_http_methods(["GET", "POST"])
 def account_email_preferences(request):
+    if not datamailer_enabled():
+        return _email_preferences_unavailable_response()
+
     if request.method == "GET":
         return _account_email_preferences_get_response(request.user)
 
@@ -44,8 +48,13 @@ def _email_preferences_unavailable_response():
 def _account_email_preferences_get_response(user):
     preferences = get_email_preferences_for_user(user)
     if preferences is None:
-        return _email_preferences_unavailable_response()
-    payload = {"preferences": preferences}
+        record_event(
+            "account.email_preferences_unavailable",
+        )
+        payload = {"available": False, "preferences": {}}
+        response = JsonResponse(payload)
+        return response
+    payload = {"available": True, "preferences": preferences}
     response = JsonResponse(payload)
     return response
 
@@ -71,11 +80,11 @@ def _account_email_preferences_update_response(request):
         return error_response
 
     preferences = {update.field: update.enabled}
-    datamailer_synced = update_email_preferences_for_user(
+    queued = enqueue_email_preference_update_for_user(
         request.user,
         preferences,
     )
-    if not datamailer_synced:
+    if not queued:
         return _email_preferences_unavailable_response()
     record_event(
         "account.email_preference_updated",
@@ -89,7 +98,7 @@ def _account_email_preferences_update_response(request):
     payload = {
         "field": update.field,
         "value": update.enabled,
-        "datamailer_synced": True,
+        "queued": True,
     }
     response = JsonResponse(payload)
     return response

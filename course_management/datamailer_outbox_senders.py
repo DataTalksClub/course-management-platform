@@ -105,6 +105,12 @@ def send_campaign_queue_event(client, payload):
     return response
 
 
+def send_contact_preference_update_event(client, payload):
+    email = payload["email"]
+    categories = payload["categories"]
+    return client.contacts.update_contact_preferences(email, categories)
+
+
 RELAY_OUTBOX_EVENT_SENDERS = {
     "recipient_list.member_upsert": send_recipient_list_member_upsert_event,
     "recipient_list.member_remove": send_recipient_list_member_remove_event,
@@ -112,6 +118,9 @@ RELAY_OUTBOX_EVENT_SENDERS = {
         send_recipient_list_members_bulk_upsert_event
     ),
     "contact.erase": send_contact_erase_event,
+    "contact.update_preferences": (
+        send_contact_preference_update_event
+    ),
     "campaign.queue": send_campaign_queue_event,
     "homework.score_notification": send_homework_score_notification_event,
     "project.score_notification": send_project_score_notification_event,

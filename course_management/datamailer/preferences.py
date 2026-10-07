@@ -1,6 +1,12 @@
 import logging
+from uuid import uuid4
 
 import requests
+
+from course_management.datamailer_outbox import (
+    DatamailerOutboxEventData,
+    enqueue_datamailer_outbox_event,
+)
 
 from .client import DatamailerClient, DatamailerConfig
 from .preference_categories import (
@@ -61,29 +67,15 @@ def get_email_preferences_for_user(user) -> dict[str, bool] | None:
     return email_preference_values_from_response(response)
 
 
-def _log_preference_update_error(user):
-    logger.exception(
-        "Datamailer preference update failed for user_id=%s",
-        user.pk,
-    )
-
-
-def _send_email_preference_update(user, email, config, categories):
-    client = DatamailerClient(config)
-    try:
-        client.contacts.update_contact_preferences(email, categories)
-    except requests.RequestException:
-        _log_preference_update_error(user)
-        if config.strict:
-            raise
-        return False
-    return True
-
-
-def update_email_preferences_for_user(
+def enqueue_email_preference_update_for_user(
     user,
     values: dict[str, bool],
 ) -> bool:
+    """Queue a preference update so Relay blips cannot fail user requests.
+
+    The scheduled outbox processor applies the update with retries; Relay
+    being down delays it instead of surfacing a 5xx or losing the choice.
+    """
     context = _datamailer_user_context(user)
     if context is None:
         return False
@@ -93,4 +85,20 @@ def update_email_preferences_for_user(
         return False
 
     email, config = context
-    return _send_email_preference_update(user, email, config, categories)
+    enqueue_datamailer_outbox_event(
+        DatamailerOutboxEventData(
+            event_type="contact.update_preferences",
+            idempotency_key=(
+                f"contact.update_preferences:user:{user.pk}:{uuid4()}"
+            ),
+            ordering_key=f"user:{user.pk}",
+            payload={
+                "email": email,
+                "categories": categories,
+                "audience": config.audience,
+                "client": config.client,
+                "user_id": user.pk,
+            },
+        )
+    )
+    return True

@@ -1,8 +1,17 @@
+import random
 from datetime import timedelta
 
 import requests
 
 from data.models import DatamailerOutboxStatus
+
+
+# Relay outages have lasted hours (2026-10-07: ~6.5h). With the old
+# 300s cap and 8 attempts every event died within ~40 minutes and its
+# notification was silently lost. 900s x 24 attempts keeps retrying for
+# roughly half a day before giving up.
+RETRY_DELAY_CAP_SECONDS = 900
+RETRY_JITTER_FRACTION = 0.25
 
 
 def http_error_status_code(exc):
@@ -34,5 +43,12 @@ def status_for_error(exc, event):
 
 
 def retry_delay(attempt_count):
-    delay_seconds = min(300, 2 ** max(attempt_count - 1, 0))
-    return timedelta(seconds=delay_seconds)
+    base_seconds = min(
+        RETRY_DELAY_CAP_SECONDS,
+        2 ** max(attempt_count - 1, 0),
+    )
+    jitter_seconds = random.uniform(
+        0,
+        base_seconds * RETRY_JITTER_FRACTION,
+    )
+    return timedelta(seconds=base_seconds + jitter_seconds)

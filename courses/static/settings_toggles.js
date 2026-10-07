@@ -45,6 +45,13 @@ document.addEventListener('DOMContentLoaded', function() {
         return response.json();
       })
       .then(function(data) {
+        if (data.available === false) {
+          setEmailPreferencesStatus(
+            'Email preferences are temporarily unavailable. Try again later.'
+          );
+          setEmailPreferencesDisabled(true);
+          return;
+        }
         var preferences = data.preferences || {};
         emailPreferenceInputs().forEach(function(input) {
           if (Object.prototype.hasOwnProperty.call(preferences, input.name)) {

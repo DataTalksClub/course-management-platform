@@ -51,7 +51,7 @@ class DatamailerOutboxEvent(models.Model):
     )
     payload = models.JSONField(default=dict, blank=True)
     attempt_count = models.PositiveIntegerField(default=0)
-    max_attempts = models.PositiveIntegerField(default=8)
+    max_attempts = models.PositiveIntegerField(default=24)
     next_attempt_at = models.DateTimeField(default=timezone.now, db_index=True)
     last_attempt_at = models.DateTimeField(null=True, blank=True)
     acked_at = models.DateTimeField(null=True, blank=True)
