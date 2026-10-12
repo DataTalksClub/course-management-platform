@@ -31,6 +31,15 @@
   </div>
 </section>
 
+{% if course_score_notification_warning %}
+<div class="mt-5 rounded-md border app-alert-warning px-4 py-3 text-sm" role="alert">
+  <div class="flex items-start">
+    <i class="fas fa-exclamation-triangle mt-0.5 mr-2" aria-hidden="true"></i>
+    <span>{{ course_score_notification_warning }}</span>
+  </div>
+</div>
+{% endif %}
+
 <section class="cadmin-support-strip mt-5">
   <div>
     <h2 class="text-base font-semibold app-heading">Student support</h2>
@@ -167,6 +176,26 @@
               <div class="min-w-0">
                 <a href="{% url 'cadmin_homework_submissions' course.slug hw.slug %}" class="block truncate font-medium app-link hover:underline">{{ hw.title }}</a>
                 <p class="mt-1 text-xs app-muted">{{ hw.submissions_count }} submissions</p>
+                {% if hw.score_notification_status and hw.score_notification_status.state != 'not_queued' %}
+                  {% if hw.score_notification_status.is_failed_or_retrying %}
+                    <p class="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="{{ hw.score_notification_status.error }}">
+                      <i class="fas fa-exclamation-triangle mr-1" aria-hidden="true"></i>
+                      {% if hw.score_notification_status.state == 'retrying' %}
+                        Notifications retrying (Relay unavailable)
+                      {% else %}
+                        Notifications failed
+                      {% endif %}
+                    </p>
+                  {% elif hw.score_notification_status.is_succeeded %}
+                    <p class="mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                      <i class="fas fa-check mr-1" aria-hidden="true"></i> Notifications sent ({{ hw.score_notification_status.enqueued_count }})
+                    </p>
+                  {% elif hw.score_notification_status.is_pending %}
+                    <p class="mt-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+                      <i class="fas fa-clock mr-1" aria-hidden="true"></i> Notifications queued
+                    </p>
+                  {% endif %}
+                {% endif %}
               </div>
               <div class="shrink-0 md:hidden">
                 {% if hw.state == 'OP' %}
@@ -276,6 +305,26 @@
               <div class="min-w-0">
                 <a href="{% url 'cadmin_project_submissions' course.slug proj.slug %}" class="block truncate font-medium app-link hover:underline">{{ proj.title }}</a>
                 <p class="mt-1 text-xs app-muted">{{ proj.submissions_count }} submissions</p>
+                {% if proj.score_notification_status and proj.score_notification_status.state != 'not_queued' %}
+                  {% if proj.score_notification_status.is_failed_or_retrying %}
+                    <p class="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="{{ proj.score_notification_status.error }}">
+                      <i class="fas fa-exclamation-triangle mr-1" aria-hidden="true"></i>
+                      {% if proj.score_notification_status.state == 'retrying' %}
+                        Notifications retrying (Relay unavailable)
+                      {% else %}
+                        Notifications failed
+                      {% endif %}
+                    </p>
+                  {% elif proj.score_notification_status.is_succeeded %}
+                    <p class="mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                      <i class="fas fa-check mr-1" aria-hidden="true"></i> Notifications sent ({{ proj.score_notification_status.enqueued_count }})
+                    </p>
+                  {% elif proj.score_notification_status.is_pending %}
+                    <p class="mt-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+                      <i class="fas fa-clock mr-1" aria-hidden="true"></i> Notifications queued
+                    </p>
+                  {% endif %}
+                {% endif %}
               </div>
               <div class="shrink-0 md:hidden">
                 {% if proj.state == 'CL' %}

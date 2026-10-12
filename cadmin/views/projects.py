@@ -1,6 +1,10 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
+from course_management.datamailer.client import check_relay_availability
+from course_management.datamailer.score_notification_status import (
+    get_project_score_notification_status,
+)
 from course_management.datamailer.sync.peer_review_notifications import (
     send_peer_review_assignment_notification,
 )
@@ -156,12 +160,21 @@ def project_notify_scores(request, course_slug, project_slug):
             f"Score {project.title} before notifying students.",
         )
     else:
+        is_available, relay_error = check_relay_availability()
         queue_project_score_notification(project)
-        messages.success(
-            request,
-            f"Score notifications for {project.title} queued. "
-            "They will be sent shortly.",
-        )
+        if is_available:
+            messages.success(
+                request,
+                f"Score notifications for {project.title} queued. "
+                "They will be sent shortly.",
+            )
+        else:
+            messages.warning(
+                request,
+                f"Score notifications for {project.title} queued, but Relay is "
+                f"currently unavailable ({relay_error}). "
+                "Delivery will be retried automatically when Relay recovers.",
+            )
     return redirect_after_action(
         request, "cadmin_course", course_slug=course_slug
     )
@@ -181,6 +194,9 @@ def project_submissions(request, course_slug, project_slug):
         project,
     )
     context = project_submissions_context(context_data)
+    context["score_notification_status"] = (
+        get_project_score_notification_status(project)
+    )
     response = render(request, "cadmin/project_submissions.html", context)
     return response
 

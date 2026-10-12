@@ -117,6 +117,38 @@ def datamailer_enabled() -> bool:
     return DatamailerConfig.from_settings() is not None
 
 
+def check_relay_availability(timeout: float = 2.0) -> tuple[bool, str]:
+    """Check if Relay is configured and ready to accept requests.
+
+    Returns (is_available, error_message).
+    """
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return False, "Relay is not configured"
+
+    readiness_url = f"{config.url}/health/ready"
+    try:
+        response = requests.get(readiness_url, timeout=timeout)
+        if response.status_code == 200:
+            return True, ""
+        if response.status_code == 503:
+            try:
+                data = response.json()
+                status_str = data.get("status", "not_ready")
+            except Exception:
+                status_str = "not ready"
+            return False, f"Relay service is not ready (status={status_str})"
+        if response.status_code == 404:
+            fallback_url = f"{config.url}/health/"
+            fb_response = requests.get(fallback_url, timeout=timeout)
+            if fb_response.status_code == 200:
+                return True, ""
+            return False, f"Relay returned HTTP {fb_response.status_code}"
+        return False, f"Relay returned HTTP {response.status_code}"
+    except requests.RequestException as exc:
+        return False, f"Relay is unreachable ({exc})"
+
+
 def public_url(path: str) -> str:
     base_url = _notification_base_url()
     normalized_base_url = f"{base_url}/"

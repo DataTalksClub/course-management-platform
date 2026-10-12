@@ -1,11 +1,13 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
+import requests
 from django.test import TestCase, override_settings
 
 from course_management.datamailer.client import (
     DEFAULT_TIMEOUT_SECONDS,
     DatamailerClient,
     DatamailerConfig,
+    check_relay_availability,
     datamailer_enabled,
 )
 from courses.tests.datamailer_client_cases import (
@@ -144,3 +146,86 @@ class DatamailerClientEndpointTest(TestCase):
         self.assertEqual(result, {"created": True})
         expectation = campaign_upsert_expectation(response, session)
         self.assert_datamailer_request(expectation)
+
+
+class CheckRelayAvailabilityTests(TestCase):
+    def test_unconfigured_relay_returns_false(self):
+        with override_settings(
+            RELAY_URL="",
+            RELAY_API_KEY="",
+            RELAY_CLIENT="",
+            RELAY_AUDIENCE="",
+        ):
+            available, msg = check_relay_availability()
+            self.assertFalse(available)
+            self.assertIn("not configured", msg)
+
+    @override_settings(
+        RELAY_URL="https://relay.example.com",
+        RELAY_API_KEY="test-key",
+        RELAY_CLIENT="test-client",
+        RELAY_AUDIENCE="test-audience",
+    )
+    @patch("course_management.datamailer.client.requests.get")
+    def test_healthy_relay_ready_returns_true(self, mock_get):
+        mock_response = Mock(status_code=200)
+        mock_get.return_value = mock_response
+
+        available, msg = check_relay_availability()
+        self.assertTrue(available)
+        self.assertEqual(msg, "")
+        mock_get.assert_called_once_with(
+            "https://relay.example.com/health/ready", timeout=2.0
+        )
+
+    @override_settings(
+        RELAY_URL="https://relay.example.com",
+        RELAY_API_KEY="test-key",
+        RELAY_CLIENT="test-client",
+        RELAY_AUDIENCE="test-audience",
+    )
+    @patch("course_management.datamailer.client.requests.get")
+    def test_unready_relay_503_returns_false_with_message(self, mock_get):
+        mock_response = Mock(
+            status_code=503,
+            json=Mock(return_value={"status": "not_ready", "database": "error"}),
+        )
+        mock_get.return_value = mock_response
+
+        available, msg = check_relay_availability()
+        self.assertFalse(available)
+        self.assertIn("Relay service is not ready", msg)
+        self.assertIn("status=not_ready", msg)
+
+    @override_settings(
+        RELAY_URL="https://relay.example.com",
+        RELAY_API_KEY="test-key",
+        RELAY_CLIENT="test-client",
+        RELAY_AUDIENCE="test-audience",
+    )
+    @patch("course_management.datamailer.client.requests.get")
+    def test_fallback_to_health_on_404(self, mock_get):
+        mock_404 = Mock(status_code=404)
+        mock_200 = Mock(status_code=200)
+        mock_get.side_effect = [mock_404, mock_200]
+
+        available, msg = check_relay_availability()
+        self.assertTrue(available)
+        self.assertEqual(msg, "")
+        self.assertEqual(mock_get.call_count, 2)
+
+    @override_settings(
+        RELAY_URL="https://relay.example.com",
+        RELAY_API_KEY="test-key",
+        RELAY_CLIENT="test-client",
+        RELAY_AUDIENCE="test-audience",
+    )
+    @patch("course_management.datamailer.client.requests.get")
+    def test_relay_connection_error_returns_false_with_message(self, mock_get):
+        mock_get.side_effect = requests.RequestException("Connection refused")
+
+        available, msg = check_relay_availability()
+        self.assertFalse(available)
+        self.assertIn("Relay is unreachable", msg)
+        self.assertIn("Connection refused", msg)
+

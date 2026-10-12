@@ -19,6 +19,10 @@ from cadmin.deadline_extension import (
     EXTENSION_OPTIONS,
     project_extension_plan,
 )
+from course_management.datamailer.score_notification_status import (
+    get_homework_score_notification_status,
+    get_project_score_notification_status,
+)
 from .campaign_metrics import registration_campaign_metrics
 from .helpers import staff_required
 
@@ -54,6 +58,9 @@ def course_homeworks_for_admin(course):
         homework.can_extend_deadline = (
             homework.state == HomeworkState.OPEN.value
         )
+        homework.score_notification_status = (
+            get_homework_score_notification_status(homework)
+        )
     return homeworks
 
 
@@ -76,6 +83,9 @@ def course_projects_for_admin(course):
         )
         project.can_notify_scores = (
             project.state == ProjectState.COMPLETED.value
+        )
+        project.score_notification_status = (
+            get_project_score_notification_status(project)
         )
         extension_fields, extension_label = project_extension_plan(
             project
@@ -132,6 +142,20 @@ def course_admin_context(course):
     projects = course_projects_for_admin(course)
     total_enrollments = course.enrollment_set.count()
     support_metrics = course_support_metrics(course)
+    failing_assignments = [
+        item.title
+        for item in homeworks + projects
+        if getattr(item, "score_notification_status", None)
+        and item.score_notification_status.is_failed_or_retrying
+    ]
+    course_score_notification_warning = ""
+    if failing_assignments:
+        assignments_str = ", ".join(failing_assignments)
+        course_score_notification_warning = (
+            f"Score notifications for {assignments_str} could not be delivered: "
+            "Relay is unavailable or rejected the send. Delivery is retrying automatically."
+        )
+
     context.update(
         {
             "course": course,
@@ -140,6 +164,7 @@ def course_admin_context(course):
             "total_enrollments": total_enrollments,
             "support_metrics": support_metrics,
             "extension_options": EXTENSION_OPTIONS,
+            "course_score_notification_warning": course_score_notification_warning,
         }
     )
     return context

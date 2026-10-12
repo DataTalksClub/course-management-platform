@@ -1,6 +1,10 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
+from course_management.datamailer.client import check_relay_availability
+from course_management.datamailer.score_notification_status import (
+    get_homework_score_notification_status,
+)
 from course_management.datamailer.sync.score_notifications import (
     queue_homework_score_notification,
 )
@@ -137,12 +141,21 @@ def homework_notify_scores(request, course_slug, homework_slug):
             request, "cadmin_course", course_slug=course_slug
         )
 
+    is_available, relay_error = check_relay_availability()
     queue_homework_score_notification(homework)
-    messages.success(
-        request,
-        f"Score notifications for {homework.title} queued. "
-        "They will be sent shortly.",
-    )
+    if is_available:
+        messages.success(
+            request,
+            f"Score notifications for {homework.title} queued. "
+            "They will be sent shortly.",
+        )
+    else:
+        messages.warning(
+            request,
+            f"Score notifications for {homework.title} queued, but Relay is "
+            f"currently unavailable ({relay_error}). "
+            "Delivery will be retried automatically when Relay recovers.",
+        )
 
     return redirect_after_action(
         request, "cadmin_course", course_slug=course_slug
@@ -218,6 +231,9 @@ def homework_submissions(request, course_slug, homework_slug):
         Question.objects.filter(homework=homework).order_by("id")
     )
     context["questions"] = questions
+    context["score_notification_status"] = (
+        get_homework_score_notification_status(homework)
+    )
     response = render(request, "cadmin/homework_submissions.html", context)
     return response
 

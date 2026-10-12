@@ -1,3 +1,9 @@
+from unittest.mock import patch
+
+from django.test import override_settings
+from django.urls import reverse
+
+from data.models import DatamailerOutboxEvent, DatamailerOutboxStatus
 from courses.models import (
     Enrollment,
     ProjectState,
@@ -149,3 +155,143 @@ class ProjectCadminViewTests(ProjectCadminViewTestBase):
 
         response = self.client.get(url, {"page": 2})
         self.assert_second_project_submissions_page(response)
+
+
+RELAY_SETTINGS = {
+    "RELAY_URL": "https://relay.example.com",
+    "RELAY_API_KEY": "test-key",
+    "RELAY_CLIENT": "test-client",
+    "RELAY_AUDIENCE": "test-audience",
+}
+
+
+class ProjectCadminScoringActionTests(ProjectCadminViewTestBase):
+    @override_settings(**RELAY_SETTINGS)
+    @patch("cadmin.views.projects.check_relay_availability", return_value=(True, ""))
+    @patch("cadmin.views.projects.queue_project_score_notification")
+    def test_project_notify_scores_sends_notification(
+        self, send_score_notification, mock_check_relay
+    ):
+        """The notify action queues score emails for a completed project."""
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save(update_fields=["state"])
+        self.login_admin()
+        url = reverse(
+            "cadmin_project_notify_scores",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+
+        response = self.client.post(url, follow=True)
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        send_score_notification.assert_called_once_with(self.project)
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].level_tag, "success")
+
+    @override_settings(**RELAY_SETTINGS)
+    @patch("cadmin.views.projects.check_relay_availability")
+    @patch("cadmin.views.projects.queue_project_score_notification")
+    def test_project_notify_scores_shows_warning_when_relay_unavailable(
+        self, send_score_notification, mock_check_relay
+    ):
+        """When Relay is unavailable, notify-scores still queues but shows a clear warning."""
+        mock_check_relay.return_value = (
+            False,
+            "Relay service is not ready (status=not_ready)",
+        )
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save(update_fields=["state"])
+        self.login_admin()
+        url = reverse(
+            "cadmin_project_notify_scores",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+
+        response = self.client.post(url, follow=True)
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        send_score_notification.assert_called_once_with(self.project)
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].level_tag, "warning")
+        self.assertIn("Relay is currently unavailable", messages[0].message)
+        self.assertIn("Relay service is not ready", messages[0].message)
+
+    @patch("cadmin.views.projects.queue_project_score_notification")
+    def test_project_notify_scores_shows_warning_when_relay_not_configured(
+        self, send_score_notification
+    ):
+        """When Relay is not configured, notify-scores still queues but shows a clear warning."""
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save(update_fields=["state"])
+        self.login_admin()
+        url = reverse(
+            "cadmin_project_notify_scores",
+            kwargs={
+                "course_slug": self.course.slug,
+                "project_slug": self.project.slug,
+            },
+        )
+
+        response = self.client.post(url, follow=True)
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        send_score_notification.assert_called_once_with(self.project)
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(messages[0].level_tag, "warning")
+        self.assertIn("Relay is not configured", messages[0].message)
+
+    def test_project_submissions_page_shows_score_notification_failure(self):
+        """Project submissions page shows a clear banner when score notification delivery failed or is retrying."""
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save(update_fields=["state"])
+        self.login_admin()
+
+        DatamailerOutboxEvent.objects.create(
+            event_id="evt-proj-score-retry",
+            event_type="project.score_notification",
+            idempotency_key=f"project-score:{self.course.slug}:{self.project.slug}",
+            ordering_key="test-ordering-key",
+            status=DatamailerOutboxStatus.RETRYING,
+            attempt_count=2,
+            last_error="500 Server Error: Internal Server Error for url: https://relay.datatalks.club/api/recipient-lists/members/bulk-upsert",
+        )
+
+        submissions_url = self.cadmin_project_submissions_url()
+        response = self.client.get(submissions_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Score notifications could not be delivered")
+        self.assertContains(response, "500 Server Error")
+        self.assertContains(response, "retrying automatically")
+
+    def test_project_course_admin_page_shows_score_notification_failure_badge(self):
+        """Course admin page displays a warning badge when project score notification delivery failed/is retrying."""
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save(update_fields=["state"])
+        self.login_admin()
+
+        DatamailerOutboxEvent.objects.create(
+            event_id="evt-proj-score-fail",
+            event_type="project.score_notification",
+            idempotency_key=f"project-score:{self.course.slug}:{self.project.slug}",
+            ordering_key="test-ordering-key",
+            status=DatamailerOutboxStatus.RETRYING,
+            attempt_count=1,
+            last_error="Relay service is not ready",
+        )
+
+        course_url = self.cadmin_course_url()
+        response = self.client.get(course_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Notifications retrying")
+
