@@ -16,6 +16,7 @@ from .views import project_system_evaluations
 from .views import projects
 from .views import questions
 from .views import registration_campaigns
+from .views import review_criteria
 from .views import webhooks
 
 urlpatterns = [
@@ -182,6 +183,17 @@ urlpatterns = [
         ),
         project_system_evaluations.project_system_evaluations_view,
         name="api_project_system_evaluations",
+    ),
+    # Review criteria
+    path(
+        "courses/<slug:course_slug>/review-criteria/",
+        review_criteria.review_criteria_view,
+        name="api_review_criteria",
+    ),
+    path(
+        "courses/<slug:course_slug>/review-criteria/<int:criteria_id>/",
+        review_criteria.review_criteria_detail_view,
+        name="api_review_criteria_detail",
     ),
     # Questions
     path(

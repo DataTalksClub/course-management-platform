@@ -1,6 +1,6 @@
 from courses.models.homework import Question
 from courses.models.homework import AnswerTypes, HomeworkState
-from courses.models.project import ProjectState
+from courses.models.project import ProjectState, ReviewCriteria
 
 from ..primitives import choices_schema, enum_schema
 
@@ -17,10 +17,14 @@ PROJECT_STATE_SCHEMA = enum_schema(
 )
 QUESTION_TYPE_SCHEMA = choices_schema(Question.QUESTION_TYPES)
 ANSWER_TYPE_SCHEMA = enum_schema(AnswerTypes, nullable=True)
+REVIEW_CRITERIA_TYPE_SCHEMA = choices_schema(
+    ReviewCriteria.REVIEW_CRITERIA_TYPES
+)
 
 CONTENT_ENUM_SCHEMAS = {
     "HomeworkState": HOMEWORK_STATE_SCHEMA,
     "ProjectState": PROJECT_STATE_SCHEMA,
     "QuestionType": QUESTION_TYPE_SCHEMA,
     "AnswerType": ANSWER_TYPE_SCHEMA,
+    "ReviewCriteriaType": REVIEW_CRITERIA_TYPE_SCHEMA,
 }

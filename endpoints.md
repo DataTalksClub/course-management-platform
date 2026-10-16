@@ -362,6 +362,29 @@ Delete rejection example:
 {"error": "Cannot delete question with existing answers"}
 ```
 
+### Review Criteria
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/courses/{course_slug}/review-criteria/` | List review criteria |
+| `POST` | `/api/courses/{course_slug}/review-criteria/` | Create one criterion, or bulk-create from a JSON array (staff only) |
+| `GET` | `/api/courses/{course_slug}/review-criteria/{criteria_id}/` | Get review criteria details |
+| `PATCH` | `/api/courses/{course_slug}/review-criteria/{criteria_id}/` | Update review criteria (staff only) |
+| `DELETE` | `/api/courses/{course_slug}/review-criteria/{criteria_id}/` | Delete review criteria only if no scores reference them (staff only) |
+
+Review criteria fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `description` | string | Criteria description; required for create |
+| `review_criteria_type` | string | `RB` (radio buttons) or `CB` (checkboxes); defaults to `RB` |
+| `options` | array | Options as `{"criteria": "...", "score": 0}` objects; required for create |
+
+Review criteria safety rules:
+- Criteria with existing evaluation scores cannot be deleted, because that would delete recorded score data.
+- `review_criteria_type` and `options` cannot be changed once scores exist, because recorded scores are interpreted through them. The `description` stays editable.
+- Responses include `scores_count`, `can_delete`, and `delete_blockers`.
+
 ### States
 
 Homework states:
