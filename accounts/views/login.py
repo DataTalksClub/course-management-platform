@@ -3,7 +3,7 @@ from allauth.socialaccount.models import SocialApp
 from allauth.socialaccount.providers import registry
 from django.conf import settings
 from django.core.cache import cache
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import reverse
 
 
@@ -18,6 +18,14 @@ async def social_login_view(request):
         context,
     )
     return response
+
+
+def signup_redirect_view(request):
+    next_url = request.GET.get("next") or request.POST.get("next")
+    login_url = reverse("login")
+    if next_url:
+        login_url = f"{login_url}?next={next_url}"
+    return redirect(login_url)
 
 
 @sync_to_async

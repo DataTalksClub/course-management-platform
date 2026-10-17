@@ -2,9 +2,16 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from allauth.account.models import EmailAddress
-from django.test import TestCase
+from allauth.account.views import SignupView
+from allauth.core.exceptions import ImmediateHttpResponse
+from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
-from accounts.auth import ConsolidatingSocialAccountAdapter, extract_email
+from accounts.auth import (
+    AccountAdapter,
+    ConsolidatingSocialAccountAdapter,
+    extract_email,
+)
 from accounts.models import CustomUser
 
 
@@ -98,17 +105,31 @@ class ConsolidatingSocialAccountAdapterTestCase(TestCase):
 
 
 class SignupRouteTestCase(TestCase):
-    def test_signup_get_renders_social_login(self):
+    def test_signup_get_redirects_to_login(self):
         response = self.client.get("/accounts/signup/")
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "accounts/login.html")
+        self.assertRedirects(
+            response,
+            reverse("login"),
+            fetch_redirect_response=False,
+        )
 
-    def test_signup_post_does_not_500_with_duplicate_empty_username(self):
+    def test_signup_get_preserves_next_param(self):
+        response = self.client.get(
+            "/accounts/signup/?next=/register/ai-dev-tools/"
+        )
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next=/register/ai-dev-tools/",
+            fetch_redirect_response=False,
+        )
+
+    def test_signup_post_redirects_to_login_and_creates_no_user(self):
         # A user already exists with empty username (as observed in production)
         CustomUser.objects.create(
             username="",
             email="existing@example.com",
         )
+        initial_user_count = CustomUser.objects.count()
 
         # A new user attempts to submit /accounts/signup/
         response = self.client.post(
@@ -120,8 +141,49 @@ class SignupRouteTestCase(TestCase):
             },
         )
 
-        # The endpoint should not crash with a 500 Internal Server Error
-        self.assertNotEqual(response.status_code, 500)
+        # The endpoint should redirect cleanly without 500 and without creating a user
+        self.assertRedirects(
+            response,
+            reverse("login"),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(CustomUser.objects.count(), initial_user_count)
+        self.assertFalse(
+            CustomUser.objects.filter(email="newuser@example.com").exists()
+        )
+
+    def test_allauth_fallback_signup_view_redirects_to_login(self):
+        from django.contrib.auth.models import AnonymousUser
+        from django.contrib.sessions.middleware import SessionMiddleware
+
+        factory = RequestFactory()
+        request = factory.post(
+            "/accounts/signup/",
+            {
+                "email": "fallback@example.com",
+                "password1": "Password123!",
+                "password2": "Password123!",
+            },
+        )
+        request.user = AnonymousUser()
+        SessionMiddleware(lambda req: None).process_request(request)
+        response = SignupView.as_view()(request)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("login"))
+        self.assertFalse(
+            CustomUser.objects.filter(email="fallback@example.com").exists()
+        )
+
+    def test_socialaccount_adapter_remains_open_for_signup(self):
+        adapter = ConsolidatingSocialAccountAdapter()
+        self.assertTrue(adapter.is_open_for_signup(None, None))
+
+    def test_account_adapter_closed_for_signup(self):
+        adapter = AccountAdapter()
+        with self.assertRaises(ImmediateHttpResponse) as ctx:
+            adapter.is_open_for_signup(None)
+        self.assertEqual(ctx.exception.response.status_code, 302)
+        self.assertEqual(ctx.exception.response.url, reverse("login"))
 
     def test_custom_user_save_defaults_username_to_email(self):
         user = CustomUser(email="testuser@example.com")

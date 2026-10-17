@@ -8,14 +8,17 @@ from accounts.views.account_toggles import (
 from accounts.views.disabled import disabled
 from accounts.views.email_preferences import account_email_preferences
 from accounts.views.impersonation import stop_impersonating
-from accounts.views.login import social_login_view
+from accounts.views.login import (
+    signup_redirect_view,
+    social_login_view,
+)
 from accounts.views.timezone import update_timezone_preference
 
 urlpatterns = [
     path('settings/', account_settings, name='account_settings'),
     path('login/', social_login_view, name='login'),
-    path('signup/', social_login_view, name='account_signup'),
-    path('signup/', social_login_view, name='signup'),
+    path('signup/', signup_redirect_view, name='account_signup'),
+    path('signup/', signup_redirect_view, name='signup'),
     path('email/', disabled),
     path('password/reset/', disabled),
     path('toggle-dark-mode/', toggle_dark_mode, name='toggle_dark_mode'),

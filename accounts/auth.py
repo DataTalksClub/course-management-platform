@@ -3,9 +3,12 @@ import logging
 from dataclasses import dataclass
 from functools import wraps
 
+from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from allauth.account.models import EmailAddress
+from allauth.core.exceptions import ImmediateHttpResponse
 
+from django.shortcuts import redirect
 from django.utils.crypto import get_random_string
 
 from django.contrib.auth import get_user_model
@@ -62,7 +65,15 @@ def extract_email(response_data, sociallogin=None):
     raise KeyError("Email not found in response data")
 
 
+class AccountAdapter(DefaultAccountAdapter):
+    def is_open_for_signup(self, request):
+        raise ImmediateHttpResponse(redirect("login"))
+
+
 class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
+    def is_open_for_signup(self, request, sociallogin):
+        return True
+
     def pre_social_login(self, request, sociallogin):
         response_data = sociallogin.account.extra_data
         logger.info(f"OAuth response: {json.dumps(response_data)}")

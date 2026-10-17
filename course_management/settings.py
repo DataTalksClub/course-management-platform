@@ -378,6 +378,7 @@ ACCOUNT_USER_MODEL_EMAIL_FIELD = "email"
 
 # Disable sign-up form
 ACCOUNT_ALLOW_REGISTRATION = False
+ACCOUNT_ADAPTER = "accounts.auth.AccountAdapter"
 
 
 # force all-auth use https
