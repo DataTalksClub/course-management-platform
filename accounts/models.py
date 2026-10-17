@@ -81,6 +81,11 @@ class CustomUser(AbstractUser):
     def save(self, *args, **kwargs):
         if self.email:
             self.email = self.email.strip().lower()
+        if not self.username and self.email:
+            self.username = self.email
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = set(update_fields) | {"username"}
         super().save(*args, **kwargs)
 
 

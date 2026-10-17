@@ -95,3 +95,38 @@ class ConsolidatingSocialAccountAdapterTestCase(TestCase):
         self.assertEqual(email_address.email, email)
         self.assertTrue(email_address.primary)
         self.assertTrue(email_address.verified)
+
+
+class SignupRouteTestCase(TestCase):
+    def test_signup_get_renders_social_login(self):
+        response = self.client.get("/accounts/signup/")
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "accounts/login.html")
+
+    def test_signup_post_does_not_500_with_duplicate_empty_username(self):
+        # A user already exists with empty username (as observed in production)
+        CustomUser.objects.create(
+            username="",
+            email="existing@example.com",
+        )
+
+        # A new user attempts to submit /accounts/signup/
+        response = self.client.post(
+            "/accounts/signup/",
+            {
+                "email": "newuser@example.com",
+                "password1": "Password123!",
+                "password2": "Password123!",
+            },
+        )
+
+        # The endpoint should not crash with a 500 Internal Server Error
+        self.assertNotEqual(response.status_code, 500)
+
+    def test_custom_user_save_defaults_username_to_email(self):
+        user = CustomUser(email="testuser@example.com")
+        user.save()
+        self.assertEqual(user.username, "testuser@example.com")
+
+
+
