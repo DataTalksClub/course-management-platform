@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 
+from api.start_times import start_time_error
 from api.utils import parse_date
+from courses.models.start_time import parse_start_time
 
 
 @dataclass(frozen=True)
@@ -104,7 +107,7 @@ def apply_patch_fields(
         if error:
             return error
 
-    return None
+    return start_time_error(instance)
 
 
 def apply_patch_field(instance, field, value, rules):
@@ -144,6 +147,14 @@ def validate_patch_field(
 
 
 def parse_patch_field_value(field, value, rules):
+    if field == "starts_at":
+        try:
+            return parse_start_time(value), None
+        except ValidationError as exc:
+            return None, error_response(
+                "Invalid start time", "validation_error",
+                details=exc.message_dict,
+            )
     if field not in rules.date_fields:
         return value, None
 

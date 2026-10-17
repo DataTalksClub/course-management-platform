@@ -1,5 +1,6 @@
 from courses.models.project import ProjectState
 
+from .course_serializers import date_to_iso
 from .serializer_counts import annotated_or_count
 
 
@@ -17,6 +18,7 @@ def project_deadline_fields(project):
     peer_review_due_date = project.peer_review_due_date.isoformat()
     return {
         "submission_due_date": submission_due_date,
+        "starts_at": date_to_iso(project.starts_at),
         "peer_review_due_date": peer_review_due_date,
     }
 

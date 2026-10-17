@@ -1,15 +1,16 @@
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.db import models
 
-from django.core.validators import URLValidator
-from django.core.exceptions import ValidationError
 from accounts.models import CustomUser
-
 from courses.random_names import generate_random_name
+
+from .start_time import StartTimeModel
 
 User = CustomUser
 
 
-class Course(models.Model):
+class Course(StartTimeModel):
     slug = models.SlugField(unique=True, blank=False)
     title = models.CharField(max_length=200)
 

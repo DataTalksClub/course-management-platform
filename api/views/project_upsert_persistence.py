@@ -2,8 +2,6 @@ from dataclasses import dataclass
 
 from django.http import JsonResponse
 
-from courses.models.project import Project, ProjectState
-
 from api.safety import apply_patch_fields, error_response
 from api.utils import instructions_url_error, parse_date
 from api.views.project_serializers import project_to_dict
@@ -12,6 +10,7 @@ from api.views.project_upsert_rules import (
     PROJECT_PATCH_RULES,
 )
 from api.views.project_upsert_validation import project_upsert_title
+from courses.models.project import Project, ProjectState
 
 
 @dataclass(frozen=True)
@@ -58,7 +57,7 @@ def create_project_from_upsert(course, project_slug, data):
     create_data = project_upsert_create_data(course, project_slug, data)
     create_data_vars = vars(create_data)
     values = create_data_vars.copy()
-    project = Project.objects.create(**values)
+    project = Project(**values)
     return project
 
 

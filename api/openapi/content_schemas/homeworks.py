@@ -8,7 +8,6 @@ from ..primitives import (
     ref,
 )
 
-
 HOMEWORK_REF = ref("Homework")
 HOMEWORK_ARRAY = array_of(HOMEWORK_REF)
 HOMEWORK_SUMMARY_REF = ref("HomeworkSummary")
@@ -28,6 +27,7 @@ HOMEWORK_SUMMARY_SCHEMA = model_object_schema(
         "title",
         "instructions_url",
         "due_date",
+        "starts_at",
         "state",
     ],
 )
@@ -59,7 +59,7 @@ HOMEWORK_DETAIL_ALLOF = [
 ]
 HOMEWORK_DATE_CONTENT_PROPERTIES = model_properties(
     Homework,
-    ["due_date", "description", "instructions_url"],
+    ["due_date", "starts_at", "description", "instructions_url"],
 )
 HOMEWORK_OPTION_PROPERTIES = model_properties(
     Homework,
@@ -78,6 +78,7 @@ HOMEWORK_PATCH_BASE_PROPERTIES = model_properties(
         "description",
         "instructions_url",
         "due_date",
+        "starts_at",
     ],
 )
 HOMEWORK_CREATE_REQUEST_ONE_OF = [

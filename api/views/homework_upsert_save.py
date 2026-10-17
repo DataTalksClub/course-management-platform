@@ -1,5 +1,7 @@
 from django.db import transaction
 
+from api.safety import error_response
+from api.start_times import apply_start_time
 from api.utils import parse_date
 from api.views.homework_upsert_common import (
     HOMEWORK_DIRECT_UPDATE_FIELDS,
@@ -9,9 +11,10 @@ from api.views.homework_upsert_common import (
     invalid_homework_state_response,
     validate_homework_instructions_url_value,
 )
-from api.views.homework_upsert_questions import replace_homework_questions
-from courses.models.homework import Homework
-from courses.models.homework import HomeworkState
+from api.views.homework_upsert_questions import (
+    replace_homework_questions,
+)
+from courses.models.homework import Homework, HomeworkState
 
 
 def save_homework_upsert(upsert):
@@ -43,7 +46,7 @@ def create_homework_for_upsert(upsert):
     instructions_url = upsert.data.get("instructions_url")
     due_date = parse_date(upsert.data["due_date"])
 
-    return Homework.objects.create(
+    return Homework(
         course=upsert.course,
         slug=upsert.homework_slug,
         title=title,
@@ -70,6 +73,9 @@ def apply_homework_data(homework, data):
         if field not in data:
             continue
         setattr(homework, field, data[field])
+    timing_error = apply_start_time(homework, data)
+    if timing_error:
+        return error_response(timing_error, "validation_error")
     return None
 
 

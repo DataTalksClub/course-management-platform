@@ -2,11 +2,12 @@ from django.core.exceptions import ValidationError
 from django.utils.dateparse import parse_date
 
 from api.safety import error_response
+from api.start_times import normalize_start_time
 from api.utils import parse_json_body
 from courses.models.course import Course
 
-
 COURSE_PATCH_FIELDS = {
+    "starts_at",
     "title",
     "description",
     "start_date",
@@ -25,6 +26,7 @@ COURSE_PATCH_FIELDS = {
 COURSE_DATE_FIELDS = {"start_date", "end_date"}
 
 COURSE_CREATE_DEFAULTS = (
+    ("starts_at", None),
     ("description", ""),
     ("start_date", None),
     ("end_date", None),
@@ -97,6 +99,10 @@ def course_validation_error(course):
 
 def normalize_course_data(data):
     result = data.copy()
+    try:
+        normalize_start_time(result)
+    except ValidationError as exc:
+        return None, validation_error_response(exc)
 
     for field in COURSE_DATE_FIELDS:
         if field not in result:

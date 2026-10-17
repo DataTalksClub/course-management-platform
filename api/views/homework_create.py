@@ -4,13 +4,16 @@ from django.db.models import Count
 from django.http import JsonResponse
 from django.utils.text import slugify
 
-from courses.models.homework import Homework, Question
-from courses.models.homework import HomeworkState
-
 from api.crud import bulk_create_response
 from api.safety import require_staff_token
-from api.utils import instructions_url_error, parse_date, parse_json_body
+from api.start_times import apply_start_time
+from api.utils import (
+    instructions_url_error,
+    parse_date,
+    parse_json_body,
+)
 from api.views.homework_serializers import homework_to_dict
+from courses.models.homework import Homework, HomeworkState, Question
 
 
 @dataclass(frozen=True)
@@ -98,10 +101,14 @@ def create_homework(course, homework_data):
     if error:
         return None, error
 
-    homework = Homework.objects.create(
+    homework = Homework(
         course=course,
         **attrs,
     )
+    error = apply_start_time(homework, homework_data)
+    if error:
+        return None, error
+    homework.save()
 
     questions_data = homework_data.get("questions", [])
     for question_data in questions_data:

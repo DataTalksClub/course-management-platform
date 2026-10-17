@@ -8,7 +8,6 @@ from ..primitives import (
     ref,
 )
 
-
 PROJECT_REF = ref("Project")
 PROJECT_ARRAY = array_of(PROJECT_REF)
 PROJECT_SUMMARY_REF = ref("ProjectSummary")
@@ -26,6 +25,7 @@ PROJECT_SUMMARY_SCHEMA = model_object_schema(
         "title",
         "instructions_url",
         "submission_due_date",
+        "starts_at",
         "peer_review_due_date",
         "state",
     ],
@@ -61,6 +61,7 @@ PROJECT_DEADLINE_CONTENT_PROPERTIES = model_properties(
     Project,
     [
         "submission_due_date",
+        "starts_at",
         "peer_review_due_date",
         "description",
         "instructions_url",
@@ -85,6 +86,7 @@ PROJECT_PATCH_BASE_PROPERTIES = model_properties(
         "description",
         "instructions_url",
         "submission_due_date",
+        "starts_at",
         "peer_review_due_date",
     ],
 )

@@ -6,18 +6,20 @@ from api.safety import PatchFieldRules, require_staff_token
 from api.utils import parse_json_body
 from api.views.homework_serializers import homework_to_dict
 from api.views.homework_upsert_common import (
-    HomeworkUpsertData,
     VALID_HOMEWORK_STATES,
+    HomeworkUpsertData,
 )
 from api.views.homework_upsert_save import (
     save_homework_upsert,
 )
-from api.views.homework_upsert_validation import validate_homework_upsert
+from api.views.homework_upsert_validation import (
+    validate_homework_upsert,
+)
 from courses.models.course import Course
 from courses.models.homework import Homework
 
-
 HOMEWORK_PATCH_FIELDS = {
+    "starts_at",
     "title",
     "description",
     "due_date",

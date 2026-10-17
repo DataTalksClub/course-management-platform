@@ -1,13 +1,15 @@
 from enum import Enum
 
-from django.db import models
-from django.core.validators import URLValidator
 from django.contrib.auth import get_user_model
+from django.core.validators import URLValidator
+from django.db import models
 from django.utils import timezone
 
-from .course import Course, Enrollment
-from .stat_display import build_stat_fields, homework_stat_sections
 from courses.validators.custom_url_validators import validate_url_200
+
+from .course import Course, Enrollment
+from .start_time import StartTimeModel
+from .stat_display import build_stat_fields, homework_stat_sections
 
 User = get_user_model()
 
@@ -29,7 +31,7 @@ def _build_homework_state_choices():
 HOMEWORK_STATE_CHOICES = _build_homework_state_choices()
 
 
-class Homework(models.Model):
+class Homework(StartTimeModel):
     slug = models.SlugField(blank=False)
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE)

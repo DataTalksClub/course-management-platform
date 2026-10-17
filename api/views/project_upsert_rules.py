@@ -1,9 +1,8 @@
+from api.safety import PatchFieldRules
 from courses.models.project import ProjectState
 
-from api.safety import PatchFieldRules
-
-
 PROJECT_PATCH_FIELDS = {
+    "starts_at",
     "title",
     "description",
     "submission_due_date",

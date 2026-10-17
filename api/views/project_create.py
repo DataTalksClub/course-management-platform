@@ -5,13 +5,16 @@ from django.db.models import Count
 from django.http import JsonResponse
 from django.utils.text import slugify
 
-from courses.models.project import Project
-from courses.models.project import ProjectState
-
 from api.crud import bulk_create_response
 from api.safety import require_staff_token
-from api.utils import instructions_url_error, parse_date, parse_json_body
+from api.start_times import apply_start_time
+from api.utils import (
+    instructions_url_error,
+    parse_date,
+    parse_json_body,
+)
 from api.views.project_serializers import project_to_dict
+from courses.models.project import Project, ProjectState
 
 
 @dataclass(frozen=True)
@@ -144,10 +147,14 @@ def create_project(course, project_data):
         return None, error
 
     attrs = project_model_attrs(project_data, values)
-    project = Project.objects.create(
+    project = Project(
         course=course,
         **attrs,
     )
+    error = apply_start_time(project, project_data)
+    if error:
+        return None, error
+    project.save()
 
     project_record = project_to_dict(project)
     return project_record, None

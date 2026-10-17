@@ -12,6 +12,7 @@ def course_to_dict(course):
         "title": course.title,
         "description": course.description,
         "start_date": start_date,
+        "starts_at": date_to_iso(course.starts_at),
         "end_date": end_date,
         "registration_url": course.registration_url,
         "github_repo_url": course.github_repo_url,
@@ -79,6 +80,7 @@ def course_homework_to_dict(homework):
         "title": homework.title,
         "instructions_url": homework.instructions_url,
         "due_date": due_date,
+        "starts_at": date_to_iso(homework.starts_at),
         "state": homework.state,
     }
 
@@ -92,6 +94,7 @@ def course_project_to_dict(project):
         "title": project.title,
         "instructions_url": project.instructions_url,
         "submission_due_date": submission_due_date,
+        "starts_at": date_to_iso(project.starts_at),
         "peer_review_due_date": peer_review_due_date,
         "state": project.state,
     }

@@ -1,5 +1,6 @@
 from courses.models.homework import HomeworkState
 
+from .course_serializers import date_to_iso
 from .serializer_counts import annotated_or_count
 
 
@@ -28,6 +29,7 @@ def homework_to_dict(homework):
         "description": homework.description,
         "instructions_url": homework.instructions_url,
         "due_date": due_date,
+        "starts_at": date_to_iso(homework.starts_at),
         "state": homework.state,
         "learning_in_public_cap": homework.learning_in_public_cap,
         "homework_url_field": homework.homework_url_field,
