@@ -114,7 +114,7 @@
         </p>
       </div>
       <div class="hidden overflow-x-auto md:block">
-        <table class="min-w-full text-sm">
+        <table class="dk-table min-w-full text-sm">
           <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
             <tr>
               <th class="px-3 py-2">Homework</th>
@@ -215,7 +215,7 @@
         </p>
       </div>
       <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
+        <table class="dk-table min-w-full text-sm">
           <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
             <tr>
               <th class="px-3 py-2">Rank</th>
@@ -252,7 +252,7 @@
         </p>
       </div>
       <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
+        <table class="dk-table min-w-full text-sm">
           <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
             <tr>
               <th class="px-3 py-2">Homework</th>
@@ -301,7 +301,7 @@
               <dd class="app-muted">{{ bucket.count }} ({{ bucket.pct }}%)</dd>
             </div>
             <div class="mt-2 h-2 w-full overflow-hidden rounded app-surface-muted">
-              <div class="h-full rounded" style="width: {{ bucket.pct }}%; background: var(--link-color)"></div>
+              <div class="h-full rounded" style="width: {{ bucket.pct }}%; background: var(--dk-accent-default)"></div>
             </div>
           </div>
         {% endfor %}
@@ -323,7 +323,7 @@
           <div class="grid grid-cols-[7rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2">
             <dt class="app-muted">{{ week.label }}</dt>
             <dd class="h-2 w-full overflow-hidden rounded app-surface-muted">
-              <div class="h-full rounded" style="width: {{ week.bar_pct }}%; background: var(--link-color)"></div>
+              <div class="h-full rounded" style="width: {{ week.bar_pct }}%; background: var(--dk-accent-default)"></div>
             </dd>
             <dd class="text-right font-semibold app-heading">{{ week.count }}</dd>
           </div>

@@ -46,7 +46,7 @@
     <h2 class="text-lg font-semibold app-heading">Score distribution</h2>
     <p class="mt-1 text-sm app-muted">All values are points.</p>
     <div class="mt-3 hidden overflow-x-auto rounded-md border app-border md:block">
-      <table class="min-w-full text-sm">
+      <table class="dk-table min-w-full text-sm">
         <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
           <tr>
             <th class="px-3 py-2">Metric</th>
@@ -130,7 +130,7 @@
     <h2 class="text-lg font-semibold app-heading">Time distribution</h2>
     <p class="mt-1 text-sm app-muted">All values are hours reported by students.</p>
     <div class="mt-3 hidden overflow-x-auto rounded-md border app-border md:block">
-      <table class="min-w-full text-sm">
+      <table class="dk-table min-w-full text-sm">
         <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
           <tr>
             <th class="px-3 py-2">Metric</th>
@@ -223,7 +223,7 @@
                     </span>
                     <span class="shrink-0 w-32">
                       <span class="block h-2 w-full overflow-hidden rounded app-surface-muted">
-                        <span class="block h-full rounded" style="width: {{ opt.pct }}%; background: var(--link-color)"></span>
+                        <span class="block h-full rounded" style="width: {{ opt.pct }}%; background: var(--dk-accent-default)"></span>
                       </span>
                     </span>
                     <span class="shrink-0 w-16 text-right app-muted">
@@ -234,7 +234,7 @@
               </div>
             {% elif q.free_form_values %}
               <div class="mt-3 overflow-x-auto rounded-md border app-border">
-                <table class="min-w-full text-sm">
+                <table class="dk-table min-w-full text-sm">
                   <thead class="app-surface-muted text-left text-xs font-semibold uppercase app-muted">
                     <tr>
                       <th class="px-3 py-2">Answer</th>

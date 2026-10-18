@@ -14,7 +14,7 @@
 
         <div class="flex flex-col items-center gap-3 px-5 py-5">
             {% for provider in providers %}
-                <a href="{{ provider.login_url }}" class="primer-button primer-button-secondary w-fit">
+                <a href="{{ provider.login_url }}" class="dk-button primer-button primer-button-secondary w-fit">
                     {% if 'Google' in provider.name %}
                         <i class="fab fa-google"></i>
                     {% elif 'GitHub' in provider.name %}

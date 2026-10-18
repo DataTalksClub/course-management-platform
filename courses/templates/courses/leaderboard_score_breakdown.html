@@ -212,14 +212,16 @@
   </p>
 </section>
 
-<dialog id="leaderboard-flag-dialog" class="rounded-md border app-border app-surface p-0">
-  <form method="post" id="leaderboard-flag-form" class="w-[min(92vw,34rem)]">
+<dialog id="leaderboard-flag-dialog" class="dk-dialog">
+  <form method="post" id="leaderboard-flag-form">
     {% csrf_token %}
-    <div class="border-b app-border px-4 py-3">
-      <h2 class="text-base font-semibold app-heading">Flag this record</h2>
-      <p id="leaderboard-flag-record" class="mt-1 text-sm app-muted"></p>
+    <div class="dk-dialog__head">
+      <div>
+        <h2 class="text-base font-semibold app-heading">Flag this record</h2>
+        <p id="leaderboard-flag-record" class="mt-1 text-sm app-muted"></p>
+      </div>
     </div>
-    <div class="space-y-4 px-4 py-4">
+    <div class="dk-dialog__body">
       <div>
         <label for="flag-issue-type" class="settings-label mb-2 block text-sm font-semibold">What is wrong?</label>
         <select id="flag-issue-type" name="issue_type" class="form-control" required>
@@ -239,9 +241,9 @@
                   placeholder="Describe what looks incorrect."></textarea>
       </div>
     </div>
-    <div class="flex flex-wrap gap-2 border-t app-border px-4 py-3">
-      <button type="submit" class="primer-button">Submit flag</button>
-      <button type="button" class="primer-button primer-button-secondary" data-flag-close>Cancel</button>
+    <div class="dk-dialog__foot">
+      <button type="button" class="dk-button primer-button primer-button-secondary" data-flag-close>Cancel</button>
+      <button type="submit" class="dk-button dk-button--primary primer-button">Submit flag</button>
     </div>
   </form>
 </dialog>
