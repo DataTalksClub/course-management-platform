@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "commit": "0e283cd",
+  "files": {
+    "avatar.js": "4e5914f937b380cf9fe57da90da151f277885719ce5f5c7d72946df7d3dae7ea",
+    "collection.js": "96a2a420550305c07f6b611d4b56f39c6080e316c834b0df958773cd99927537",
+    "dakit.css": "364f6f76ec36351ccfef68d36cf4fd8b90443aae340c945d0e4737eaa5886a9d",
+    "device-code.js": "8a0eb48ef7d118a169ec76858977e5d063106de3c6c81aa7e23db47618c4f355",
+    "dialogs.js": "1479012a46283642ea49995418c4039228a8882bbf3b716c2664cc908a1ba980",
+    "shell.js": "19f47a1fd3f6998c044a9fd26a6ab5dfb6d8755c293911a8fa5ea60093a47c75",
+    "split.js": "a11a7f35aa91f0bac025d6a46efbeceb9263c3bc6d333b4f1f80ac0d8f2d4835",
+    "tabs.js": "171ba9458b0b3cf9aabb3e64a94da3a8ddfd1c270bc50423e7eee603c69cf53e",
+    "tag-input.js": "db012d8f0ebd4aae1409d8e2a70342f56740f8ac81ef4de8ccca3da04ef66b39",
+    "tokens.css": "aaef749e9f58062bdc2b72d7c03565a1b9651b580fac0a4842f6afdc3030bda1",
+    "tokens.d.ts": "f9104cffbbf9237153894bf9f9914ae82683095d30ff33558df79f7c761d7e85",
+    "tokens.global.js": "e3dc1f73d082afa79fee2a0a895154b29f1831870d9a90bd16c8d7a56add2df1",
+    "tokens.js": "0e5cc1bd46cb7396b9cabcf8c6124c94bba0d7b148024e53eb22923ce7cb58e7",
+    "fonts/LICENSE.md": "b60aff866100b45a70650055da26a9fcde60d1a0dcafd1b49711a68a913670c5",
+    "fonts/ibm-plex-mono-400.woff2": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7",
+    "fonts/ibm-plex-mono-500.woff2": "01d285447409c8a588692162439a038b8cbd7871309ee20267b0d2d91c6e8e22",
+    "fonts/inter-var.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "check-borders.mjs": "f2e16207433484d8cd8f6a8dc2b6c1ec58b477b0ff9bab21e47aa8dd0fbf3cc1",
+    "check-colors.mjs": "9d519c9eda6688f22ff7b1f8fbe31779dbf2dd4a10736668214302d06c2792c8",
+    "check-scale.mjs": "8ca9d024051563898757e40d3801f21baae5714d8acafeb83adcb3f61fa978fb",
+    "sync.mjs": "2c855953891335a662af170cd59e3b4143ee4a11aee8b90ed0eee46fe5f86730"
+  }
+}

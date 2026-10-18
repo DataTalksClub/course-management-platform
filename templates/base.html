@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="{% if DARK_MODE %}dark{% else %}light{% endif %}">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -31,13 +31,14 @@
             ],
           },
           boxShadow: {
-            subtle: "0 1px 2px rgba(15, 23, 42, 0.06)",
+            subtle: "var(--dk-shadow-overlay)",
           },
         },
       },
     };
         </script>
         <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="{% static 'dakit/dakit.css' %}">
         <link rel="stylesheet" href="{% static 'courses.css' %}">
     </head>
     <body class="flex min-h-screen flex-col app-surface font-sans antialiased {% block body_class %}{% endblock %} {% if DARK_MODE %}dark dark-mode{% endif %}"
@@ -52,14 +53,17 @@
             (function() {
                 try {
                     var body = document.body;
-                    if (
-                        body
-                        && body.getAttribute('data-authenticated') !== 'true'
-                        && localStorage.getItem('darkMode') === 'true'
-                    ) {
+                    var isAuth = body && body.getAttribute('data-authenticated') === 'true';
+                    var stored = localStorage.getItem('darkMode');
+                    var dakitStored = localStorage.getItem('dakit-theme');
+                    var wantDark = isAuth
+                        ? (body.getAttribute('data-dark-mode') === 'true')
+                        : (stored !== null ? stored === 'true' : (dakitStored === 'dark'));
+                    if (body && !isAuth && wantDark) {
                         body.classList.add('dark', 'dark-mode');
                         body.setAttribute('data-dark-mode', 'true');
                     }
+                    document.documentElement.dataset.theme = wantDark ? 'dark' : 'light';
                 } catch (e) {}
             })();
         </script>
@@ -193,6 +197,7 @@
                 </div>
             </div>
         </footer>
+        <script src="{% static 'dakit/dialogs.js' %}" defer></script>
         <script src="{% static 'local_date.js' %}"></script>
         <script src="{% static 'time_left.js' %}"></script>
         <script src="{% static 'timezone_preference.js' %}"></script>

@@ -1,10 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
   var STORAGE_KEY = 'darkMode';
+  var DAKIT_STORAGE_KEY = 'dakit-theme';
   var body = document.body;
   var toggle = document.getElementById('dark-mode-toggle');
   var label = document.getElementById('dark-mode-label');
 
   function applyDarkMode(isDarkMode) {
+    var theme = isDarkMode ? 'dark' : 'light';
+    document.documentElement.dataset.theme = theme;
     body.classList.toggle('dark', isDarkMode);
     body.classList.toggle('dark-mode', isDarkMode);
     body.setAttribute('data-dark-mode', isDarkMode ? 'true' : 'false');
@@ -25,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var serverDarkMode = body.getAttribute('data-dark-mode') === 'true';
 
     if (isAuthenticated) {
+      applyDarkMode(serverDarkMode);
       return serverDarkMode;
     }
 
@@ -35,6 +39,14 @@ document.addEventListener('DOMContentLoaded', function() {
       return isDarkMode;
     }
 
+    var dakitPreference = localStorage.getItem(DAKIT_STORAGE_KEY);
+    if (dakitPreference === 'dark' || dakitPreference === 'light') {
+      var isDakitDark = dakitPreference === 'dark';
+      applyDarkMode(isDakitDark);
+      return isDakitDark;
+    }
+
+    applyDarkMode(serverDarkMode);
     return serverDarkMode;
   }
 
@@ -46,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (!isAuthenticated) {
         localStorage.setItem(STORAGE_KEY, newDarkMode.toString());
+        localStorage.setItem(DAKIT_STORAGE_KEY, newDarkMode ? 'dark' : 'light');
         applyDarkMode(newDarkMode);
         return;
       }
@@ -66,6 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(function(data) {
           applyDarkMode(data.dark_mode);
           localStorage.setItem(STORAGE_KEY, data.dark_mode.toString());
+          localStorage.setItem(DAKIT_STORAGE_KEY, data.dark_mode ? 'dark' : 'light');
         })
         .catch(function(error) {
           console.error('Error toggling dark mode:', error);
