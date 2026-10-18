@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var diff = deadline - new Date();
     var days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    el.classList.remove('text-slate-500', 'text-[#9a6700]', 'text-[#cf222e]', 'dark:text-[#8b949e]', 'app-muted');
+    el.classList.remove('app-muted', 'app-warning-text', 'app-danger-text');
 
     if (diff <= 0 && el.getAttribute('data-past-tone') === 'muted') {
       el.classList.add('app-muted');
@@ -52,11 +52,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (diff <= 0 || days < 1) {
-      el.classList.add('text-[#cf222e]');
+      el.classList.add('app-danger-text');
     } else if (days < 3) {
-      el.classList.add('text-[#9a6700]');
+      el.classList.add('app-warning-text');
     } else {
-      el.classList.add('text-slate-500');
+      el.classList.add('app-muted');
     }
   }
 
