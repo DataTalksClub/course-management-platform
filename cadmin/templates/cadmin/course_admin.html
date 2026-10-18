@@ -178,7 +178,7 @@
                 <p class="mt-1 text-xs app-muted">{{ hw.submissions_count }} submissions</p>
                 {% if hw.score_notification_status and hw.score_notification_status.state != 'not_queued' %}
                   {% if hw.score_notification_status.is_failed_or_retrying %}
-                    <p class="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="{{ hw.score_notification_status.error }}">
+                    <p class="mt-1 text-xs font-medium app-warning-text" title="{{ hw.score_notification_status.error }}">
                       <i class="fas fa-exclamation-triangle mr-1" aria-hidden="true"></i>
                       {% if hw.score_notification_status.state == 'retrying' %}
                         Notifications retrying (Relay unavailable)
@@ -187,11 +187,11 @@
                       {% endif %}
                     </p>
                   {% elif hw.score_notification_status.is_succeeded %}
-                    <p class="mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <p class="mt-1 text-xs font-medium app-success-text">
                       <i class="fas fa-check mr-1" aria-hidden="true"></i> Notifications sent ({{ hw.score_notification_status.enqueued_count }})
                     </p>
                   {% elif hw.score_notification_status.is_pending %}
-                    <p class="mt-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+                    <p class="mt-1 text-xs font-medium app-link">
                       <i class="fas fa-clock mr-1" aria-hidden="true"></i> Notifications queued
                     </p>
                   {% endif %}
@@ -307,7 +307,7 @@
                 <p class="mt-1 text-xs app-muted">{{ proj.submissions_count }} submissions</p>
                 {% if proj.score_notification_status and proj.score_notification_status.state != 'not_queued' %}
                   {% if proj.score_notification_status.is_failed_or_retrying %}
-                    <p class="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400" title="{{ proj.score_notification_status.error }}">
+                    <p class="mt-1 text-xs font-medium app-warning-text" title="{{ proj.score_notification_status.error }}">
                       <i class="fas fa-exclamation-triangle mr-1" aria-hidden="true"></i>
                       {% if proj.score_notification_status.state == 'retrying' %}
                         Notifications retrying (Relay unavailable)
@@ -316,11 +316,11 @@
                       {% endif %}
                     </p>
                   {% elif proj.score_notification_status.is_succeeded %}
-                    <p class="mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    <p class="mt-1 text-xs font-medium app-success-text">
                       <i class="fas fa-check mr-1" aria-hidden="true"></i> Notifications sent ({{ proj.score_notification_status.enqueued_count }})
                     </p>
                   {% elif proj.score_notification_status.is_pending %}
-                    <p class="mt-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+                    <p class="mt-1 text-xs font-medium app-link">
                       <i class="fas fa-clock mr-1" aria-hidden="true"></i> Notifications queued
                     </p>
                   {% endif %}
