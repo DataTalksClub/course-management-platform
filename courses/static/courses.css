@@ -929,6 +929,11 @@ form select {
   width: 100%;
 }
 
+form select,
+select.form-control {
+  padding-right: var(--dk-space-7);
+}
+
 .form-control:disabled,
 .form-control[readonly] {
   background-color: var(--dk-bg-muted);
