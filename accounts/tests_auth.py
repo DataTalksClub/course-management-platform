@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
+from urllib.parse import parse_qs, urlsplit
 
 from allauth.account.models import EmailAddress
 from allauth.account.views import SignupView
@@ -122,6 +123,66 @@ class SignupRouteTestCase(TestCase):
             f"{reverse('login')}?next=/register/ai-dev-tools/",
             fetch_redirect_response=False,
         )
+
+    def test_signup_next_with_query_params_survives_intact(self):
+        response = self.client.get(
+            "/accounts/signup/",
+            {"next": "/courses/?page=2&q=1"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        query = urlsplit(response["Location"]).query
+        self.assertEqual(
+            parse_qs(query)["next"],
+            ["/courses/?page=2&q=1"],
+        )
+
+    def test_signup_next_absolute_url_is_dropped(self):
+        response = self.client.get(
+            "/accounts/signup/?next=https://evil.example.com/courses/"
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("login"),
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn("next", urlsplit(response["Location"]).query)
+
+    def test_signup_next_protocol_relative_url_is_dropped(self):
+        response = self.client.get("/accounts/signup/?next=//evil.example.com")
+
+        self.assertRedirects(
+            response,
+            reverse("login"),
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn("next", urlsplit(response["Location"]).query)
+
+    def test_signup_next_javascript_scheme_is_dropped(self):
+        response = self.client.get(
+            "/accounts/signup/?next=javascript:alert(1)"
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("login"),
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn("next", urlsplit(response["Location"]).query)
+
+    def test_signup_post_next_absolute_url_is_dropped(self):
+        response = self.client.post(
+            "/accounts/signup/",
+            {"next": "https://evil.example.com/courses/"},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("login"),
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn("next", urlsplit(response["Location"]).query)
 
     def test_signup_post_redirects_to_login_and_creates_no_user(self):
         # A user already exists with empty username (as observed in production)
