@@ -140,13 +140,16 @@
                                         {% elif submission.own %}
                                             <span class="app-badge app-badge-neutral">Your project</span>
                                         {% else %}
-                                            <button type="button"
-                                                    onclick="confirmEvaluation('{% url 'projects_eval_add' course_slug=course.slug project_slug=project.slug submission_id=submission.id %}')"
-                                                    class="submission-action-button submission-action-button-fixed"
-                                                    title="Add to evaluation"
-                                                    aria-label="Add to evaluation">
-                                                <i class="fas fa-plus"></i> Review
-                                            </button>
+                                            <form method="post" class="m-0"
+                                                  onsubmit="return confirm('Are you sure you want to add this project to the list of projects you need to evaluate?');">
+                                                {% csrf_token %}
+                                                <button type="submit"
+                                                        class="submission-action-button submission-action-button-fixed"
+                                                        title="Add to evaluation"
+                                                        aria-label="Add to evaluation">
+                                                    <i class="fas fa-plus"></i> Review
+                                                </button>
+                                            </form>
                                         {% endif %}
                                     {% elif project.state == 'CO' %}
                                         <span class="text-sm font-semibold app-heading">{{ submission.project_score }} score</span>
@@ -176,12 +179,6 @@
     {% endif %}
 
     <script>
-      function confirmEvaluation(url) {
-        if (confirm('Are you sure you want to add this project to the list of projects you need to evaluate?')) {
-          window.location.href = url;
-        }
-      }
-
       function voteLabel(count) {
         return `${count} vote${count === 1 ? '' : 's'}`;
       }

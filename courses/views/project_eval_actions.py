@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect
+from django.views.decorators.http import require_POST
 
 from course_management.observability import record_event
 from courses.models.course import Course, Enrollment
@@ -71,6 +72,7 @@ def _create_optional_peer_review_if_allowed(
 
 
 @login_required
+@require_POST
 def projects_eval_add(
     request, course_slug, project_slug, submission_id
 ):
@@ -108,6 +110,7 @@ def projects_eval_add(
 
 
 @login_required
+@require_POST
 def projects_eval_delete(request, course_slug, project_slug, review_id):
     project = get_object_or_404(
         Project, course__slug=course_slug, slug=project_slug

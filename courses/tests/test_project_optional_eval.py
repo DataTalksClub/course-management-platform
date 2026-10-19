@@ -68,7 +68,7 @@ class ProjectOptionalEvaluationTestCase(ProjectActionsTestBase):
         self.client.login(**credentials)
 
         delete_url = self.delete_eval_url(peer_review.id)
-        response = self.client.get(delete_url)
+        response = self.client.post(delete_url)
         self.assertEqual(response.status_code, 302)
         redirect_url = self.projects_eval_url()
         self.assertRedirects(
@@ -109,5 +109,34 @@ class ProjectOptionalEvaluationTestCase(ProjectActionsTestBase):
 
         response = self.delete_peer_review_response(peer_review)
         self.assertEqual(response.status_code, 302)
+
+        self.assert_peer_review_still_exists(peer_review)
+
+    def test_add_optional_project_eval_rejects_get(self):
+        my_submission = self.create_my_submission()
+
+        num_submissions = 5
+        other_submissions = self.generate_submissions(num_submissions)
+        other_submission = other_submissions[0]
+
+        self.client.login(**credentials)
+        response = self.client.get(self.add_eval_url(other_submission.id))
+        self.assertEqual(response.status_code, 405)
+
+        self.assert_no_peer_review(my_submission, other_submission)
+
+    def test_delete_optional_project_eval_rejects_get(self):
+        my_submission = self.create_my_submission()
+        other_submissions = self.generate_submissions(5)
+        other_submission = other_submissions[0]
+        peer_review = self.create_peer_review(
+            my_submission,
+            other_submission,
+            optional=True,
+        )
+
+        self.client.login(**credentials)
+        response = self.client.get(self.delete_eval_url(peer_review.id))
+        self.assertEqual(response.status_code, 405)
 
         self.assert_peer_review_still_exists(peer_review)

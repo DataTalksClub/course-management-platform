@@ -75,9 +75,13 @@
           {% endif %}
         </form>
         {% if review.optional %}
-          <button type="button" onclick="confirmRemove('{% url 'projects_eval_delete' course.slug project.slug review.id %}')" class="submission-action-button submission-action-button-danger">
-            <i class="fas fa-minus"></i> Remove review
-          </button>
+          <form method="post" class="m-0"
+                onsubmit="return confirm('Are you sure you want to remove this project from your evaluation list?');">
+            {% csrf_token %}
+            <button type="submit" class="submission-action-button submission-action-button-danger">
+              <i class="fas fa-minus"></i> Remove review
+            </button>
+          </form>
         {% endif %}
       </div>
       {% if review.optional %}
@@ -169,8 +173,4 @@
   </section>
   <script src="{% static 'learning_in_public.js' %}"></script>
   <script src="{% static 'homework.js' %}"></script>
-  <script>
-    function confirmRemove(url) { if (confirm('Are you sure you want to remove this project from your evaluation list?')) { window.location.href = url; }
-    }
-  </script>
 {% endblock %}

@@ -172,7 +172,7 @@ class ProjectActionsTestBase(TestCase):
     def add_optional_eval_and_assert_redirect(self, submission):
         self.client.login(**credentials)
         url = self.add_eval_url(submission.id)
-        response = self.client.get(url)
+        response = self.client.post(url)
         self.assertEqual(response.status_code, 302)
 
     def assert_optional_peer_review_created(self, reviewer, submission):
@@ -190,7 +190,7 @@ class ProjectActionsTestBase(TestCase):
     def delete_peer_review_response(self, peer_review):
         self.client.login(**credentials)
         url = self.delete_eval_url(peer_review.id)
-        return self.client.get(url)
+        return self.client.post(url)
 
     def assert_peer_review_deleted(self, peer_review):
         reviews = PeerReview.objects.filter(id=peer_review.id)
