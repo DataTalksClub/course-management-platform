@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
 from accounts.auth import token_required
+from api.safety import require_staff_token
 from data.models import DatamailerSendAudit
 
 DEFAULT_LIMIT = 25
@@ -11,6 +12,10 @@ MAX_LIMIT = 100
 @require_GET
 @token_required
 def datamailer_send_audits_view(request):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
     audits = DatamailerSendAudit.objects.all()
 
     email = request.GET.get("email")

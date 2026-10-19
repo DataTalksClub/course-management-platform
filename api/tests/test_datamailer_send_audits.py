@@ -55,6 +55,35 @@ class DatamailerSendAuditsAPITestCase(TestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_non_staff_token_cannot_read_send_audits(self):
+        student = CustomUser.objects.create(
+            username="student",
+            email="student@example.com",
+        )
+        student_token = Token.objects.create(user=student)
+        headers = {"HTTP_AUTHORIZATION": f"Token {student_token.key}"}
+        self._create_audit(
+            email="student@example.com",
+            template_key="homework-submission-confirmation",
+            idempotency_key="hw:1",
+        )
+
+        response = self.client.get(
+            SEND_AUDITS_URL,
+            {"email": "student@example.com"},
+            **headers,
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json(),
+            {
+                "error": "Staff token required",
+                "code": "staff_token_required",
+            },
+        )
+        self.assertNotIn("audits", response.json())
+
     def test_filters_by_email_and_template_key(self):
         self._create_audit(
             email="student@example.com",

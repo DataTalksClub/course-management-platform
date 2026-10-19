@@ -224,6 +224,7 @@ RELAY_SEND_AUDITS_SUCCESS_RESPONSE = schema_response(
 )
 RELAY_SEND_AUDITS_RESPONSES = {
     "200": RELAY_SEND_AUDITS_SUCCESS_RESPONSE,
+    "403": schema_response("Staff token required", "Error"),
 }
 RELAY_SEND_AUDITS_PARAMETERS = [
     {
@@ -257,7 +258,8 @@ RELAY_SEND_AUDITS_DESCRIPTION = (
     "Each row's response_payload carries the message summary and, when the "
     "send ran with Datamailer's dry_run flag, the rendered subject/bodies. "
     "Used by the e2e smoke suite to verify the rendered email over HTTP "
-    "without delivering anything. Ordered newest first."
+    "without delivering anything. Ordered newest first. "
+    "Requires a staff token; non-staff tokens receive a 403."
 )
 RELAY_SEND_AUDITS_DATA = OperationData(
     "api_datamailer_send_audits",

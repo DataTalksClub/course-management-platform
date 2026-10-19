@@ -1719,7 +1719,9 @@ whose `response_payload` carries the Datamailer response, including the
 `GET /api/datamailer/send-audits` (filter by `email`, `template_key`,
 `idempotency_key`, `status`, or `send_type`), so the e2e smoke suite can drive
 the real flows and assert on the rendered subject/bodies and delivery decision
-without any email being delivered.
+without any email being delivered. The endpoint requires a staff token:
+non-staff API tokens receive `403 Forbidden` because audit rows carry
+recipient addresses and rendered content.
 
 Each record also carries `status`, `error`, `list_key`, `intended_count`, and
 `enqueued_count`. When a send never reaches Datamailer the `response_payload`
