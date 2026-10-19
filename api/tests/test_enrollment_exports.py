@@ -99,3 +99,32 @@ class CertificateBulkUpdateStaffAuthTestCase(EnrollmentExportsAPITestBase):
         )
         self.assert_certificate_url(enrollment, "")
         send_notification.assert_not_called()
+
+
+class CourseGraduatesStaffAuthTestCase(EnrollmentExportsAPITestBase):
+    def student_token_headers(self):
+        student = CustomUser.objects.create(
+            username="student-token",
+            email="student-token@example.com",
+        )
+        token = Token.objects.create(user=student)
+        return {"HTTP_AUTHORIZATION": f"Token {token.key}"}
+
+    def test_non_staff_token_cannot_export_course_graduates(self):
+        self.create_enrollment("student@example.com")
+        headers = self.student_token_headers()
+
+        response = self.client.get(
+            self.graduates_url(),
+            **headers,
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json(),
+            {
+                "error": "Staff token required",
+                "code": "staff_token_required",
+            },
+        )
+        self.assertNotIn("graduates", response.json())

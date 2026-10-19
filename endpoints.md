@@ -135,7 +135,7 @@ curl -H "Authorization: Token ${TOKEN}" \
 
 **Endpoint:** `GET /api/courses/{course_slug}/graduates`
 
-**Description:** Retrieves a list of students who have successfully completed the course by passing the minimum required number of projects.
+**Description:** Retrieves a list of students who have successfully completed the course by passing the minimum required number of projects. Requires a staff token; non-staff tokens receive `403 Forbidden`.
 
 **Response:** Returns an array of graduates with:
 - Student email

@@ -22,3 +22,14 @@ class EnrollmentExportAuthAPITestCase(EnrollmentExportsAPITestBase):
             response.json()["error"],
             "Authentication token required",
         )
+
+    def test_course_graduates_requires_token(self):
+        client = Client()
+        url = self.graduates_url()
+        response = client.get(url)
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json()["error"],
+            "Authentication token required",
+        )

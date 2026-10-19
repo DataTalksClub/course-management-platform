@@ -116,13 +116,20 @@ COURSE_GRADUATES_SUCCESS_RESPONSE = schema_response(
 )
 COURSE_GRADUATES_RESPONSES = {
     "200": COURSE_GRADUATES_SUCCESS_RESPONSE,
+    "403": schema_response("Staff token required", "Error"),
     "404": COURSE_NOT_FOUND_RESPONSE,
 }
+COURSE_GRADUATES_DESCRIPTION = (
+    "Retrieves a list of students who have successfully completed the course "
+    "by passing the minimum required number of projects. "
+    "Requires a staff token; non-staff tokens receive a 403."
+)
 COURSE_GRADUATES_DATA = OperationData(
     "api_course_graduates",
     ["Course Data"],
     "Get course graduates",
     COURSE_GRADUATES_RESPONSES,
+    description=COURSE_GRADUATES_DESCRIPTION,
 )
 COURSE_GRADUATES_OPERATION = operation(COURSE_GRADUATES_DATA)
 
