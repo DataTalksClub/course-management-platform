@@ -220,7 +220,6 @@ def token_required(f):
             token_key = token_key.replace("Token ", "", 1)
             try:
                 token = Token.objects.get(key=token_key)
-                request.user = token.user
             except Token.DoesNotExist:
                 record_event(
                     "api.auth_failed",
@@ -230,6 +229,18 @@ def token_required(f):
                 payload = {"error": "Invalid token"}
                 response = JsonResponse(payload, status=401)
                 return response
+
+            if not token.user.is_active:
+                record_event(
+                    "api.auth_failed",
+                    request=request,
+                    properties={"reason": "inactive_user"},
+                )
+                payload = {"error": "User inactive or deleted"}
+                response = JsonResponse(payload, status=401)
+                return response
+
+            request.user = token.user
         else:
             record_event(
                 "api.auth_failed",

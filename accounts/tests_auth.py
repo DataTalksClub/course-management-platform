@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urlsplit
 from allauth.account.models import EmailAddress
 from allauth.account.views import SignupView
 from allauth.core.exceptions import ImmediateHttpResponse
-from django.test import RequestFactory, TestCase
+from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
 from accounts.auth import (
@@ -13,7 +13,7 @@ from accounts.auth import (
     ConsolidatingSocialAccountAdapter,
     extract_email,
 )
-from accounts.models import CustomUser
+from accounts.models import CustomUser, Token
 
 
 class ExtractEmailTestCase(TestCase):
@@ -103,6 +103,37 @@ class ConsolidatingSocialAccountAdapterTestCase(TestCase):
         self.assertEqual(email_address.email, email)
         self.assertTrue(email_address.primary)
         self.assertTrue(email_address.verified)
+
+
+class TokenRequiredAuthTestCase(TestCase):
+    def setUp(self):
+        self.user = CustomUser.objects.create_user(
+            username="staff",
+            email="staff@example.com",
+            password="password",
+            is_staff=True,
+        )
+        self.token = Token.objects.create(user=self.user)
+        self.client = Client()
+        self.client.defaults["HTTP_AUTHORIZATION"] = (
+            f"Token {self.token.key}"
+        )
+
+    def test_active_user_token_authenticates(self):
+        response = self.client.get("/api/courses/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_inactive_user_token_is_rejected(self):
+        self.user.is_active = False
+        self.user.save()
+
+        response = self.client.get("/api/courses/")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.json()["error"],
+            "User inactive or deleted",
+        )
 
 
 class SignupRouteTestCase(TestCase):
