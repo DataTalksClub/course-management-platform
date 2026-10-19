@@ -263,10 +263,12 @@ class EnrollmentDataAPIBase(TestCase):
         self.assertEqual(enrollment.certificate_url, certificate_url)
 
     def setUp(self):
+        # Certificate bulk-update endpoints require staff tokens.
         self.user = CustomUser.objects.create(
             username="testuser",
             email="testuser@example.com",
             password="password",
+            is_staff=True,
         )
         self.token = Token.objects.create(user=self.user)
 

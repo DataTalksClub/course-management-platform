@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from accounts.auth import token_required
+from api.safety import require_staff_token
 from course_management.datamailer.sync.certificates import (
     send_certificate_availability_notification,
 )
@@ -18,6 +19,10 @@ from .enrollment_certificate_updates import process_certificate_updates
 @require_POST
 @token_required
 def bulk_update_enrollment_certificates_view(request, course_slug: str):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
     certificate_updates, error_response = _certificate_request_updates(request)
     if error_response:
         return error_response

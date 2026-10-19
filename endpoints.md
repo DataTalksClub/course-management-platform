@@ -154,7 +154,7 @@ curl -H "Authorization: Token ${TOKEN}" \
 
 **Endpoint:** `POST /api/courses/{course_slug}/certificates`
 
-**Description:** Updates certificate URLs for many enrollments in one request. This endpoint is intended for certificate generation scripts and returns per-entry errors instead of failing the entire batch.
+**Description:** Updates certificate URLs for many enrollments in one request. This endpoint is intended for certificate generation scripts and returns per-entry errors instead of failing the entire batch. Requires a staff token; non-staff tokens receive `403 Forbidden`.
 
 **Request Body:**
 ```json
@@ -198,6 +198,7 @@ A bare JSON array with the same objects is also accepted.
 **Error Responses:**
 - `400 Bad Request`: Invalid JSON, missing `certificates`, or empty update list
 - `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: Token belongs to a non-staff user
 - `404 Not Found`: Course not found
 - `405 Method Not Allowed`: Wrong HTTP method (only POST allowed)
 
