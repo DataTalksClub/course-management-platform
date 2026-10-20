@@ -1,5 +1,5 @@
 from datetime import timedelta
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from courses.models import Course, Homework, Project
@@ -59,7 +59,7 @@ class ScoreNotificationStatusTests(TestCase):
         self.assertEqual(status.state, "succeeded")
         self.assertTrue(status.is_succeeded)
         self.assertEqual(status.enqueued_count, 666)
-        self.assertIn("666 emails delivered", status.message)
+        self.assertIn("666 emails accepted for delivery", status.message)
 
     def test_succeeded_from_outbox_acked(self):
         DatamailerOutboxEvent.objects.create(
@@ -168,3 +168,23 @@ class ScoreNotificationStatusTests(TestCase):
 
         proj_status = get_project_score_notification_status(self.project)
         self.assertEqual(proj_status.state, "not_queued")
+
+    @override_settings(RELAY_URL="https://relay.example.com", RELAY_CLIENT="dtc-courses")
+    def test_pending_links_to_exact_send_before_campaign_is_created(self):
+        from urllib.parse import parse_qs, urlsplit
+        DatamailerOutboxEvent.objects.create(
+            event_id="pending-link", event_type="homework.score_notification",
+            idempotency_key="homework-score:test-ml:hw02", ordering_key="test",
+        )
+        status = get_homework_score_notification_status(self.homework)
+        query = parse_qs(urlsplit(status.campaign_url).query)
+        self.assertEqual(query, {"client": ["dtc-courses"], "idempotency_key": ["homework-score:test-ml:hw02"]})
+
+    @override_settings(RELAY_URL="https://relay.example.com", RELAY_CLIENT="dtc-courses")
+    def test_legacy_acknowledged_send_uses_exact_lookup(self):
+        DatamailerSendAudit.objects.create(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            idempotency_key="homework-score:test-ml:hw02",
+            status=DatamailerSendAuditStatus.SUCCEEDED,
+        )
+        self.assertIn("/transactional-campaigns/lookup/?", get_homework_score_notification_status(self.homework).campaign_url)

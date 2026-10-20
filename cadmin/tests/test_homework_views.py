@@ -14,7 +14,7 @@ from courses.models import (
     Question,
     QuestionTypes,
 )
-from data.models import DatamailerOutboxEvent, DatamailerOutboxStatus
+from data.models import DatamailerOutboxEvent, DatamailerOutboxStatus, DatamailerSendAudit
 
 
 class HomeworkCadminSubmissionViewTests(HomeworkCadminViewTestBase):
@@ -364,6 +364,24 @@ class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0].level_tag, "warning")
         self.assertIn("Relay is not configured", messages[0].message)
+
+    @override_settings(RELAY_URL="https://relay.example.com/")
+    def test_submissions_links_to_persisted_relay_campaign(self):
+        from course_management.datamailer.sync.audit import (
+            DatamailerSendAuditData, record_datamailer_send_audit,
+        )
+        record_datamailer_send_audit(DatamailerSendAuditData(
+            send_type="recipient_list",
+            payload={"idempotency_key": f"homework-score:{self.course.slug}:{self.homework.slug}"},
+            response={"campaign_id": 42, "enqueued_count": 3},
+        ))
+        self.assertEqual(DatamailerSendAudit.objects.get().response_payload["campaign_id"], 42)
+        self.login_admin()
+        for _ in range(2):
+            response = self.client.get(self.cadmin_homework_submissions_url())
+            self.assertContains(response, 'href="https://relay.example.com/transactional-campaigns/42/"')
+            self.assertContains(response, "View campaign in Relay")
+            self.assertNotContains(response, "emails delivered via Relay")
 
     def test_homework_submissions_page_shows_score_notification_failure(self):
         """Homework submissions page shows a clear banner when score notification delivery failed or is retrying."""

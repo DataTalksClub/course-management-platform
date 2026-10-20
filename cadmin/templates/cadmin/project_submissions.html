@@ -107,8 +107,9 @@
         <div class="mt-5 rounded-md border app-alert-success px-4 py-3 text-sm" role="alert">
           <div class="flex items-center">
             <i class="fas fa-check-circle mr-2" aria-hidden="true"></i>
-            <span>Score notifications sent to students ({{ score_notification_status.enqueued_count }} emails delivered via Relay).</span>
+            <span>Score notifications queued in Relay ({{ score_notification_status.enqueued_count }} emails accepted for delivery).</span>
           </div>
+          {% include 'cadmin/score_notification_campaign_link.html' %}
         </div>
       {% elif score_notification_status.is_pending %}
         <div class="mt-5 rounded-md border app-alert-info px-4 py-3 text-sm" role="alert">
@@ -116,6 +117,7 @@
             <i class="fas fa-clock mr-2" aria-hidden="true"></i>
             <span>Score notifications are queued for delivery.</span>
           </div>
+          {% include 'cadmin/score_notification_campaign_link.html' %}
         </div>
       {% endif %}
     {% endif %}

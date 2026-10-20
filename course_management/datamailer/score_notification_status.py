@@ -1,4 +1,7 @@
 from dataclasses import dataclass
+from urllib.parse import urlencode
+
+from django.conf import settings
 
 from data.models import (
     DatamailerOutboxEvent,
@@ -18,6 +21,7 @@ class ScoreNotificationStatus:
     is_failed_or_retrying: bool = False
     is_succeeded: bool = False
     is_pending: bool = False
+    campaign_url: str = ""
 
 
 def get_score_notification_status(idempotency_key: str) -> ScoreNotificationStatus:
@@ -53,11 +57,19 @@ def get_score_notification_status(idempotency_key: str) -> ScoreNotificationStat
         outbox_event and outbox_event.status == DatamailerOutboxStatus.ACKED
     ):
         enqueued_count = audit.enqueued_count if audit else 0
+        response = audit.response_payload if audit else {}
+        campaign_id = response.get("campaign_id") if isinstance(response, dict) else None
+        relay_url = getattr(settings, "RELAY_URL", "").rstrip("/")
+        campaign_url = campaign_lookup_url(idempotency_key)
+        if type(campaign_id) is int and campaign_id > 0 and relay_url:
+            campaign_url = f"{relay_url}/transactional-campaigns/{campaign_id}/"
+
         return ScoreNotificationStatus(
             state="succeeded",
-            message=f"Score notifications sent: {enqueued_count} emails delivered via Relay.",
+            message=f"Score notifications queued in Relay: {enqueued_count} emails accepted for delivery.",
             enqueued_count=enqueued_count,
             is_succeeded=True,
+            campaign_url=campaign_url,
         )
 
     # Check for failing/retrying states
@@ -112,12 +124,25 @@ def get_score_notification_status(idempotency_key: str) -> ScoreNotificationStat
             is_failed_or_retrying=True,
         )
 
+    # The background worker has not yet returned a campaign ID. Relay can
+    # resolve this exact client/key pair without creating or sending anything.
+    campaign_url = campaign_lookup_url(idempotency_key)
     # Pending or processing
     return ScoreNotificationStatus(
         state="pending",
         message="Score notifications are queued for delivery.",
         is_pending=True,
+        campaign_url=campaign_url,
     )
+
+
+def campaign_lookup_url(idempotency_key: str) -> str:
+    relay_url = getattr(settings, "RELAY_URL", "").rstrip("/")
+    client = getattr(settings, "RELAY_CLIENT", "")
+    if not relay_url or not client:
+        return ""
+    query = urlencode({"client": client, "idempotency_key": idempotency_key})
+    return f"{relay_url}/transactional-campaigns/lookup/?{query}"
 
 
 def get_homework_score_notification_status(

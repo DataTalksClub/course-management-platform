@@ -1,0 +1,5 @@
+{% if score_notification_status.campaign_url %}
+  <p class="mt-2 text-sm"><a class="app-link" href="{{ score_notification_status.campaign_url }}">View campaign in Relay</a></p>
+{% elif score_notification_status.is_pending %}
+  <p class="mt-2 text-sm app-muted">The campaign link will appear here after Relay accepts the send. Refresh to check.</p>
+{% endif %}
