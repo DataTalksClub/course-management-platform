@@ -46,6 +46,27 @@ def get_score_notification_status(idempotency_key: str) -> ScoreNotificationStat
         .first()
     )
 
+    # A resend is a new attempt. Errors from before it was queued describe
+    # the previous attempt, not the work currently waiting for the worker.
+    if outbox_event and outbox_event.status in (
+        DatamailerOutboxStatus.PENDING,
+        DatamailerOutboxStatus.PROCESSING,
+    ):
+        if (
+            audit
+            and audit.status == DatamailerSendAuditStatus.FAILED
+            and audit.updated_at < outbox_event.created_at
+        ):
+            audit = None
+        if (
+            bulk_upsert_event
+            and bulk_upsert_event.status in (
+                DatamailerOutboxStatus.FAILED, DatamailerOutboxStatus.DEAD,
+            )
+            and bulk_upsert_event.created_at < outbox_event.created_at
+        ):
+            bulk_upsert_event = None
+
     if not outbox_event and not audit:
         return ScoreNotificationStatus(
             state="not_queued",
@@ -109,11 +130,26 @@ def get_score_notification_status(idempotency_key: str) -> ScoreNotificationStat
                 f"Score notifications could not be delivered: "
                 f"Relay is unavailable or rejected the send ({error}). Delivery failed."
             )
-        else:
+        elif (
+            outbox_event and outbox_event.status in (
+                DatamailerOutboxStatus.PENDING,
+                DatamailerOutboxStatus.PROCESSING,
+                DatamailerOutboxStatus.RETRYING,
+            )
+        ) or (
+            bulk_upsert_event
+            and bulk_upsert_event.status == DatamailerOutboxStatus.RETRYING
+        ):
             msg = (
                 f"Score notifications could not be delivered: "
                 f"Relay is unavailable or rejected the send ({error}). "
                 "Delivery is retrying automatically."
+            )
+        else:
+            state = "failed"
+            msg = (
+                f"Score notifications could not be delivered: "
+                f"Relay is unavailable or rejected the send ({error}). Delivery failed."
             )
 
         return ScoreNotificationStatus(

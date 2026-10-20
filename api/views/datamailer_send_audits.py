@@ -3,7 +3,7 @@ from django.views.decorators.http import require_GET
 
 from accounts.auth import token_required
 from api.safety import require_staff_token
-from data.models import DatamailerSendAudit
+from data.models import DatamailerOutboxEvent, DatamailerSendAudit
 
 DEFAULT_LIMIT = 25
 MAX_LIMIT = 100
@@ -50,7 +50,24 @@ def datamailer_send_audits_view(request):
         records.append(_serialize_audit(audit))
 
     response = {"audits": records, "count": len(records)}
+    if idempotency_key:
+        response["outbox_events"] = _outbox_diagnostics(idempotency_key)
     return JsonResponse(response)
+
+
+def _outbox_diagnostics(idempotency_key):
+    # An exact key is required; never expose member payloads or responses.
+    keys = [
+        idempotency_key,
+        f"recipient-list.members-bulk-upsert:{idempotency_key}:members",
+    ]
+    events = DatamailerOutboxEvent.objects.filter(
+        idempotency_key__in=keys,
+    ).order_by("-created_at", "-id")[:20]
+    return list(events.values(
+        "event_type", "status", "attempt_count", "max_attempts", "last_error",
+        "created_at", "updated_at", "next_attempt_at", "last_attempt_at",
+    ))
 
 
 def _parse_limit(raw_value) -> int:

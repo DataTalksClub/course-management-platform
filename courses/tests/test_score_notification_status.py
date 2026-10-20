@@ -162,6 +162,60 @@ class ScoreNotificationStatusTests(TestCase):
         self.assertTrue(status.is_failed_or_retrying)
         self.assertIn("Datamailer metadata sync was not acknowledged", status.error)
 
+    def test_new_pending_attempt_supersedes_old_sync_failure(self):
+        key = "homework-score:test-ml:hw02"
+        DatamailerSendAudit.objects.create(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            idempotency_key=key,
+            status=DatamailerSendAuditStatus.FAILED,
+            error="Datamailer metadata sync was not acknowledged",
+            occurred_at=timezone.now() - timedelta(days=8),
+        )
+        DatamailerOutboxEvent.objects.create(
+            event_id="old-sync", event_type="recipient_list.members_bulk_upsert",
+            idempotency_key=f"recipient-list.members-bulk-upsert:{key}:members",
+            ordering_key="hw02", status=DatamailerOutboxStatus.FAILED,
+            last_error="403 Client Error",
+        )
+        DatamailerOutboxEvent.objects.create(
+            event_id="new-attempt", event_type="homework.score_notification",
+            idempotency_key=key, ordering_key="hw02",
+        )
+        status = get_score_notification_status(key)
+        self.assertEqual(status.state, "pending")
+        self.assertFalse(status.is_failed_or_retrying)
+        self.assertNotIn("403", status.message)
+
+    def test_current_failure_uses_audit_update_time_after_resend(self):
+        key = "homework-score:test-ml:hw02"
+        audit = DatamailerSendAudit.objects.create(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            idempotency_key=key, status=DatamailerSendAuditStatus.FAILED,
+            error="old failure", occurred_at=timezone.now() - timedelta(days=8),
+        )
+        DatamailerOutboxEvent.objects.create(
+            event_id="current-processing", event_type="homework.score_notification",
+            idempotency_key=key, ordering_key="hw02",
+            status=DatamailerOutboxStatus.PROCESSING,
+        )
+        audit.error = "current sync failure"
+        audit.save()
+        status = get_score_notification_status(key)
+        self.assertTrue(status.is_failed_or_retrying)
+        self.assertIn("current sync failure", status.message)
+
+    def test_failed_audit_without_live_retry_does_not_claim_automatic_retry(self):
+        key = "homework-score:test-ml:hw02"
+        DatamailerSendAudit.objects.create(
+            send_type=DatamailerSendAuditType.RECIPIENT_LIST,
+            idempotency_key=key,
+            status=DatamailerSendAuditStatus.FAILED,
+            error="Datamailer metadata sync was not acknowledged",
+        )
+        status = get_score_notification_status(key)
+        self.assertEqual(status.state, "failed")
+        self.assertNotIn("retrying automatically", status.message)
+
     def test_homework_and_project_wrappers(self):
         hw_status = get_homework_score_notification_status(self.homework)
         self.assertEqual(hw_status.state, "not_queued")

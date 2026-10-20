@@ -50,6 +50,23 @@ class DatamailerSendAuditsAPITestCase(TestCase):
             response_payload=response_payload,
         )
 
+    def test_exact_key_includes_safe_outbox_diagnostics(self):
+        from data.models import DatamailerOutboxEvent, DatamailerOutboxStatus
+        key = "homework-score:ml-zoomcamp-2026:hw02"
+        DatamailerOutboxEvent.objects.create(
+            event_id="failed-sync", event_type="recipient_list.members_bulk_upsert",
+            idempotency_key=f"recipient-list.members-bulk-upsert:{key}:members",
+            ordering_key="hw02", status=DatamailerOutboxStatus.FAILED,
+            last_error="403 Client Error", payload={"private": "do-not-expose"},
+        )
+        response = self.client.get(SEND_AUDITS_URL, {"idempotency_key": key}, **self._auth())
+        self.assertEqual(response.status_code, 200)
+        events = response.json()["outbox_events"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["last_error"], "403 Client Error")
+        self.assertNotIn("do-not-expose", response.content.decode())
+        self.assertNotIn("payload", events[0])
+
     def test_requires_token(self):
         response = self.client.get(SEND_AUDITS_URL)
 
