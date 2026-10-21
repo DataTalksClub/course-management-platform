@@ -87,6 +87,15 @@ class Course(StartTimeModel):
         + "Non-visible courses are still accessible via direct link.",
     )
 
+    requires_registration_approval = models.BooleanField(
+        default=False,
+        blank=False,
+        help_text="Registration wall: when enabled, students can only "
+        + "access the gated course path (homework, projects, enrollment) "
+        + "after their registration is manually approved. "
+        + "Without approval they can only audit public materials.",
+    )
+
     def __str__(self):
         return self.title
 
@@ -212,6 +221,11 @@ class CourseRegistration(models.Model):
         STUDENT_NON_STEM = "student_non_stem", "Student (Non-STEM)"
         OTHER = "other", "Other"
 
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
     campaign = models.ForeignKey(
         RegistrationCampaign,
         on_delete=models.CASCADE,
@@ -241,6 +255,50 @@ class CourseRegistration(models.Model):
     role = models.CharField(max_length=40, choices=Role.choices)
     comment = models.TextField(blank=True)
     accepted_newsletter = models.BooleanField(default=False)
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        help_text="Review status for registration-wall courses. "
+        + "Only approved registrations unlock the gated course path.",
+    )
+    experience = models.TextField(
+        blank=True,
+        default="",
+        help_text="Applicant role and experience summary.",
+    )
+    why_join = models.TextField(
+        blank=True,
+        default="",
+        help_text="Why the applicant wants to join the course.",
+    )
+    linkedin_url = models.URLField(
+        blank=True,
+        default="",
+        help_text="Optional LinkedIn profile URL.",
+    )
+    github_url = models.URLField(
+        blank=True,
+        default="",
+        help_text="Optional GitHub profile URL.",
+    )
+    prereq_python = models.BooleanField(
+        default=False,
+        help_text="Self-check: comfortable with Python.",
+    )
+    prereq_docker = models.BooleanField(
+        default=False,
+        help_text="Self-check: Docker basics.",
+    )
+    prereq_http = models.BooleanField(
+        default=False,
+        help_text="Self-check: HTTP APIs.",
+    )
+    prereq_cli = models.BooleanField(
+        default=False,
+        help_text="Self-check: command line.",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
