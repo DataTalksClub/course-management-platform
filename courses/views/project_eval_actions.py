@@ -3,8 +3,12 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 
 from course_management.observability import record_event
-from courses.models.course import Course, Enrollment
+from courses.models.course import Course
 from courses.models.project import PeerReview, Project, ProjectSubmission
+from courses.registration_wall import (
+    get_or_create_enrollment_for_content,
+    registration_wall_blocks_user,
+)
 
 
 def volunteer_review_submission_defaults():
@@ -28,10 +32,7 @@ def _project_eval_student_submission(course, project, user):
     if student_submission is not None:
         return student_submission
 
-    enrollment, _ = Enrollment.objects.get_or_create(
-        student=user,
-        course=course,
-    )
+    enrollment, _ = get_or_create_enrollment_for_content(user, course)
     defaults = volunteer_review_submission_defaults()
     defaults["enrollment"] = enrollment
     student_submission, _ = ProjectSubmission.objects.get_or_create(
@@ -80,12 +81,14 @@ def projects_eval_add(
     project = get_object_or_404(
         Project, course=course, slug=project_slug
     )
-    result = _create_optional_peer_review_if_allowed(
-        course,
-        project,
-        request.user,
-        submission_id,
-    )
+    result = None
+    if not registration_wall_blocks_user(course, request.user):
+        result = _create_optional_peer_review_if_allowed(
+            course,
+            project,
+            request.user,
+            submission_id,
+        )
     if result is not None:
         review, created = result
         record_event(

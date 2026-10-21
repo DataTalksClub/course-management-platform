@@ -10,6 +10,10 @@ from course_management.datamailer.sync.memberships import (
 from course_management.observability import record_event
 from courses.models.course import Enrollment, User
 from courses.models.project import Project, ProjectSubmission
+from courses.registration_wall import (
+    RegistrationWallBlocked,
+    registration_wall_blocks_user,
+)
 from courses.validators.custom_url_validators import (
     clean_faq_contribution_url,
 )
@@ -137,6 +141,11 @@ def project_submission_for_update(
     if project_submission:
         project_submission.submitted_at = timezone.now()
         return project_submission
+
+    if registration_wall_blocks_user(project.course, user):
+        raise RegistrationWallBlocked(
+            "Registration approval is required before submitting."
+        )
 
     enrollment, _ = Enrollment.objects.get_or_create(
         student=user,

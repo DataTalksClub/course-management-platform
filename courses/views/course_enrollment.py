@@ -7,6 +7,7 @@ from django.views.decorators.http import require_POST
 
 from course_management.observability import record_event
 from courses.models.course import Course, Enrollment
+from courses.registration_wall import registration_wall_blocks_user
 
 from .course_leaderboard_data import invalidate_leaderboard_cache
 from .forms import EnrollmentForm
@@ -29,6 +30,10 @@ class EnrollmentToggleUpdate:
 @require_POST
 def update_enrollment_toggle(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
+    if registration_wall_blocks_user(course, request.user):
+        payload = {"error": "Registration approval is required."}
+        response = JsonResponse(payload, status=403)
+        return response
     enrollment, created = Enrollment.objects.get_or_create(
         student=request.user,
         course=course,
@@ -156,6 +161,10 @@ def _handle_enrollment_post(request, course, enrollment, course_slug):
 @login_required
 def enrollment_view(request, course_slug):
     course = get_object_or_404(Course, slug=course_slug)
+
+    if registration_wall_blocks_user(course, request.user):
+        response = redirect("course", course_slug=course_slug)
+        return response
 
     enrollment, created = Enrollment.objects.get_or_create(
         student=request.user,

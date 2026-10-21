@@ -11,6 +11,13 @@ from courses.models.homework import (
     Question,
     Submission,
 )
+from courses.registration_wall import (
+    course_has_registration_wall,
+    get_or_create_enrollment_for_content,
+)
+from courses.views.course_page_context import (
+    active_registration_campaign_for_course,
+)
 from courses.views.homework_answers import process_question_options
 
 
@@ -69,6 +76,10 @@ def homework_detail_build_context_not_authenticated(
         "disabled": True,
         "accepting_submissions": accepting_submissions,
         "deadline_passed": homework_deadline_passed(homework),
+        "registration_wall_blocked": course_has_registration_wall(course),
+        "registration_campaign": active_registration_campaign_for_course(
+            course
+        ),
     }
 
     return context
@@ -167,9 +178,9 @@ def authenticated_homework_context(
         homework=homework,
         student=user,
     ).first()
-    enrollment, _ = Enrollment.objects.get_or_create(
-        student=user,
-        course=course,
+    enrollment, wall_blocked = get_or_create_enrollment_for_content(
+        user,
+        course,
     )
     context_data = HomeworkDetailContextData(
         course=course,
@@ -179,6 +190,12 @@ def authenticated_homework_context(
         enrollment=enrollment,
     )
     context = homework_detail_build_context_authenticated(context_data)
+    context["registration_wall_blocked"] = wall_blocked
+    context["registration_campaign"] = active_registration_campaign_for_course(
+        course
+    )
+    if wall_blocked:
+        context["disabled"] = True
     return AuthenticatedHomeworkContext(
         context=context,
         submission=submission,

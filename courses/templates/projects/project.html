@@ -30,6 +30,17 @@
             {% endfor %}
         </div>
     {% endif %}
+    {% if registration_wall_blocked %}
+        <div class="mb-6 rounded-md border app-alert-warning p-4">
+            <div class="font-semibold">Registration approval required</div>
+            <p class="mt-1 mb-0 text-sm app-text">
+                This course has limited seats. You can preview the requirements, but submitting a project requires an approved application.
+                {% if registration_campaign %}
+                    <a href="{% url 'registration_campaign' registration_campaign.slug %}" class="app-link">Apply here</a> and wait for approval.
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
     <div class="border-b app-border pb-6">
         {% if project.description %}
             <div class="max-w-3xl text-base leading-7 md:text-lg md:leading-8 app-text">
@@ -247,7 +258,7 @@
                     </div>
                 {% endif %}
             </div>
-            {% if accepting_submissions %}
+            {% if accepting_submissions and not registration_wall_blocked %}
                 <div class="mt-4 flex flex-wrap gap-2 border-t app-border pt-5">
                     {% if is_authenticated %}
                         {% if not has_submission %}

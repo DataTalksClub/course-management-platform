@@ -10,6 +10,7 @@ from courses.models.project import (
     ProjectState,
     ReviewCriteria,
 )
+from courses.registration_wall import get_or_create_enrollment_for_content
 from courses.votes import (
     PROJECT_VOTES_PER_PROJECT,
     get_project_vote_counts,
@@ -28,9 +29,9 @@ class ProjectEvalSubmitPage:
 def project_eval_submit_context(
     request: HttpRequest, page: ProjectEvalSubmitPage
 ):
-    enrollment, _ = Enrollment.objects.get_or_create(
-        student=request.user,
-        course=page.course,
+    enrollment, _ = get_or_create_enrollment_for_content(
+        request.user,
+        page.course,
     )
     context = project_eval_build_context(
         page.project,

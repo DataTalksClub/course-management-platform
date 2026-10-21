@@ -10,6 +10,11 @@ from courses.models.course import (
     RegistrationCampaign,
 )
 from courses.models.project import ProjectState
+from courses.registration_wall import (
+    course_has_registration_wall,
+    registration_wall_blocks_user,
+    registration_wall_status_for_user,
+)
 from courses.views.course_homepage import (
     add_course_homepage_info,
     submitted_project_ids_for_user,
@@ -146,6 +151,15 @@ def course_page_context(data: CoursePageData) -> dict:
         data.registration_campaign,
     )
     context.update(user_context)
+    context["registration_wall"] = course_has_registration_wall(data.course)
+    context["registration_wall_blocked"] = registration_wall_blocks_user(
+        data.course,
+        data.user,
+    )
+    context["registration_wall_status"] = registration_wall_status_for_user(
+        data.course,
+        data.user,
+    )
     return context
 
 

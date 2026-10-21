@@ -18,6 +18,10 @@ from courses.models.homework import (
     Question,
     Submission,
 )
+from courses.registration_wall import (
+    RegistrationWallBlocked,
+    registration_wall_blocks_user,
+)
 from courses.views.homework_confirmation import (
     HomeworkConfirmationEmailData,
     build_homework_update_url,
@@ -57,6 +61,11 @@ def homework_submission_for_user(user, course, homework, submission):
     if submission:
         submission.submitted_at = timezone.now()
         return submission
+
+    if registration_wall_blocks_user(course, user):
+        raise RegistrationWallBlocked(
+            "Registration approval is required before submitting."
+        )
 
     enrollment, _ = Enrollment.objects.get_or_create(
         student=user,

@@ -57,6 +57,17 @@
       </div>
     {% endif %}
 
+    {% if registration_wall and not registration %}
+      <div class="mt-5 rounded-md border app-alert-warning px-4 py-3">
+        <p class="font-medium app-heading">Application only — limited seats, medium–advanced level.</p>
+        <p class="mt-1 text-sm app-text">
+          Acceptance is not automatic: we review every application and approve targeted applicants.
+          Only approved applicants join the course (projects and the full homework path).
+          Without approval you can still audit the public materials.
+        </p>
+      </div>
+    {% endif %}
+
     {% if marketing_html %}
       <div class="registration-markdown mt-7 max-w-3xl text-base leading-7 app-text">
         {{ marketing_html }}
@@ -82,6 +93,24 @@
         <p class="mt-2 text-sm app-text">
           We will send course updates to {{ registration.email_normalized }}.
         </p>
+        {% if registration_wall %}
+          {% if registration.status == "approved" %}
+            <p class="mt-2 text-sm app-text">
+              Your application is approved — you can take the full course path.
+              {% if start_course_url %}
+                <a href="{{ start_course_url }}" class="app-link">Start course</a>.
+              {% endif %}
+            </p>
+          {% elif registration.status == "rejected" %}
+            <p class="mt-2 text-sm app-text">
+              Your application was not accepted for this edition. You can still audit the public materials.
+            </p>
+          {% else %}
+            <p class="mt-2 text-sm app-text">
+              Your application is under review. We will let you know once it is approved.
+            </p>
+          {% endif %}
+        {% endif %}
       </div>
     {% else %}
       <div class="mb-4">

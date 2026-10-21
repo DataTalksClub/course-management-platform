@@ -57,6 +57,32 @@
     {% endif %}
   </div>
 
+  {% if registration_wall and registration_wall_blocked %}
+    <div class="mt-6 max-w-3xl rounded-md border app-alert-warning px-4 py-3">
+      {% if registration_wall_status == "pending" %}
+        <p class="font-medium app-heading">Your application is under review.</p>
+        <p class="mt-1 text-sm app-text">
+          We will let you know once it is approved. Meanwhile you can audit the public course materials.
+        </p>
+      {% elif registration_wall_status == "rejected" %}
+        <p class="font-medium app-heading">Your application was not accepted.</p>
+        <p class="mt-1 text-sm app-text">
+          This edition has limited seats. You can still audit the public course materials below.
+        </p>
+      {% else %}
+        <p class="font-medium app-heading">Application required — limited seats, medium–advanced level.</p>
+        <p class="mt-1 text-sm app-text">
+          Homework, projects, and the full course path unlock only after your application is approved. Without approval you can still audit the public materials.
+        </p>
+        {% if registration_campaign %}
+          <a href="{% url 'registration_campaign' registration_campaign.slug %}" class="primer-button mt-3">
+            <i class="fas fa-user-plus" aria-hidden="true"></i> Apply for this course
+          </a>
+        {% endif %}
+      {% endif %}
+    </div>
+  {% endif %}
+
   {% if user.is_staff %}
     <div class="mt-6">
       <a href="{% url 'cadmin_course' course.slug %}" class="inline-flex items-center text-sm font-medium app-link">

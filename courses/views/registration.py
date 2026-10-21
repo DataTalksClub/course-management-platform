@@ -117,11 +117,17 @@ def _registration_context(
     start_course_url = _start_course_url(campaign)
     country_options = ordered_countries()
     course_is_open = campaign_course_is_open(campaign)
+    course = campaign.current_course
+    registration_wall = bool(
+        course is not None
+        and getattr(course, "requires_registration_approval", False)
+    )
 
     return {
         "campaign": campaign,
-        "course": campaign.current_course,
+        "course": course,
         "course_is_open": course_is_open,
+        "registration_wall": registration_wall,
         "signup_count": campaign.registrations.count(),
         "form": form,
         "registration": registration,

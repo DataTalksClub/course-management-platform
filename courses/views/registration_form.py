@@ -24,6 +24,22 @@ COMMENT_WIDGET = forms.Textarea(
         "placeholder": "Anything you would like to add?",
     }
 )
+EXPERIENCE_WIDGET = forms.Textarea(
+    attrs={
+        "class": "form-control",
+        "rows": 4,
+        "placeholder": "Your role and experience, e.g. years, stack, ML/production background",
+    }
+)
+WHY_JOIN_WIDGET = forms.Textarea(
+    attrs={
+        "class": "form-control",
+        "rows": 4,
+        "placeholder": "Why do you want to join this course?",
+    }
+)
+URL_WIDGET = forms.URLInput(attrs={"class": "form-control"})
+PREREQ_WIDGET = forms.CheckboxInput(attrs={"class": "h-4 w-4"})
 COUNTRY_COMBOBOX_WIDGET_ATTRS = {
     "class": "form-control",
     "autocomplete": "country-name",
@@ -112,6 +128,49 @@ class CourseRegistrationForm(forms.ModelForm):
         required=True,
         widget=ACCEPTED_NEWSLETTER_WIDGET,
     )
+    experience = forms.CharField(
+        label="Role and experience",
+        required=False,
+        widget=EXPERIENCE_WIDGET,
+        help_text="Tell us about your role and relevant experience.",
+    )
+    why_join = forms.CharField(
+        label="Why do you want to join?",
+        required=False,
+        widget=WHY_JOIN_WIDGET,
+    )
+    linkedin_url = forms.URLField(
+        label="LinkedIn profile",
+        required=False,
+        widget=URL_WIDGET,
+        assume_scheme="https",
+    )
+    github_url = forms.URLField(
+        label="GitHub profile",
+        required=False,
+        widget=URL_WIDGET,
+        assume_scheme="https",
+    )
+    prereq_python = forms.BooleanField(
+        label="I am comfortable with Python",
+        required=False,
+        widget=PREREQ_WIDGET,
+    )
+    prereq_docker = forms.BooleanField(
+        label="I know Docker basics",
+        required=False,
+        widget=PREREQ_WIDGET,
+    )
+    prereq_http = forms.BooleanField(
+        label="I have worked with HTTP APIs",
+        required=False,
+        widget=PREREQ_WIDGET,
+    )
+    prereq_cli = forms.BooleanField(
+        label="I am comfortable with the command line",
+        required=False,
+        widget=PREREQ_WIDGET,
+    )
 
     class Meta:
         model = CourseRegistration
@@ -121,6 +180,14 @@ class CourseRegistrationForm(forms.ModelForm):
             "company_name",
             "country",
             "role",
+            "experience",
+            "why_join",
+            "linkedin_url",
+            "github_url",
+            "prereq_python",
+            "prereq_docker",
+            "prereq_http",
+            "prereq_cli",
             "comment",
             "accepted_newsletter",
         ]
@@ -139,6 +206,22 @@ class CourseRegistrationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         configure_registration_form_fields(self)
         configure_authenticated_registration_user(self, self.user)
+        self.apply_registration_wall_requirements()
+
+    def campaign_has_registration_wall(self):
+        campaign = self.campaign
+        if campaign is None:
+            return False
+        course = getattr(campaign, "current_course", None)
+        if course is None:
+            return False
+        return bool(getattr(course, "requires_registration_approval", False))
+
+    def apply_registration_wall_requirements(self):
+        if not self.campaign_has_registration_wall():
+            return
+        for field_name in ("name", "role", "experience"):
+            self.fields[field_name].required = True
 
     def clean_email(self):
         if has_authenticated_registration_user(self.user):

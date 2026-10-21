@@ -1,14 +1,16 @@
 from dataclasses import dataclass
 
+from django.contrib import messages
 from django.http import HttpRequest
 
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from courses.models.course import Course
 from courses.models.homework import (
     Homework,
     Question,
 )
+from courses.registration_wall import registration_wall_blocks_user
 from courses.views.homework_context import (
     AuthenticatedHomeworkContext,
     authenticated_homework_context,
@@ -90,6 +92,22 @@ def homework_view(
             course=course, homework=homework, questions=questions
         )
         response = render(request, "homework/homework.html", context)
+        return response
+
+    if request.method == "POST" and registration_wall_blocks_user(
+        course, user
+    ):
+        messages.error(
+            request,
+            "Your registration needs to be approved before you can "
+            "submit homework.",
+            extra_tags="homework",
+        )
+        response = redirect(
+            "homework",
+            course_slug=course_slug,
+            homework_slug=homework_slug,
+        )
         return response
 
     request_data = HomeworkRequestData(
