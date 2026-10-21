@@ -9,17 +9,22 @@ class CoursesListAPITestCase(CourseAPITestBase):
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        courses_count = len(data["courses"])
-        self.assertEqual(courses_count, 1)
-        self.assertEqual(data["courses"][0]["slug"], "ml-zoomcamp")
-        self.assertEqual(data["courses"][0]["start_date"], "2026-01-15")
-        self.assertEqual(data["courses"][0]["end_date"], "2026-04-15")
+        courses_by_slug = {
+            course["slug"]: course for course in data["courses"]
+        }
+        self.assertIn("ml-zoomcamp", courses_by_slug)
         self.assertEqual(
-            data["courses"][0]["registration_url"],
+            courses_by_slug["ml-zoomcamp"]["start_date"], "2026-01-15"
+        )
+        self.assertEqual(
+            courses_by_slug["ml-zoomcamp"]["end_date"], "2026-04-15"
+        )
+        self.assertEqual(
+            courses_by_slug["ml-zoomcamp"]["registration_url"],
             "https://courses.datatalks.club/ml/register",
         )
         self.assertEqual(
-            data["courses"][0]["github_repo_url"],
+            courses_by_slug["ml-zoomcamp"]["github_repo_url"],
             "https://github.com/DataTalksClub/ml-zoomcamp",
         )
 

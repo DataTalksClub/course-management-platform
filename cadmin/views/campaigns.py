@@ -1,7 +1,8 @@
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 
-from courses.models.course import RegistrationCampaign
+from courses.models.course import CourseRegistration, RegistrationCampaign
+from courses.registration_wall import approve_registration
 from cadmin.forms import RegistrationCampaignForm
 from .campaign_forms import (
     campaign_edit_context,
@@ -82,4 +83,128 @@ def campaign_registrations(request, campaign_slug):
     response = render(
         request, "cadmin/campaign_registrations.html", context
     )
+    return response
+
+
+@staff_required
+def campaign_registration_decide(request, campaign_slug):
+    campaigns = RegistrationCampaign.objects.select_related("current_course")
+    campaign = get_object_or_404(
+        campaigns,
+        slug=campaign_slug,
+    )
+    if request.method != "POST":
+        return redirect(
+            "cadmin_campaign_registrations",
+            campaign_slug=campaign.slug,
+        )
+
+    registration = get_object_or_404(
+        CourseRegistration,
+        campaign=campaign,
+        pk=request.POST.get("registration_id"),
+    )
+    action = (request.POST.get("action") or "").strip()
+    if action == "approve":
+        enrollment = approve_registration(registration)
+        if enrollment is not None:
+            messages.success(
+                request,
+                f"Approved {registration.email_normalized} and enrolled "
+                f"them in {enrollment.course}.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Approved {registration.email_normalized}. No user "
+                f"account matched, so no enrollment was created yet.",
+            )
+    elif action == "reject":
+        registration.status = CourseRegistration.Status.REJECTED
+        registration.save(update_fields=["status", "updated_at"])
+        messages.success(
+            request,
+            f"Rejected {registration.email_normalized}.",
+        )
+    elif action == "reset":
+        registration.status = CourseRegistration.Status.PENDING
+        registration.save(update_fields=["status", "updated_at"])
+        messages.success(
+            request,
+            f"Moved {registration.email_normalized} back to pending.",
+        )
+    else:
+        messages.error(request, "Unknown review action.")
+    return redirect(
+        "cadmin_campaign_registrations",
+        campaign_slug=campaign.slug,
+    )
+
+
+@staff_required
+def campaign_registrations_export(request, campaign_slug):
+    import csv
+
+    from django.http import HttpResponse
+
+    campaigns = RegistrationCampaign.objects.select_related("current_course")
+    campaign = get_object_or_404(
+        campaigns,
+        slug=campaign_slug,
+    )
+    context_data = campaign_registrations_context_data(
+        request, campaign
+    )
+    registrations = context_data.registrations_page.paginator.object_list
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = (
+        f'attachment; filename="registrations-{campaign.slug}.csv"'
+    )
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "email",
+            "name",
+            "company_name",
+            "country",
+            "region",
+            "role",
+            "status",
+            "experience",
+            "why_join",
+            "linkedin_url",
+            "github_url",
+            "prereq_python",
+            "prereq_docker",
+            "prereq_http",
+            "prereq_cli",
+            "comment",
+            "accepted_newsletter",
+            "created_at",
+        ]
+    )
+    for registration in registrations.order_by("created_at"):
+        writer.writerow(
+            [
+                registration.email_normalized,
+                registration.name,
+                registration.company_name,
+                registration.country,
+                registration.region,
+                registration.role,
+                registration.status,
+                registration.experience,
+                registration.why_join,
+                registration.linkedin_url,
+                registration.github_url,
+                registration.prereq_python,
+                registration.prereq_docker,
+                registration.prereq_http,
+                registration.prereq_cli,
+                registration.comment,
+                registration.accepted_newsletter,
+                registration.created_at.isoformat(),
+            ]
+        )
     return response

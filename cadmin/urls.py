@@ -27,6 +27,16 @@ urlpatterns = [
         name="cadmin_campaign_registrations",
     ),
     path(
+        "registrations/<slug:campaign_slug>/decide/",
+        campaigns.campaign_registration_decide,
+        name="cadmin_campaign_registration_decide",
+    ),
+    path(
+        "registrations/<slug:campaign_slug>/export/",
+        campaigns.campaign_registrations_export,
+        name="cadmin_campaign_registrations_export",
+    ),
+    path(
         "campaigns/<slug:campaign_slug>/emails/new/",
         email_campaigns.email_campaign_create,
         name="cadmin_email_campaign_create",

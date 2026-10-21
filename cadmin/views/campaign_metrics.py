@@ -9,10 +9,12 @@ def registration_campaign_metrics(campaign):
     by_role = count_by(registrations, "role")
     by_country = count_by(registrations, "country")
     by_region = count_by(registrations, "region")
+    by_status = count_by(registrations, "status")
     return {
         "campaign": campaign,
         "total": total,
         "by_role": by_role,
         "by_country": by_country,
         "by_region": by_region,
+        "by_status": by_status,
     }

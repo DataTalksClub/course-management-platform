@@ -127,6 +127,9 @@ def _course_duplicate_fields(course, current_year):
         "faq_document_url": course.faq_document_url,
         "project_passing_score": course.project_passing_score,
         "visible": course.visible,
+        "requires_registration_approval": (
+            course.requires_registration_approval
+        ),
     }
 
 
@@ -159,6 +162,7 @@ class CourseAdmin(ModelAdmin):
         "end_date",
         "visible",
         "finished",
+        "requires_registration_approval",
     ]
 
 
@@ -231,6 +235,7 @@ class CourseRegistrationAdmin(ModelAdmin):
         "country",
         "region",
         "role",
+        "status",
         "created_at",
     ]
     search_fields = ["email", "email_normalized", "name", "company_name"]
@@ -239,6 +244,7 @@ class CourseRegistrationAdmin(ModelAdmin):
         "course",
         "region",
         "role",
+        "status",
     ]
     readonly_fields = [
         "email_normalized",
@@ -262,6 +268,22 @@ class CourseRegistrationAdmin(ModelAdmin):
                     "role",
                     "comment",
                     "accepted_newsletter",
+                ]
+            },
+        ),
+        (
+            "Application review",
+            {
+                "fields": [
+                    "status",
+                    "experience",
+                    "why_join",
+                    "linkedin_url",
+                    "github_url",
+                    "prereq_python",
+                    "prereq_docker",
+                    "prereq_http",
+                    "prereq_cli",
                 ]
             },
         ),

@@ -23,13 +23,21 @@ def campaign_registration_filters(request):
     raw_role = request.GET.get("role", "")
     raw_country = request.GET.get("country", "")
     raw_region = request.GET.get("region", "")
+    raw_status = request.GET.get("status", "")
     role = raw_role.strip()
     country = raw_country.strip()
     region = raw_region.strip()
+    status = raw_status.strip()
+    valid_statuses = {
+        choice for choice, _ in CourseRegistration.Status.choices
+    }
+    if status not in valid_statuses:
+        status = ""
     return {
         "role": role,
         "country": country,
         "region": region,
+        "status": status,
     }
 
 
@@ -49,6 +57,8 @@ def apply_campaign_registration_search(registrations, search_query):
         Q(email_normalized__icontains=search_query)
         | Q(name__icontains=search_query)
         | Q(company_name__icontains=search_query)
+        | Q(experience__icontains=search_query)
+        | Q(why_join__icontains=search_query)
     )
 
 
@@ -68,6 +78,7 @@ def campaign_registrations_context(data):
         "filters": data.filters,
         "search_query": data.search_query,
         "pagination_querystring": querystring,
+        "status_choices": CourseRegistration.Status.choices,
     }
 
 

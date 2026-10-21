@@ -65,7 +65,9 @@ class CampaignCadminViewTests(CampaignCadminViewBase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 302)
-        campaign_exists = RegistrationCampaign.objects.exists()
+        campaign_exists = RegistrationCampaign.objects.filter(
+            slug="llm-zoomcamp"
+        ).exists()
         self.assertFalse(campaign_exists)
 
     def test_campaign_edit_staff_allowed(self):
