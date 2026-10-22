@@ -116,6 +116,10 @@ jobs:
           fi
           # Exact ECR tag (YYYYMMDD-HHMMSS-<7>): pin Coolify compose, never :latest.
           # Coolify compose services store the image in docker_compose_raw (base64 on write).
+          # NOTE: GHA runners may not reach COOLIFY_URL (:8000 timeout). All calls
+          # below fail fast (30s). If the pin lands but the deploy trigger cannot
+          # reach Coolify, the Hetzner poller (deploy/coolify/hetzner-rollout.sh,
+          # cron */5 on RMTHZ) converges running == newest GHCR tag automatically.
           python3 - <<'PY'
           import base64, json, os, re, urllib.request
 
@@ -125,6 +129,7 @@ jobs:
           image_ref = os.environ["IMAGE_REF"]
           image_tag = os.environ["IMAGE_TAG"]
           prefix = f"{image_ref}:"
+          TIMEOUT = 30
 
           def call(method, path, payload=None):
               data = None if payload is None else json.dumps(payload).encode()
@@ -138,7 +143,7 @@ jobs:
                       "Content-Type": "application/json",
                   },
               )
-              with urllib.request.urlopen(req) as resp:
+              with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
                   body = resp.read()
                   return resp.status, (json.loads(body) if body else {})
 
