@@ -1,0 +1,112 @@
+name: Deploy CMP Coolify (Contabo)
+
+# Staging CD: GHA builds linux/amd64 → GHCR (private) → Coolify pulls image via deploy API.
+# No git SSH / deploy keys / git clone on Contabo.
+# Mirrors DataTalksClub/relay .github/workflows/deploy-coolify.yml (pilot).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "deploy/coolify/**"
+      - ".github/workflows/deploy-dev.yaml"
+      - ".github/workflows/deploy-prod.yaml"
+      - ".github/workflows/e2e-smoke-dev.yaml"
+
+concurrency:
+  group: cmp-coolify
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: datatalksclub/course-management-platform
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Django checks
+        run: |
+          uv run python manage.py makemigrations --check --dry-run
+          uv run python manage.py check
+      - name: Tests
+        run: uv run pytest
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-24.04
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+      image_digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest
+            type=raw,value=sha-${{ github.sha }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push (linux/amd64)
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-24.04
+    # Staging Contabo Coolify only — production AWS workflows stay separate.
+    environment: coolify-staging
+    steps:
+      - name: Trigger Coolify deploy (pull GHCR image)
+        env:
+          COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_SERVICE_UUID: ${{ secrets.COOLIFY_CMP_SERVICE_UUID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${COOLIFY_URL:-}" || -z "${COOLIFY_TOKEN:-}" || -z "${COOLIFY_SERVICE_UUID:-}" ]]; then
+            echo "Missing Coolify secrets: COOLIFY_URL, COOLIFY_TOKEN, COOLIFY_CMP_SERVICE_UUID" >&2
+            exit 1
+          fi
+          # Prefer Bearer deploy API (force=true so image pull is requested).
+          # pull_policy: always must be set on the Coolify compose service.
+          curl --fail --show-error --silent --request POST \
+            --header "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            --header "Accept: application/json" \
+            "${COOLIFY_URL%/}/api/v1/deploy?uuid=${COOLIFY_SERVICE_UUID}&force=true"
+          echo
+          echo "Triggered Coolify deploy for ${COOLIFY_SERVICE_UUID} image ${{ needs.build-and-push.outputs.image_tag }}"

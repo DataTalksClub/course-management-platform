@@ -1,0 +1,53 @@
+# Coolify service template for CMP staging (Contabo, .163).
+# Secrets (SECRET_KEY, DATABASE_URL, RELAY_API_KEY, RELAY_WEBHOOK_TOKEN,
+# AUTH_TOKEN, DEV_AUTH_TOKEN) live in Coolify UI / API environment
+# variables — never inline them here.
+# CD path: GitHub Actions builds → GHCR (private) → Coolify deploy webhook
+# (no git clone on Contabo). Coolify needs a ghcr.io registry entry
+# (read:packages PAT) to pull this private image.
+services:
+  web:
+    image: ghcr.io/datatalksclub/course-management-platform:latest
+    pull_policy: always
+    restart: unless-stopped
+    command: gunicorn course_management.wsgi --bind 0.0.0.0:80 --timeout 90
+    environment:
+      DEBUG: "0"
+      IS_LOCAL: "0"
+      SITE_ID: "2"
+      VERSION: staging-coolify
+      PUBLIC_BASE_URL: ""
+      EXTRA_ALLOWED_HOSTS: ""
+      OBSERVABILITY_ENVIRONMENT: staging
+      OBSERVABILITY_EVENT_BACKENDS: log
+      CLOUDWATCH_APP_METRIC_NAMESPACE: CourseManagement/App
+      RELAY_URL: https://relay.datatalks.club
+      RELAY_CLIENT: dtc-courses
+      RELAY_AUDIENCE: dtc-courses
+      RELAY_FROM_EMAIL: courses
+      RELAY_STRICT: "0"
+      RELAY_TIMEOUT_SECONDS: "60"
+      # Staging-safe: never deliver real mail / never auto-sync users.
+      RELAY_TRANSACTIONAL_DRY_RUN: "1"
+      RELAY_SYNC_ON_USER_CREATE: "0"
+      RELAY_OUTBOX_DISPATCH_IMMEDIATELY: "0"
+      # Secrets — populate in Coolify UI/API before first deploy.
+      # Names only; no values committed anywhere.
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      RELAY_API_KEY: ${RELAY_API_KEY}
+      RELAY_WEBHOOK_TOKEN: ${RELAY_WEBHOOK_TOKEN}
+      AUTH_TOKEN: ${AUTH_TOKEN}
+      DEV_AUTH_TOKEN: ${DEV_AUTH_TOKEN}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request;assert urllib.request.urlopen('http://127.0.0.1:80/ping',timeout=5).read()==b'OK'\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    expose:
+      - "80"
