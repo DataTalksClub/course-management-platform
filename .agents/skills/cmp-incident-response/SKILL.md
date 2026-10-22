@@ -116,11 +116,15 @@ changes in a dirty worktree.
 ## 6. Deploy and validate dev
 
 Commit only the incident fix and push it directly to `main`, as required by
-`AGENTS.md`. A qualifying push runs `.github/workflows/deploy-dev.yaml`, which
-tests, type-checks, builds one image, and deploys it to dev.
+`AGENTS.md`. A qualifying push runs `.github/workflows/deploy-coolify.yml`
+(Deploy CMP Coolify), which tests, builds one linux/amd64 image to GHCR, and
+deploys it to dev on Contabo. (The legacy AWS ECS
+`.github/workflows/deploy-dev.yaml` is retired — `workflow_dispatch`-only —
+since the course-management-dev ELB target group was deleted in the Contabo
+migration; see GHA runs 39807898139 / 39806180567.)
 
 ```bash
-gh run list --workflow deploy-dev.yaml --branch main --limit 5
+gh run list --workflow deploy-coolify.yml --branch main --limit 5
 gh run watch <run-id> --exit-status
 curl --fail --silent https://dev.courses.datatalks.club/api/health/
 ```

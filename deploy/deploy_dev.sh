@@ -22,6 +22,36 @@ fi
 DEV_TASK_DEF="course-management-${ENV}"
 echo "Deploying ${DEV_TASK_DEF}-${TAG} to ${ENV} environment"
 
+# Preflight (2026-10-22): the AWS ECS dev path is retired in favor of Coolify
+# (.github/workflows/deploy-coolify.yml) after the course-management-dev ELB
+# target group was deleted (GHA 39807898139 / 39806180567). Fail fast here with
+# a clear message instead of failing late at `update-service` with a cryptic
+# InvalidParameterException.
+# NOTE: deploy_prod.sh reuses this script with ENV=prod, so this stays a hard
+# error (exit 1): a missing service/TG must fail loudly, never soft-pass.
+if ! SERVICE_DESC=$(aws ecs describe-services \
+    --cluster course-management-cluster \
+    --services "course-management-${ENV}" 2>&1); then
+    echo "Error: ECS service course-management-${ENV} not found in cluster course-management-cluster." >&2
+    echo "The AWS ECS path is retired; live staging CD is Deploy CMP Coolify (Contabo)." >&2
+    echo "aws error was: ${SERVICE_DESC}" >&2
+    exit 1
+fi
+if [ "$(echo "${SERVICE_DESC}" | jq -r '.failures | length')" != "0" ]; then
+    echo "Error: ECS service course-management-${ENV} lookup failed: $(echo "${SERVICE_DESC}" | jq -c '.failures')" >&2
+    echo "The AWS ECS path is retired; live staging CD is Deploy CMP Coolify (Contabo)." >&2
+    exit 1
+fi
+TG_ARNS=$(echo "${SERVICE_DESC}" | jq -r '.services[0].loadBalancers[].targetGroupArn // empty')
+for TG in ${TG_ARNS}; do
+    if ! aws elbv2 describe-target-groups --target-group-arns "${TG}" > /dev/null 2>&1; then
+        echo "Error: target group ${TG} attached to service course-management-${ENV} does not exist." >&2
+        echo "The ELB target group was deleted (ELB cut / Coolify migration); the AWS ECS path is retired." >&2
+        echo "Live staging CD is Deploy CMP Coolify (Contabo). Do not recreate the ALB/TG unless AWS ECS staging is explicitly required." >&2
+        exit 1
+    fi
+done
+
 FILE_IN="${DEV_TASK_DEF}-${TAG}.json"
 FILE_OUT="updated_${DEV_TASK_DEF}-${TAG}.json"
 
