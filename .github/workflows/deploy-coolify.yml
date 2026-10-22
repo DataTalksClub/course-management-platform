@@ -102,6 +102,7 @@ jobs:
     environment: coolify-staging
     steps:
       - name: Pin Coolify image to ECR tag YYYYMMDD-HHMMSS-<7> and deploy
+        id: coolify-deploy
         env:
           COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
@@ -123,6 +124,7 @@ jobs:
           # on RMTHZ) converges running == newest GHCR tag automatically.
           # Real errors when Coolify IS reachable (HTTP 4xx/5xx, compose pin mismatch)
           # still fail the job.
+          set +e
           python3 - <<'PY'
           import base64, json, os, re, socket, sys, urllib.error, urllib.request
 
@@ -183,12 +185,77 @@ jobs:
           except (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError, OSError) as e:
               # Coolify unreachable (:8000 timeout / DNS / connection reset).
               # GHCR image already pushed; Hetzner poller converges automatically.
+              # Exit 47 (not 0) so the wrapper below can record reachable=false
+              # and skip post-deploy verification instead of failing it.
               print(
                   f"::warning::Coolify API unreachable ({type(e).__name__}: {e}). "
                   f"Image {prefix}{image_tag} already pushed to GHCR; "
                   "Hetzner poller (deploy/coolify/hetzner-rollout.sh, cron */5 on RMTHZ) "
-                  "will converge Contabo to this tag. Treating as soft-fail (exit 0).",
+                  "will converge Contabo to this tag. Treating as soft-fail (exit 47).",
                   flush=True,
               )
-              sys.exit(0)
+              sys.exit(47)
+          PY
+          rc=$?
+          set -e
+          if [[ $rc -eq 47 ]]; then
+            echo "reachable=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ $rc -ne 0 ]]; then
+            exit $rc
+          fi
+          echo "reachable=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Coolify service runs pinned image (t658u)
+        # Catches the 2026-10-22 failure mode where Coolify created the new
+        # container but never started it (Traefik 503 until manual docker start).
+        # Skipped when the deploy step soft-failed (API unreachable from GHA);
+        # the Hetzner poller owns convergence in that case.
+        if: steps.coolify-deploy.outputs.reachable == 'true'
+        env:
+          COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_SERVICE_UUID: ${{ secrets.COOLIFY_CMP_SERVICE_UUID }}
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, sys, time, urllib.error, urllib.request
+
+          base = os.environ["COOLIFY_URL"].rstrip("/")
+          token = os.environ["COOLIFY_TOKEN"]
+          uuid = os.environ["COOLIFY_SERVICE_UUID"]
+          want = f"{os.environ['IMAGE_REF']}:{os.environ['IMAGE_TAG']}"
+          deadline = time.time() + 300  # 5 min for pull + migrate + gunicorn boot
+
+          def fetch():
+              req = urllib.request.Request(
+                  f"{base}/api/v1/services/{uuid}",
+                  headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+              )
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                  return json.loads(resp.read())
+
+          last = ""
+          while time.time() < deadline:
+              try:
+                  svc = fetch()
+                  app = (svc.get("applications") or [{}])[0]
+                  last = f"image={app.get('image')} status={app.get('status')}"
+                  print(f"verify: {last}", flush=True)
+                  if app.get("image") == want and str(app.get("status", "")).startswith("running"):
+                      print(f"verify OK: {want} is {app.get('status')}")
+                      sys.exit(0)
+              except urllib.error.HTTPError as e:
+                  print(f"::error::Coolify API HTTP {e.code} during verify", flush=True)
+                  sys.exit(1)
+              except Exception as e:  # transient network blip: keep polling until deadline
+                  last = f"{type(e).__name__}: {e}"
+                  print(f"verify: transient error, retrying: {last}", flush=True)
+              time.sleep(15)
+
+          print(f"::error::Timed out waiting for {want} to run (last: {last})", flush=True)
+          sys.exit(1)
           PY
