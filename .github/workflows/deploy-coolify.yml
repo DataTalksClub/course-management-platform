@@ -47,10 +47,21 @@ jobs:
     needs: test
     runs-on: ubuntu-24.04
     outputs:
-      image_tag: sha-${{ github.sha }}
+      image_tag: ${{ steps.identity.outputs.version }}
       image_digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: actions/checkout@v5
+
+      - name: Construct release identity (exact ECR tag format)
+        id: identity
+        run: |
+          set -euo pipefail
+          # Same construction as website .github/workflows/deploy-dev.yml:
+          #   version="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA:0:7}"
+          # CMP/AISHL deploy-dev: DATE=$(date +'%Y%m%d-%H%M%S'); SHORT_SHA=…; TAG=${DATE}-${SHORT_SHA}
+          # Live ECR example (CMP): 20261021-094333-f922dc4
+          version="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA:0:7}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -64,10 +75,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # Immutable tags only (ECR-like). Coolify pins sha-<full>; never :latest.
+          # Exact ECR production tag only (YYYYMMDD-HHMMSS-<7>). Never :latest. Never sha-<…>.
           tags: |
-            type=sha,prefix=sha-,format=short
-            type=raw,value=sha-${{ github.sha }}
+            type=raw,value=${{ steps.identity.outputs.version }}
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -91,20 +101,20 @@ jobs:
     # Staging Contabo Coolify only — production AWS workflows stay separate.
     environment: coolify-staging
     steps:
-      - name: Pin Coolify image to sha-<full> and deploy
+      - name: Pin Coolify image to ECR tag YYYYMMDD-HHMMSS-<7> and deploy
         env:
           COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
           COOLIFY_SERVICE_UUID: ${{ secrets.COOLIFY_CMP_SERVICE_UUID }}
           IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          IMAGE_TAG: sha-${{ github.sha }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
         run: |
           set -euo pipefail
           if [[ -z "${COOLIFY_URL:-}" || -z "${COOLIFY_TOKEN:-}" || -z "${COOLIFY_SERVICE_UUID:-}" ]]; then
             echo "Missing Coolify secrets: COOLIFY_URL, COOLIFY_TOKEN, COOLIFY_CMP_SERVICE_UUID" >&2
             exit 1
           fi
-          # Same idea as ECR: deploy an immutable commit tag, never :latest.
+          # Exact ECR tag (YYYYMMDD-HHMMSS-<7>): pin Coolify compose, never :latest.
           # Coolify compose services store the image in docker_compose_raw (base64 on write).
           python3 - <<'PY'
           import base64, json, os, re, urllib.request

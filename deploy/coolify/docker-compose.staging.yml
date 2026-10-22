@@ -2,13 +2,13 @@
 # Secrets (SECRET_KEY, DATABASE_URL, RELAY_API_KEY, RELAY_WEBHOOK_TOKEN,
 # AUTH_TOKEN, DEV_AUTH_TOKEN) live in Coolify UI / API environment
 # variables — never inline them here.
-# Image tag: immutable sha-<full github.sha> (ECR-like). Never :latest.
+# Image tag: exact ECR format YYYYMMDD-HHMMSS-<7> (never :latest, never sha-<…>).
 # CD path: GitHub Actions builds → GHCR (private) → Coolify deploy webhook
 # (no git clone on Contabo). Coolify needs a ghcr.io registry entry
 # (read:packages PAT) to pull this private image.
 services:
   web:
-    image: ghcr.io/datatalksclub/course-management-platform:sha-0041e09ab4128991ef5fc21a47a5b8455ad070bc
+    image: ghcr.io/datatalksclub/course-management-platform:20261021-094333-f922dc4
     pull_policy: always
     restart: unless-stopped
     command: gunicorn course_management.wsgi --bind 0.0.0.0:80 --timeout 90
