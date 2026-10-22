@@ -47,7 +47,7 @@ jobs:
     needs: test
     runs-on: ubuntu-24.04
     outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
+      image_tag: sha-${{ github.sha }}
       image_digest: ${{ steps.push.outputs.digest }}
     steps:
       - uses: actions/checkout@v5
@@ -64,9 +64,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # Immutable tags only (ECR-like). Coolify pins sha-<full>; never :latest.
           tags: |
             type=sha,prefix=sha-,format=short
-            type=raw,value=latest
             type=raw,value=sha-${{ github.sha }}
 
       - name: Set up Buildx
@@ -91,22 +91,63 @@ jobs:
     # Staging Contabo Coolify only — production AWS workflows stay separate.
     environment: coolify-staging
     steps:
-      - name: Trigger Coolify deploy (pull GHCR image)
+      - name: Pin Coolify image to sha-<full> and deploy
         env:
           COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
           COOLIFY_SERVICE_UUID: ${{ secrets.COOLIFY_CMP_SERVICE_UUID }}
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          IMAGE_TAG: sha-${{ github.sha }}
         run: |
           set -euo pipefail
           if [[ -z "${COOLIFY_URL:-}" || -z "${COOLIFY_TOKEN:-}" || -z "${COOLIFY_SERVICE_UUID:-}" ]]; then
             echo "Missing Coolify secrets: COOLIFY_URL, COOLIFY_TOKEN, COOLIFY_CMP_SERVICE_UUID" >&2
             exit 1
           fi
-          # Prefer Bearer deploy API (force=true so image pull is requested).
-          # pull_policy: always must be set on the Coolify compose service.
-          curl --fail --show-error --silent --request POST \
-            --header "Authorization: Bearer ${COOLIFY_TOKEN}" \
-            --header "Accept: application/json" \
-            "${COOLIFY_URL%/}/api/v1/deploy?uuid=${COOLIFY_SERVICE_UUID}&force=true"
-          echo
-          echo "Triggered Coolify deploy for ${COOLIFY_SERVICE_UUID} image ${{ needs.build-and-push.outputs.image_tag }}"
+          # Same idea as ECR: deploy an immutable commit tag, never :latest.
+          # Coolify compose services store the image in docker_compose_raw (base64 on write).
+          python3 - <<'PY'
+          import base64, json, os, re, urllib.request
+
+          base = os.environ["COOLIFY_URL"].rstrip("/")
+          token = os.environ["COOLIFY_TOKEN"]
+          uuid = os.environ["COOLIFY_SERVICE_UUID"]
+          image_ref = os.environ["IMAGE_REF"]
+          image_tag = os.environ["IMAGE_TAG"]
+          prefix = f"{image_ref}:"
+
+          def call(method, path, payload=None):
+              data = None if payload is None else json.dumps(payload).encode()
+              req = urllib.request.Request(
+                  f"{base}{path}",
+                  data=data,
+                  method=method,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/json",
+                      "Content-Type": "application/json",
+                  },
+              )
+              with urllib.request.urlopen(req) as resp:
+                  body = resp.read()
+                  return resp.status, (json.loads(body) if body else {})
+
+          _st, svc = call("GET", f"/api/v1/services/{uuid}")
+          raw = svc["docker_compose_raw"]
+          new, n = re.subn(
+              re.escape(prefix) + r"[^\s'\"]+",
+              prefix + image_tag,
+              raw,
+              count=1,
+          )
+          if n != 1:
+              raise SystemExit(f"Could not pin image {prefix}* in Coolify compose (matches={n})")
+          call(
+              "PATCH",
+              f"/api/v1/services/{uuid}",
+              {"docker_compose_raw": base64.b64encode(new.encode()).decode()},
+          )
+          _st, out = call("POST", f"/api/v1/deploy?uuid={uuid}&force=true")
+          print(json.dumps(out))
+          print(f"Pinned {prefix}{image_tag} and triggered Coolify deploy for {uuid}")
+          PY
