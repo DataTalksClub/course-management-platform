@@ -116,12 +116,15 @@ jobs:
           fi
           # Exact ECR tag (YYYYMMDD-HHMMSS-<7>): pin Coolify compose, never :latest.
           # Coolify compose services store the image in docker_compose_raw (base64 on write).
-          # NOTE: GHA runners may not reach COOLIFY_URL (:8000 timeout). All calls
-          # below fail fast (30s). If the pin lands but the deploy trigger cannot
-          # reach Coolify, the Hetzner poller (deploy/coolify/hetzner-rollout.sh,
-          # cron */5 on RMTHZ) converges running == newest GHCR tag automatically.
+          # NOTE: GHA runners often cannot reach COOLIFY_URL (:8000 timeout), but the
+          # image was already pushed to GHCR by the build-and-push job. Network-level
+          # failures (timeout / connection refused / reset) are therefore SOFT-FAIL
+          # (exit 0): the Hetzner poller (deploy/coolify/hetzner-rollout.sh, cron */5
+          # on RMTHZ) converges running == newest GHCR tag automatically.
+          # Real errors when Coolify IS reachable (HTTP 4xx/5xx, compose pin mismatch)
+          # still fail the job.
           python3 - <<'PY'
-          import base64, json, os, re, urllib.request
+          import base64, json, os, re, socket, sys, urllib.error, urllib.request
 
           base = os.environ["COOLIFY_URL"].rstrip("/")
           token = os.environ["COOLIFY_TOKEN"]
@@ -147,22 +150,45 @@ jobs:
                   body = resp.read()
                   return resp.status, (json.loads(body) if body else {})
 
-          _st, svc = call("GET", f"/api/v1/services/{uuid}")
-          raw = svc["docker_compose_raw"]
-          new, n = re.subn(
-              re.escape(prefix) + r"[^\s'\"]+",
-              prefix + image_tag,
-              raw,
-              count=1,
-          )
-          if n != 1:
-              raise SystemExit(f"Could not pin image {prefix}* in Coolify compose (matches={n})")
-          call(
-              "PATCH",
-              f"/api/v1/services/{uuid}",
-              {"docker_compose_raw": base64.b64encode(new.encode()).decode()},
-          )
-          _st, out = call("POST", f"/api/v1/deploy?uuid={uuid}&force=true")
-          print(json.dumps(out))
-          print(f"Pinned {prefix}{image_tag} and triggered Coolify deploy for {uuid}")
+          def main():
+              _st, svc = call("GET", f"/api/v1/services/{uuid}")
+              raw = svc["docker_compose_raw"]
+              new, n = re.subn(
+                  re.escape(prefix) + r"[^\s'\"]+",
+                  prefix + image_tag,
+                  raw,
+                  count=1,
+              )
+              if n != 1:
+                  raise SystemExit(f"Could not pin image {prefix}* in Coolify compose (matches={n})")
+              call(
+                  "PATCH",
+                  f"/api/v1/services/{uuid}",
+                  {"docker_compose_raw": base64.b64encode(new.encode()).decode()},
+              )
+              _st, out = call("POST", f"/api/v1/deploy?uuid={uuid}&force=true")
+              print(json.dumps(out))
+              print(f"Pinned {prefix}{image_tag} and triggered Coolify deploy for {uuid}")
+
+          try:
+              main()
+          except urllib.error.HTTPError as e:
+              # Coolify reachable but returned an error: real failure, keep red.
+              try:
+                  detail = e.read().decode()[:500]
+              except Exception:
+                  detail = "<unreadable body>"
+              print(f"::error::Coolify API HTTP {e.code} on {e.url}: {detail}", flush=True)
+              sys.exit(1)
+          except (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError, OSError) as e:
+              # Coolify unreachable (:8000 timeout / DNS / connection reset).
+              # GHCR image already pushed; Hetzner poller converges automatically.
+              print(
+                  f"::warning::Coolify API unreachable ({type(e).__name__}: {e}). "
+                  f"Image {prefix}{image_tag} already pushed to GHCR; "
+                  "Hetzner poller (deploy/coolify/hetzner-rollout.sh, cron */5 on RMTHZ) "
+                  "will converge Contabo to this tag. Treating as soft-fail (exit 0).",
+                  flush=True,
+              )
+              sys.exit(0)
           PY
