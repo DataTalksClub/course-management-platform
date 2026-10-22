@@ -433,3 +433,129 @@ class RegistrationReviewTests(RegistrationCampaignBase):
             self.assertIn(column, header)
         self.assertIn("applicant@example.com", content)
         self.assertIn("3 years ML", content)
+
+
+@override_settings(
+    RELAY_URL="",
+    RELAY_API_KEY="",
+    RELAY_CLIENT="",
+    RELAY_AUDIENCE="",
+)
+class RegistrationThreeFieldsTests(RegistrationCampaignBase):
+    def setUp(self):
+        super().setUp()
+        self.course.requires_registration_approval = True
+        self.course.save(update_fields=["requires_registration_approval"])
+
+    def test_role_choices_include_founder_and_mlops(self):
+        values = dict(CourseRegistration.Role.choices)
+        self.assertEqual(values["founder_cto"], "Founder/CTO")
+        self.assertEqual(
+            values["mlops_platform"], "MLOps/Platform Engineer"
+        )
+
+    def test_wall_form_renders_new_fields(self):
+        response = self.client.get(self.campaign_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Founder/CTO")
+        self.assertContains(response, "MLOps/Platform Engineer")
+        self.assertContains(response, "Share my application with Nebius")
+        self.assertContains(
+            response, "Years of professional software or ML experience"
+        )
+
+    def test_wall_form_requires_nebius_consent(self):
+        payload = self.registration_payload()
+        payload["experience"] = "3 years building ML systems"
+        payload.pop("accepted_nebius_sharing", None)
+        response = self.client.post(self.campaign_url(), payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(CourseRegistration.objects.count(), 0)
+
+    def test_wall_form_accepts_new_roles_years_and_consent(self):
+        payload = self.registration_payload()
+        payload["role"] = CourseRegistration.Role.MLOPS_PLATFORM
+        payload["experience"] = "3 years building ML systems"
+        payload["years_experience"] = (
+            CourseRegistration.YearsExperience.THREE_TO_SIX
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.campaign_url(), payload)
+
+        self.assertEqual(response.status_code, 200)
+        registration = CourseRegistration.objects.get()
+        self.assertEqual(
+            registration.role, CourseRegistration.Role.MLOPS_PLATFORM
+        )
+        self.assertEqual(registration.years_experience, "3_6")
+        self.assertTrue(registration.accepted_nebius_sharing)
+        self.assertEqual(
+            registration.status, CourseRegistration.Status.PENDING
+        )
+
+    def test_years_experience_stays_optional(self):
+        payload = self.registration_payload()
+        payload["experience"] = "3 years building ML systems"
+        payload.pop("years_experience", None)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.campaign_url(), payload)
+
+        self.assertEqual(response.status_code, 200)
+        registration = CourseRegistration.objects.get()
+        self.assertEqual(registration.years_experience, "")
+
+    def test_non_wall_form_omits_nebius_consent(self):
+        self.course.requires_registration_approval = False
+        self.course.save(update_fields=["requires_registration_approval"])
+
+        response = self.client.get(self.campaign_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Share my application with Nebius")
+
+        payload = self.registration_payload()
+        payload.pop("accepted_nebius_sharing", None)
+        with self.captureOnCommitCallbacks(execute=True):
+            post_response = self.client.post(self.campaign_url(), payload)
+
+        self.assertEqual(post_response.status_code, 200)
+        registration = CourseRegistration.objects.get()
+        self.assertFalse(registration.accepted_nebius_sharing)
+
+    def test_export_csv_contains_new_columns(self):
+        staff = CustomUser.objects.create_user(
+            username="exporter",
+            email="exporter@example.com",
+            password="test",
+            is_staff=True,
+        )
+        CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="three-fields@example.com",
+            name="Three Fields",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.FOUNDER_CTO,
+            accepted_newsletter=True,
+            accepted_nebius_sharing=True,
+            years_experience=(
+                CourseRegistration.YearsExperience.ONE_TO_THREE
+            ),
+        )
+        self.client.force_login(staff)
+        url = reverse(
+            "cadmin_campaign_registrations_export",
+            kwargs={"campaign_slug": self.campaign.slug},
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        header = content.splitlines()[0]
+        self.assertIn("years_experience", header)
+        self.assertIn("accepted_nebius_sharing", header)
+        self.assertIn("founder_cto", content)

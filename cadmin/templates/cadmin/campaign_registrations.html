@@ -136,6 +136,9 @@
           {% if registration.experience %}
             <p class="mt-1 line-clamp-2 app-text"><span class="app-muted">Experience:</span> {{ registration.experience }}</p>
           {% endif %}
+          {% if registration.years_experience %}
+            <p class="mt-1 app-text"><span class="app-muted">Years:</span> {{ registration.get_years_experience_display }}</p>
+          {% endif %}
           {% if registration.why_join %}
             <p class="mt-1 line-clamp-2 app-text"><span class="app-muted">Why:</span> {{ registration.why_join }}</p>
           {% endif %}

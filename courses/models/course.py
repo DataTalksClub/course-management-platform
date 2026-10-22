@@ -219,7 +219,15 @@ class CourseRegistration(models.Model):
         )
         STUDENT_STEM = "student_stem", "Student (STEM)"
         STUDENT_NON_STEM = "student_non_stem", "Student (Non-STEM)"
+        FOUNDER_CTO = "founder_cto", "Founder/CTO"
+        MLOPS_PLATFORM = "mlops_platform", "MLOps/Platform Engineer"
         OTHER = "other", "Other"
+
+    class YearsExperience(models.TextChoices):
+        LESS_THAN_1 = "lt1", "<1"
+        ONE_TO_THREE = "1_3", "1–3"
+        THREE_TO_SIX = "3_6", "3–6"
+        SIX_PLUS = "6plus", "6+"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending review"
@@ -255,6 +263,18 @@ class CourseRegistration(models.Model):
     role = models.CharField(max_length=40, choices=Role.choices)
     comment = models.TextField(blank=True)
     accepted_newsletter = models.BooleanField(default=False)
+    accepted_nebius_sharing = models.BooleanField(
+        default=False,
+        help_text="Share application with Nebius and Nebius Academy "
+        "for review, credits and course operation.",
+    )
+    years_experience = models.CharField(
+        max_length=10,
+        choices=YearsExperience.choices,
+        blank=True,
+        default="",
+        help_text="Years of professional software or ML experience.",
+    )
 
     status = models.CharField(
         max_length=20,

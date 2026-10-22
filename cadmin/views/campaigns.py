@@ -172,6 +172,7 @@ def campaign_registrations_export(request, campaign_slug):
             "role",
             "status",
             "experience",
+            "years_experience",
             "why_join",
             "linkedin_url",
             "github_url",
@@ -181,6 +182,7 @@ def campaign_registrations_export(request, campaign_slug):
             "prereq_cli",
             "comment",
             "accepted_newsletter",
+            "accepted_nebius_sharing",
             "created_at",
         ]
     )
@@ -195,6 +197,7 @@ def campaign_registrations_export(request, campaign_slug):
                 registration.role,
                 registration.status,
                 registration.experience,
+                registration.years_experience,
                 registration.why_join,
                 registration.linkedin_url,
                 registration.github_url,
@@ -204,6 +207,7 @@ def campaign_registrations_export(request, campaign_slug):
                 registration.prereq_cli,
                 registration.comment,
                 registration.accepted_newsletter,
+                registration.accepted_nebius_sharing,
                 registration.created_at.isoformat(),
             ]
         )

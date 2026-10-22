@@ -268,6 +268,7 @@ class CourseRegistrationAdmin(ModelAdmin):
                     "role",
                     "comment",
                     "accepted_newsletter",
+                    "accepted_nebius_sharing",
                 ]
             },
         ),
@@ -277,6 +278,7 @@ class CourseRegistrationAdmin(ModelAdmin):
                 "fields": [
                     "status",
                     "experience",
+                    "years_experience",
                     "why_join",
                     "linkedin_url",
                     "github_url",

@@ -17,6 +17,7 @@ COMPANY_NAME_WIDGET = forms.TextInput(
 )
 COUNTRY_SELECT_WIDGET = forms.Select(attrs={"class": "form-control"})
 ROLE_WIDGET = forms.Select(attrs={"class": "form-control"})
+YEARS_EXPERIENCE_WIDGET = forms.Select(attrs={"class": "form-control"})
 COMMENT_WIDGET = forms.Textarea(
     attrs={
         "class": "form-control",
@@ -66,6 +67,12 @@ def configure_registration_form_fields(form):
     for role_choice in CourseRegistration.Role.choices:
         role_choices.append(role_choice)
     form.fields["role"].choices = role_choices
+
+    years_choices = [("", "Select years of experience")]
+    for years_choice in CourseRegistration.YearsExperience.choices:
+        years_choices.append(years_choice)
+    if "years_experience" in form.fields:
+        form.fields["years_experience"].choices = years_choices
 
 
 def has_authenticated_registration_user(user):
@@ -139,6 +146,13 @@ class CourseRegistrationForm(forms.ModelForm):
         required=False,
         widget=WHY_JOIN_WIDGET,
     )
+    years_experience = forms.ChoiceField(
+        label="Years of professional software or ML experience",
+        required=False,
+        widget=YEARS_EXPERIENCE_WIDGET,
+        choices=[],
+        help_text="Optional.",
+    )
     linkedin_url = forms.URLField(
         label="LinkedIn profile",
         required=False,
@@ -171,6 +185,15 @@ class CourseRegistrationForm(forms.ModelForm):
         required=False,
         widget=PREREQ_WIDGET,
     )
+    accepted_nebius_sharing = forms.BooleanField(
+        label=(
+            "Share my application with Nebius and Nebius Academy "
+            "for review, credits and course operation"
+        ),
+        required=False,
+        widget=ACCEPTED_NEWSLETTER_WIDGET,
+        help_text="Required for application-review courses.",
+    )
 
     class Meta:
         model = CourseRegistration
@@ -181,6 +204,7 @@ class CourseRegistrationForm(forms.ModelForm):
             "country",
             "role",
             "experience",
+            "years_experience",
             "why_join",
             "linkedin_url",
             "github_url",
@@ -190,6 +214,7 @@ class CourseRegistrationForm(forms.ModelForm):
             "prereq_cli",
             "comment",
             "accepted_newsletter",
+            "accepted_nebius_sharing",
         ]
         widgets = {
             "email": EMAIL_WIDGET,
@@ -219,8 +244,16 @@ class CourseRegistrationForm(forms.ModelForm):
 
     def apply_registration_wall_requirements(self):
         if not self.campaign_has_registration_wall():
+            # Nebius sharing consent only applies to application-review
+            # (wall) courses; keep other campaigns' forms unchanged.
+            self.fields.pop("accepted_nebius_sharing", None)
             return
-        for field_name in ("name", "role", "experience"):
+        for field_name in (
+            "name",
+            "role",
+            "experience",
+            "accepted_nebius_sharing",
+        ):
             self.fields[field_name].required = True
 
     def clean_email(self):
@@ -249,6 +282,18 @@ class CourseRegistrationForm(forms.ModelForm):
         if not accepted_newsletter:
             raise forms.ValidationError("This field is required.")
         return accepted_newsletter
+
+    def clean_accepted_nebius_sharing(self):
+        accepted_nebius_sharing = self.cleaned_data.get(
+            "accepted_nebius_sharing"
+        )
+        if (
+            "accepted_nebius_sharing" in self.fields
+            and self.fields["accepted_nebius_sharing"].required
+            and not accepted_nebius_sharing
+        ):
+            raise forms.ValidationError("This field is required.")
+        return bool(accepted_nebius_sharing)
 
     def save(self, commit=True):
         registration = super().save(commit=False)

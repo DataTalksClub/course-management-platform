@@ -36,6 +36,7 @@ class RegistrationCampaignBase(TestCase):
             "role": CourseRegistration.Role.DATA_ENGINEER,
             "comment": "Looking forward to it",
             "accepted_newsletter": "on",
+            "accepted_nebius_sharing": "on",
         }
 
     def campaign_url(self):
