@@ -47,6 +47,15 @@ curl failures. Also recreate the private `cmp-staging` source and confirm
 its container changes while public web continues serving. Do not test this
 by force-recreating the public native container outside Coolify.
 
+When checking a later Recreate event, identify which resource it belongs to.
+`web-avcfd5kwb7cj9r1tx4ygjs6v` is the private release source; its replacement
+time alone does not show a public traffic interruption. Check that its saved,
+generated and running labels still disable Traefik, then inspect the native
+public Application's deployment and timestamped public probes. Accept a
+controlled rollout only when the new public container becomes healthy before
+the old container drains and terminates, and public probes remain successful
+through both the native rollout and private source replacement.
+
 ## October 23 production incident
 
 At intake, both CMP and AISHL production domains were on single-web Compose
@@ -74,6 +83,18 @@ termination at `15:50:20.459Z`. The source became healthy at `15:50:37.075Z`;
 observation continued for over a minute after recovery. The exact deployed
 image stayed `20261023-143650-b1b7f4b`. These are sampled continuity results,
 not a guarantee against host failure or incompatible future migrations.
+
+The r2 revalidation repeated both replacements at `16:13:08–16:15:45Z`.
+All 96 homepage and 235 health samples returned HTTP 200, with zero curl
+errors. Coolify recorded replacement health at `16:14:06.591764Z`, the
+old-backend drain hook at `16:14:06.901572Z`, and rolling completion at
+`16:14:18.092658Z`. The public container changed during the native rollout
+and stayed unchanged during the subsequent private source recreate. The
+image stayed the same; helper hashes, routing guards and follower convergence
+passed before and after. This rerun uses retained Coolify lifecycle markers:
+a late query of Docker's bounded event history missed the early events.
+The earlier complete Docker event stream remains in the private incident
+evidence directory.
 
 Related Hub intakes:
 
