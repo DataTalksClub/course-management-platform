@@ -26,10 +26,10 @@ jobs:
     # the real prod send path runs (outbox -> dispatch -> /api/transactional/send
     # -> audit), but with Datamailer's dry_run flag the render is returned inline
     # and nothing is delivered. For this to be SAFE, the dev DEPLOYMENT itself
-    # must run with RELAY_TRANSACTIONAL_DRY_RUN=1 (set on the CMP dev ECS
-    # task definition, provisioned via Terraform in DataTalksClub/infra-terraform
-    # -- it is not configured from this repo). Without it, dev would send real
-    # email during the smoke run; the email tests xfail if no audit appears.
+    # must run with RELAY_TRANSACTIONAL_DRY_RUN=1 (set on the isolated cmp-dev
+    # Coolify service; see deploy/coolify/docker-compose.dev.yml). Without it,
+    # dev would send real email during the smoke run; the email tests xfail
+    # if no audit appears.
     env:
       E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev.courses.datatalks.club' }}
       E2E_API_TOKEN: ${{ secrets.E2E_DEV_API_TOKEN }}

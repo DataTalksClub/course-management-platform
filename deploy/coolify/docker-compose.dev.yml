@@ -1,0 +1,51 @@
+# Isolated DEV backend. Assign only https://dev.courses.datatalks.club in Coolify.
+# CMP_DEV_DATABASE_URL must use the cmp_dev role and database, never cmp_app/cmp.
+# Populate secrets through the Coolify environment API; never inline them.
+services:
+  web:
+    image: ghcr.io/datatalksclub/course-management-platform:20261023-065244-8ca95f4
+    pull_policy: always
+    restart: unless-stopped
+    command: gunicorn course_management.wsgi --bind 0.0.0.0:80 --timeout 90
+    environment:
+      DEBUG: "0"
+      IS_LOCAL: "0"
+      SITE_ID: "2"
+      VERSION: 20261023-065244-8ca95f4
+      PUBLIC_BASE_URL: "https://dev.courses.datatalks.club"
+      EXTRA_ALLOWED_HOSTS: "dev.courses.datatalks.club"
+      OBSERVABILITY_ENVIRONMENT: dev
+      OBSERVABILITY_EVENT_BACKENDS: log
+      CLOUDWATCH_APP_METRIC_NAMESPACE: CourseManagement/App
+      RELAY_URL: https://relay.datatalks.club
+      RELAY_CLIENT: dtc-courses
+      RELAY_AUDIENCE: dtc-courses
+      RELAY_FROM_EMAIL: courses
+      RELAY_STRICT: "0"
+      RELAY_TIMEOUT_SECONDS: "60"
+      # Staging-safe: never deliver real mail / never auto-sync users.
+      RELAY_TRANSACTIONAL_DRY_RUN: "1"
+      RELAY_SYNC_ON_USER_CREATE: "0"
+      RELAY_OUTBOX_DISPATCH_IMMEDIATELY: "0"
+      # Secrets — populate in Coolify UI/API before first deploy.
+      # Names only; no values committed anywhere.
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${CMP_DEV_DATABASE_URL}
+      RELAY_API_KEY: ${RELAY_API_KEY}
+      RELAY_WEBHOOK_TOKEN: ${RELAY_WEBHOOK_TOKEN}
+      AUTH_TOKEN: ${AUTH_TOKEN}
+      DEV_AUTH_TOKEN: ${DEV_AUTH_TOKEN}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import json,urllib.request;assert json.load(urllib.request.urlopen('http://127.0.0.1:80/api/health/',timeout=5))['status']=='ok'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    expose:
+      - "80"

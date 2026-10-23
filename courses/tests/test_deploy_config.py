@@ -37,6 +37,28 @@ class DeploymentWorkflowTestCase(SimpleTestCase):
 
 
 class DeployConfigTestCase(SimpleTestCase):
+    def test_dev_has_an_isolated_coolify_backend(self):
+        template = (
+            Path(__file__).resolve().parents[2]
+            / "deploy/coolify/docker-compose.dev.yml"
+        )
+        self.assertTrue(
+            template.exists(),
+            "DEV needs its own Coolify backend after removing "
+            "its production alias.",
+        )
+        web = yaml.safe_load(template.read_text())["services"]["web"]
+        env = web["environment"]
+        self.assertEqual(
+            env["PUBLIC_BASE_URL"], "https://dev.courses.datatalks.club"
+        )
+        self.assertEqual(env["DATABASE_URL"], "${CMP_DEV_DATABASE_URL}")
+        self.assertEqual(env["VERSION"], web["image"].rsplit(":", 1)[1])
+        self.assertEqual(env["OBSERVABILITY_ENVIRONMENT"], "dev")
+        self.assertEqual(env["RELAY_TRANSACTIONAL_DRY_RUN"], "1")
+        self.assertEqual(env["RELAY_SYNC_ON_USER_CREATE"], "0")
+        self.assertIn("/api/health/", str(web["healthcheck"]["test"]))
+
     def gunicorn_timeout_seconds(self):
         dockerfile = Path(__file__).resolve().parents[2] / "Dockerfile"
         contents = dockerfile.read_text()

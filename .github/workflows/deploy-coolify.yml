@@ -1,9 +1,9 @@
 name: Deploy CMP Coolify (Contabo)
 
 # Course CD: GHA builds linux/amd64 → GHCR (private) → Coolify pulls image via deploy API.
-# Since the 2026-10-22 DNS cutover, dev.courses and courses both route to
-# this Contabo service. The coolify-staging environment name does not imply
-# traffic isolation; main pushes update the service serving both hostnames.
+# The historical cmp-staging service now serves production courses only.
+# DEV has a separate cmp-dev service and database; see deploy/coolify/README.md.
+# The coolify-staging GitHub environment name still targets production.
 # No git SSH / deploy keys / git clone on Contabo.
 # Mirrors DataTalksClub/relay .github/workflows/deploy-coolify.yml (pilot).
 
@@ -101,7 +101,7 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-24.04
-    # Environment name retained for existing secrets; serves both course hostnames.
+    # Environment name retained for existing secrets; targets production courses.
     environment: coolify-staging
     steps:
       - name: Pin Coolify image to ECR tag YYYYMMDD-HHMMSS-<7> and deploy
