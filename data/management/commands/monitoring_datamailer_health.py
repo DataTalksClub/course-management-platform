@@ -1,7 +1,9 @@
 import json
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from course_management.datamailer.client import datamailer_enabled
 from course_management.datamailer_outbox_status import (
     datamailer_outbox_status_summary,
 )
@@ -48,12 +50,21 @@ def datamailer_health_payload():
     due_count = outbox_summary["due_count"]
     failed_outbox = event_counts.get("failed", 0)
     retrying_outbox = event_counts.get("retrying", 0)
+    relay_configured = datamailer_enabled()
     status = "ok"
-    if failed_sends or failed_outbox or retrying_outbox:
+    if (
+        not relay_configured
+        or failed_sends
+        or failed_outbox
+        or retrying_outbox
+    ):
         status = "warning"
 
     return {
         "status": status,
+        "relay_configured": relay_configured,
+        "transactional_dry_run": settings.RELAY_TRANSACTIONAL_DRY_RUN,
+        "sync_on_user_create": settings.RELAY_SYNC_ON_USER_CREATE,
         "outbox_due_count": due_count,
         "outbox_pending_count": event_counts.get("pending", 0),
         "outbox_retrying_count": retrying_outbox,

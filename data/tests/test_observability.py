@@ -1,3 +1,4 @@
+import json
 from io import StringIO
 from unittest.mock import patch
 
@@ -114,6 +115,12 @@ class DatamailerMonitoringCommandTests(TestCase):
     @override_settings(
         OBSERVABILITY_EVENT_BACKENDS=["noop"],
     )
+    @override_settings(
+        RELAY_URL="https://relay.example.test",
+        RELAY_CLIENT="courses",
+        RELAY_AUDIENCE="courses",
+        RELAY_API_KEY="synthetic-private-key",
+    )
     def test_monitoring_datamailer_health_command_outputs_json(self):
         output = StringIO()
 
@@ -121,6 +128,43 @@ class DatamailerMonitoringCommandTests(TestCase):
 
         self.assertIn('"status": "ok"', output.getvalue())
         self.assertIn('"outbox_due_count": 0', output.getvalue())
+
+    @override_settings(
+        OBSERVABILITY_EVENT_BACKENDS=["noop"],
+        RELAY_URL="https://relay.example.test",
+        RELAY_CLIENT="courses",
+        RELAY_AUDIENCE="courses",
+        RELAY_API_KEY="",
+    )
+    def test_missing_relay_key_warns_even_with_empty_outbox(self):
+        output = StringIO()
+
+        call_command("monitoring_datamailer_health", "--json", stdout=output)
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["status"], "warning")
+        self.assertFalse(payload["relay_configured"])
+
+    @override_settings(
+        OBSERVABILITY_EVENT_BACKENDS=["noop"],
+        RELAY_URL="https://relay.example.test",
+        RELAY_CLIENT="courses",
+        RELAY_AUDIENCE="courses",
+        RELAY_API_KEY="synthetic-private-key",
+        RELAY_TRANSACTIONAL_DRY_RUN=True,
+        RELAY_SYNC_ON_USER_CREATE=False,
+    )
+    def test_monitoring_reports_send_policy_without_credentials(self):
+        output = StringIO()
+
+        call_command("monitoring_datamailer_health", "--json", stdout=output)
+
+        payload = json.loads(output.getvalue())
+        self.assertTrue(payload["relay_configured"])
+        self.assertTrue(payload["transactional_dry_run"])
+        self.assertFalse(payload["sync_on_user_create"])
+        self.assertNotIn("synthetic-private-key", output.getvalue())
+        self.assertNotIn("https://relay.example.test", output.getvalue())
 
     @patch(
         "data.management.commands.monitoring_datamailer_health."

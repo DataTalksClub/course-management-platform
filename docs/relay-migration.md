@@ -130,3 +130,26 @@ Outbound sending is tracked separately in Hub follow-up
 `c9942fb2-6c77-40bb-beff-20fde5480360`: CMP still has an empty
 `RELAY_API_KEY` and `RELAY_TRANSACTIONAL_DRY_RUN=1`. Verify the correct
 client key and intended send policy before enabling transactional mail.
+
+## Outbound readiness checks
+
+`uv run python manage.py monitoring_datamailer_health --json` reports
+`relay_configured`, `transactional_dry_run`, and `sync_on_user_create` as
+booleans. Missing required Relay configuration produces a warning even if
+there are no outbox events. `relay_configured` checks configuration completeness;
+credential authentication and provider delivery still require separate proof.
+The output does not include the key or server address.
+
+For credential recovery, verify the existing key against the intended Relay
+client before saving it in Coolify. Change individual environment variables,
+retain the pinned image, and check the effective runtime configuration after
+an agreed restart. Keep CMP transactional dry-run enabled and automatic user
+sync disabled until the production policy and controlled test recipient are
+confirmed. Inspect due outbox counts first; never replay historical failures
+as a delivery test.
+
+Website uses community-base's Relay mail backend. Its historical
+`DATAMAILER_TRANSACTIONAL_DRY_RUN` variable does not guard that backend.
+Restoring Website's live Relay configuration can enable delivery immediately;
+do not infer a safe dry-run state from that variable. Dev hostname isolation,
+job ownership, and send policy must be checked before activation.
