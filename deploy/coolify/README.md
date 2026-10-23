@@ -96,6 +96,28 @@ a late query of Docker's bounded event history missed the early events.
 The earlier complete Docker event stream remains in the private incident
 evidence directory.
 
+The t1832u drain revalidated both replacements at
+`16:40:59–16:43:34Z`. All 95 homepage and 244 health curl samples returned
+HTTP 200, without curl errors or 502/503. This run streamed Docker events
+throughout: new public health at `16:41:23.210950Z` preceded old drain at
+`16:42:01.487131Z`, TERM at `16:42:08.259098Z`, and exit at
+`16:42:09.049950Z`. The measured withdrawal interval was 6.772 seconds.
+The private source then changed containers while the healthy public container
+stayed unchanged; the release remained `20261023-143650-b1b7f4b`.
+Installed prerequisites and running helper mounts/checksums passed before
+and after, and the follower reported `in-sync`. Fresh validation passed all
+five CMP deployment configuration tests and 31 shared rolling tests.
+
+For fresh lifecycle proof, stream Docker events from before deployment;
+Docker's bounded event history can discard the early replacement events
+before a later query. The shared
+[acceptance runner](https://github.com/alexeygrigorev/machine-management/blob/main/deployments/verify-coolify-rolling.py)
+now does this and rejects missing events, kill-before-health ordering and
+less than six seconds between old readiness withdrawal and termination.
+Run it with `--app cmp`, the public health endpoint and a new evidence
+directory, holding the shared follower lock. Keep continuous public curl
+observation through a subsequent private source recreate as described above.
+
 Related Hub intakes:
 
 - [CMP rolling production e9f2f030](https://hub.dtcdev.click/#/intake/e9f2f030-a810-44b6-ab71-0fca8df7c516): activity 227 and controlled public replacement.
