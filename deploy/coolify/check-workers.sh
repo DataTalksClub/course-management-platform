@@ -10,12 +10,15 @@ mkdir -p "$state_dir"
 exec 9>"$state_dir/lock"
 flock -n 9 || exit 0
 mapfile -t containers < <(docker ps --format '{{.Names}}' | awk -v p="$prefix" 'index($0,p)==1')
-status=ok
-if [[ ${#containers[@]} != 1 ]]; then
-  status=alarm
-elif ! timeout 45 docker exec "${containers[0]}" python manage.py check_cmp_workers >/dev/null 2>&1; then
-  status=alarm
-fi
+status=alarm
+# During a normal rolling release two web containers can coexist. They share
+# the same durable worker timestamps; a successful check on either is enough.
+for container in "${containers[@]}"; do
+  if timeout 45 docker exec "$container" python manage.py check_cmp_workers >/dev/null 2>&1; then
+    status=ok
+    break
+  fi
+done
 previous=$(cat "$state_dir/status" 2>/dev/null || true)
 last=$(cat "$state_dir/last-alert" 2>/dev/null || echo 0)
 now=$(date +%s)
