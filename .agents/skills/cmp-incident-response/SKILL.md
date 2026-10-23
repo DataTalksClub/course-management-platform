@@ -123,6 +123,12 @@ deploys it to dev on Contabo. (The legacy AWS ECS
 since the course-management-dev ELB target group was deleted in the Contabo
 migration; see GHA runs 39807898139 / 39806180567.)
 
+Since the 2026-10-22 DNS cutover, both `dev.courses.datatalks.club` and
+`courses.datatalks.club` route to the same Contabo service. The GitHub
+environment is still named `coolify-staging`, but a main push updates the
+service serving both hostnames. Confirm current routing when assessing
+deployment scope; do not assume dev is isolated from production.
+
 ```bash
 gh run list --workflow deploy-coolify.yml --branch main --limit 5
 gh run watch <run-id> --exit-status
@@ -136,6 +142,12 @@ Do not proceed on a merely green health endpoint if the failing path was not
 verified.
 
 ## 7. Promote the verified image to production
+
+The commands below apply only if production has explicitly returned to AWS
+ECS and that deployment has been authorized. The legacy AWS workflow does
+not update the live Contabo service. For the current shared Contabo target,
+verify both hostnames after the Coolify deployment; a separate AWS dispatch
+is not a promotion of the GHCR image.
 
 Use the exact version returned by the dev health endpoint. Do not rebuild or
 substitute another tag. Once the user has explicitly authorized production:

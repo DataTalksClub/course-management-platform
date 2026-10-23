@@ -1,12 +1,39 @@
 import re
 from pathlib import Path
 
+import yaml
 from django.test import SimpleTestCase
 
 from course_management.datamailer.client import DEFAULT_TIMEOUT_SECONDS
 
 GUNICORN_DEFAULT_TIMEOUT_SECONDS = 30
 SAFETY_MARGIN_SECONDS = 10
+
+
+class DeploymentWorkflowTestCase(SimpleTestCase):
+    def workflow_events(self, filename):
+        workflow = (
+            Path(__file__).resolve().parents[2]
+            / ".github" / "workflows" / filename
+        )
+        # BaseLoader preserves GitHub's YAML key `on` as a string.
+        return yaml.load(workflow.read_text(), Loader=yaml.BaseLoader)["on"]
+
+    def test_retired_aws_dev_workflow_is_manual_only(self):
+        events = self.workflow_events("deploy-dev.yaml")
+
+        self.assertEqual(
+            set(events),
+            {"workflow_dispatch"},
+            "Automatic AWS dev deployments reference a deleted target "
+            "group. Coolify owns main-push deployments after the "
+            "Contabo migration; keep AWS dev manual-only.",
+        )
+
+    def test_coolify_owns_main_push_deployments(self):
+        events = self.workflow_events("deploy-coolify.yml")
+
+        self.assertIn("main", events["push"]["branches"])
 
 
 class DeployConfigTestCase(SimpleTestCase):

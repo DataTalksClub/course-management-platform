@@ -8,9 +8,12 @@ name: Deploy Dev (AWS ECS — retired)
 #   arn:aws:elasticloadbalancing:eu-west-1:387546586013:targetgroup/course-management-dev/e7fbcd61f2279f3a
 #   does not exist.
 # (GHA runs 39807898139, 39806180567 — tests passed, only the AWS deploy failed.)
-# Live staging CD is "Deploy CMP Coolify (Contabo)"
+# Live course CD is "Deploy CMP Coolify (Contabo)"
 # (.github/workflows/deploy-coolify.yml): GHA builds linux/amd64 → GHCR →
-# Coolify deploys on Contabo. Do NOT re-add a `push` trigger here and do NOT
+# Coolify deploys on Contabo. Since the 2026-10-22 cutover, both the dev and
+# production course hostnames route to that Contabo service; the legacy AWS
+# production workflow does not deploy to it.
+# Do NOT re-add a `push` trigger here and do NOT
 # recreate the AWS ALB/TG unless AWS ECS staging is explicitly required for
 # live traffic again. Kept as workflow_dispatch-only for manual AWS
 # repair/verification.
