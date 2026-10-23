@@ -15,7 +15,7 @@
 #   STATE_DIR        (default ~/.local/state/cmp-coolify-rollout)
 #
 # Cron (RMTHZ):
-#   */5 * * * * flock -n ~/.local/state/cmp-coolify-rollout.lock /home/alexey/git/worktrees/coolify-cmp-relaypath-2026-10-22/deploy/coolify/hetzner-rollout.sh >> ~/.local/state/cmp-coolify-rollout/cron.log 2>&1
+#   */5 * * * * flock -n ~/.local/state/cmp-coolify-rollout.lock /home/alexey/git/course-management-platform/deploy/coolify/hetzner-rollout.sh >> ~/.local/state/cmp-coolify-rollout/cron.log 2>&1
 set -euo pipefail
 
 GHCR_PAT_FILE="${GHCR_PAT_FILE:-$HOME/tmp/secrets/coolify-ghcr-read.pat}"
