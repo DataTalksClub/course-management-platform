@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.db.models import Q
 from django.utils import timezone
 
 from course_management.datamailer_outbox import RETRYABLE_STATUSES
@@ -44,8 +47,10 @@ def process_due_datamailer_outbox(
 def due_outbox_event_ids(limit):
     now = timezone.now()
     event_ids = DatamailerOutboxEvent.objects.filter(
-        status__in=RETRYABLE_STATUSES,
-        next_attempt_at__lte=now,
+        Q(status__in=RETRYABLE_STATUSES, next_attempt_at__lte=now)
+        | Q(status=DatamailerOutboxStatus.PROCESSING,
+            last_attempt_at__lte=now-timedelta(seconds=240))
+        | Q(status=DatamailerOutboxStatus.PROCESSING, last_attempt_at__isnull=True),
     )
     ordered_event_ids = event_ids.order_by("created_at", "id")
     due_ids = ordered_event_ids.values_list("id", flat=True)[:limit]

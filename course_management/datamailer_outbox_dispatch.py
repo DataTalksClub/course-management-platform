@@ -1,8 +1,11 @@
 import logging
+from datetime import timedelta
 
 import requests
 from django.db import transaction
 from django.utils import timezone
+
+from course_management.worker_lock import worker_lock
 
 from course_management.observability import record_event
 from course_management.datamailer_outbox import RETRYABLE_STATUSES
@@ -21,14 +24,15 @@ logger = logging.getLogger(__name__)
 
 
 def dispatch_datamailer_outbox_event(event: DatamailerOutboxEvent) -> None:
-    config = outbox_datamailer_config(event)
-    if config is None:
-        return
-
-    if not claim_outbox_event(event):
-        return
-
-    dispatch_claimed_outbox_event(event, config)
+    with worker_lock(f"outbox:{event.pk}") as acquired:
+        if not acquired:
+            return
+        config = outbox_datamailer_config(event)
+        if config is None:
+            return
+        if not claim_outbox_event(event):
+            return
+        dispatch_claimed_outbox_event(event, config)
 
 
 def outbox_datamailer_config(event):
@@ -45,7 +49,16 @@ def claim_outbox_event(event):
         locked = DatamailerOutboxEvent.objects.select_for_update().get(
             id=event.id
         )
-        if locked.status not in RETRYABLE_STATUSES:
+        now = timezone.now()
+        abandoned = (
+            locked.status == DatamailerOutboxStatus.PROCESSING
+            and (locked.last_attempt_at is None
+                 or locked.last_attempt_at <= now - timedelta(seconds=240))
+        )
+        if not abandoned and (
+            locked.status not in RETRYABLE_STATUSES
+            or locked.next_attempt_at > now
+        ):
             return False
         mark_processing(locked)
         return True

@@ -11,7 +11,7 @@ from course_management.datamailer.sync.audit import (
     DatamailerSendAuditData,
     record_datamailer_send_audit,
 )
-from data.models import DatamailerSendAuditType
+from data.models import DatamailerSendAuditType, DatamailerSendAudit, DatamailerSendAuditStatus
 from courses.deadline_reminder_events import (
     build_reminder_events,
     reminder_event_member_count,
@@ -58,6 +58,10 @@ def send_reminder_event(client, event):
     than raised so one broken event cannot cancel the reminders queued
     behind it -- see ``Command.send_events``.
     """
+    if DatamailerSendAudit.objects.filter(
+        idempotency_key=event.key, status=DatamailerSendAuditStatus.SUCCEEDED,
+    ).exists():
+        return {}, ""
     payload = transient_recipient_list_send_payload(event)
     try:
         response = client.recipient_lists.sends.send_to_transient_list(

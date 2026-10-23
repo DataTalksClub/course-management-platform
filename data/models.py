@@ -182,3 +182,10 @@ class DatamailerSendAudit(models.Model):
 
     def __str__(self):
         return f"{self.send_type} {self.idempotency_key} ({self.status})"
+
+
+class CmpJobState(models.Model):
+    job = models.CharField(max_length=32, primary_key=True)
+    last_started_at = models.DateTimeField(null=True)
+    last_success_at = models.DateTimeField(null=True)
+    last_failed_at = models.DateTimeField(null=True)
