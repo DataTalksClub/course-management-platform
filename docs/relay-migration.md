@@ -105,3 +105,28 @@ landed and stay `failed` (admin API has no retry for them; test-message
 events only, nothing to do). Recipient lists rebuild from CMP data on
 first use; pre-populate with `sync_datamailer_recipient_lists`
 (`--import-by-reference` for large lists) if needed.
+
+## Coolify callback recovery (2026-10-23)
+
+The Contabo CMP service must also have `RELAY_WEBHOOK_TOKEN` set in
+Coolify; the historical AWS secret binding does not configure it.
+An empty value returns HTTP 503 from `/api/datamailer/events` even when
+`/api/health/` is healthy. Copy the effective token used by Relay's CMP
+client through a private channel, save it in Coolify, and redeploy CMP.
+Never put the token in commands, reports, or git.
+
+On October 23, the missing Coolify value was restored and the existing
+CMP image redeployed. All 147 pending callbacks then delivered; pending
+older than 30 minutes and failures since October 22 both reached zero.
+The five historical October 4 test failures were left unchanged.
+
+`machine-management/monitors/coolify-healthcheck.sh` now supports
+`CHECK_CMP_CALLBACKS=1` (enabled on contabo-b). It alerts when any callback
+is pending longer than 30 minutes or a currently failed callback was
+last attempted within 24 hours. Query errors also fail the check; alerts
+contain aggregate counts only. Existing cron runs it every five minutes.
+
+Outbound sending is tracked separately in Hub follow-up
+`c9942fb2-6c77-40bb-beff-20fde5480360`: CMP still has an empty
+`RELAY_API_KEY` and `RELAY_TRANSACTIONAL_DRY_RUN=1`. Verify the correct
+client key and intended send policy before enabling transactional mail.
