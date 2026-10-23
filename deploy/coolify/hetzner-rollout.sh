@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Hetzner-side rollout poller for CMP staging (Contabo Coolify).
+# Hetzner-side poller for the private production CMP release service.
+# Its Compose web has traefik.enable=false. The shared rolling-web follower
+# promotes this healthy source to the native public Application; see README.md.
 #
 # Why: GitHub Actions runners cannot reliably reach Coolify
 # http://169.58.119.163:8000 (timeout), so the GHA deploy job may pin the
@@ -94,5 +96,5 @@ _st, out = coolify("POST", f"/api/v1/deploy?uuid={uuid}&force=true")
 print(json.dumps(out)[:200])
 with open(os.path.join(state_dir, "last_rollout"), "w") as f:
     f.write(f"{latest}\n")
-print(f"rollout triggered for {latest}; verify /ping on .163")
+print(f"private release triggered for {latest}; verify source health, then native public promotion")
 PY

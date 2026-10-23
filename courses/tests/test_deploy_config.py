@@ -37,6 +37,20 @@ class DeploymentWorkflowTestCase(SimpleTestCase):
 
 
 class DeployConfigTestCase(SimpleTestCase):
+    def test_production_release_service_cannot_advertise_public_traffic(self):
+        template = (
+            Path(__file__).resolve().parents[2]
+            / "deploy/coolify/docker-compose.staging.yml"
+        )
+        web = yaml.safe_load(template.read_text())["services"]["web"]
+        self.assertEqual(
+            web.get("labels", {}).get("traefik.enable"),
+            "false",
+            "cmp-staging force-recreates its single web container. "
+            "Public traffic must stay on the independent, health-gated "
+            "rolling Application during release-service replacement.",
+        )
+
     def test_dev_has_an_isolated_coolify_backend(self):
         template = (
             Path(__file__).resolve().parents[2]

@@ -1,9 +1,13 @@
-# Coolify service template for CMP staging (Contabo, .163).
+# Private production release service (historical name: cmp-staging).
+# Public courses traffic belongs to the separate native rolling Application.
+# Compose force-recreates this service; never attach production domains here.
+# See README.md and the shared machine-management rolling-web runbook.
 # Secrets (SECRET_KEY, DATABASE_URL, RELAY_API_KEY, RELAY_WEBHOOK_TOKEN,
 # AUTH_TOKEN, DEV_AUTH_TOKEN) live in Coolify UI / API environment
 # variables — never inline them here.
 # Image tag: exact ECR format YYYYMMDD-HHMMSS-<7> (never :latest, never sha-<…>).
-# CD path: GitHub Actions builds → GHCR (private) → Coolify deploy webhook
+# CD path: GitHub Actions → GHCR → private release → healthy-image follower
+# → native public rolling Application (healthy replacement before old drain).
 # (no git clone on Contabo). Coolify needs a ghcr.io registry entry
 # (read:packages PAT) to pull this private image.
 services:
@@ -11,6 +15,8 @@ services:
     image: ghcr.io/datatalksclub/course-management-platform:20261021-094333-f922dc4
     pull_policy: always
     restart: unless-stopped
+    labels:
+      traefik.enable: "false"
     command: gunicorn course_management.wsgi --bind 0.0.0.0:80 --timeout 90
     environment:
       DEBUG: "0"

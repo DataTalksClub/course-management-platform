@@ -1,9 +1,10 @@
 name: Deploy CMP Coolify (Contabo)
 
-# Course CD: GHA builds linux/amd64 → GHCR (private) → Coolify pulls image via deploy API.
-# The historical cmp-staging service now serves production courses only.
+# Course CD: GHA builds → GHCR → private cmp-staging release service.
+# The shared machine-management follower promotes its healthy image to the
+# native public rolling Application; cmp-staging must keep Traefik disabled.
 # DEV has a separate cmp-dev service and database; see deploy/coolify/README.md.
-# The coolify-staging GitHub environment name still targets production.
+# The coolify-staging GitHub environment is the production release authority.
 # No git SSH / deploy keys / git clone on Contabo.
 # Mirrors DataTalksClub/relay .github/workflows/deploy-coolify.yml (pilot).
 
@@ -210,9 +211,10 @@ jobs:
           fi
           echo "reachable=true" >> "$GITHUB_OUTPUT"
 
-      - name: Verify Coolify service runs pinned image (t658u)
+      - name: Verify private release service runs pinned image (t658u)
         # Catches the 2026-10-22 failure mode where Coolify created the new
-        # container but never started it (Traefik 503 until manual docker start).
+        # container but never started it. Public web now stays on the previous
+        # healthy image; the shared follower promotes only a healthy source.
         # Skipped when the deploy step soft-failed (API unreachable from GHA);
         # the Hetzner poller owns convergence in that case.
         if: steps.coolify-deploy.outputs.reachable == 'true'
