@@ -140,7 +140,7 @@ secrets. The suite also falls back to the **repo-root `.env`** for
 
 | Var | Required for | Notes |
 |-----|--------------|-------|
-| `E2E_BASE_URL` | all | Defaults to `https://dev.courses.datatalks.club` (or `PUBLIC_BASE_URL`). |
+| `E2E_BASE_URL` | all | Defaults to `https://dev.courses.datatalks.club` (or `PUBLIC_BASE_URL`). **Prod `courses.datatalks.club` is hard-refused** by `assert_safe_e2e_base_url` + the CI workflow (t1283u); only DEV or localhost is allowed. |
 | `E2E_API_TOKEN` | provisioning/scoring/teardown | Staff token. Falls back to `DEV_AUTH_TOKEN`. |
 | `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` | browser flows + teardown | Staff account; logs in via the admin form (no OAuth). Teardown deletes the course through the admin UI with this session; without it, teardown only parks the course hidden. |
 | `E2E_STUDENT_EMAIL` / `E2E_STUDENT_PASSWORD` | optional | If unset, a per-run `<namespace>@example.com` student is created admin-side. With dry-run nothing is delivered, so no special address is needed. |

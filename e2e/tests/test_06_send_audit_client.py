@@ -244,3 +244,73 @@ def test_load_dotenv_sets_missing_values_only(tmp_path, monkeypatch):
     assert os.environ["E2E_EXISTING"] == "from-env"
     assert os.environ["E2E_NEW"] == "from file"
     assert os.environ["E2E_QUOTED"] == "quoted"
+
+
+# -- prod hard-gate (t1283u) -----------------------------------------------
+
+
+def test_assert_safe_e2e_base_url_allows_dev():
+    from e2e.config import assert_safe_e2e_base_url
+
+    assert (
+        assert_safe_e2e_base_url("https://dev.courses.datatalks.club")
+        == "https://dev.courses.datatalks.club"
+    )
+    assert (
+        assert_safe_e2e_base_url("https://dev.courses.datatalks.club/")
+        == "https://dev.courses.datatalks.club"
+    )
+
+
+def test_assert_safe_e2e_base_url_allows_localhost():
+    from e2e.config import assert_safe_e2e_base_url
+
+    assert assert_safe_e2e_base_url("http://localhost:8000") == "http://localhost:8000"
+    assert assert_safe_e2e_base_url("http://127.0.0.1:8000") == "http://127.0.0.1:8000"
+
+
+def test_assert_safe_e2e_base_url_refuses_prod():
+    from e2e.config import ConfigError, assert_safe_e2e_base_url
+
+    for url in (
+        "https://courses.datatalks.club",
+        "https://courses.datatalks.club/",
+        "https://www.courses.datatalks.club",
+        "http://courses.datatalks.club/admin/",
+    ):
+        with pytest.raises(ConfigError, match="PRODUCTION"):
+            assert_safe_e2e_base_url(url)
+
+
+def test_assert_safe_e2e_base_url_refuses_unknown_remote():
+    from e2e.config import ConfigError, assert_safe_e2e_base_url
+
+    with pytest.raises(ConfigError, match="non-DEV"):
+        assert_safe_e2e_base_url("https://staging.courses.datatalks.club")
+
+
+def test_load_settings_refuses_prod_base_url(monkeypatch):
+    from e2e.config import ConfigError, load_settings
+
+    monkeypatch.setenv("E2E_BASE_URL", "https://courses.datatalks.club")
+    monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
+    with pytest.raises(ConfigError, match="PRODUCTION"):
+        load_settings()
+
+
+def test_api_token_ignores_prod_named_env(monkeypatch):
+    from e2e.config import _api_token_from_env
+
+    monkeypatch.delenv("E2E_API_TOKEN", raising=False)
+    monkeypatch.delenv("DEV_AUTH_TOKEN", raising=False)
+    monkeypatch.setenv("PROD_AUTH_TOKEN", "should-not-be-used")
+    monkeypatch.setenv("PRODUCTION_API_TOKEN", "also-ignored")
+    assert _api_token_from_env() is None
+
+
+def test_create_course_refuses_prod_base_url(monkeypatch):
+    from e2e.api_client import CmpApiClient
+    from e2e.config import ConfigError
+
+    with pytest.raises(ConfigError, match="PRODUCTION"):
+        CmpApiClient("https://courses.datatalks.club", "token")

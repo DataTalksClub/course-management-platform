@@ -51,7 +51,11 @@ class ApiNetworkErrorData:
 
 class CmpApiClient:
     def __init__(self, base_url: str, token: str, *, timeout: float = 30.0):
-        self.base_url = base_url.rstrip("/")
+        # Import locally to keep this module importable without the full e2e
+        # package on sys.path in some unit-test harnesses.
+        from e2e.config import assert_safe_e2e_base_url
+
+        self.base_url = assert_safe_e2e_base_url(base_url.rstrip("/"))
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update(
@@ -163,6 +167,11 @@ class CmpApiClient:
         return courses
 
     def create_course(self, payload: dict) -> dict:
+        # Belt-and-braces: never POST a course against prod even if a caller
+        # constructed the client with a mutated base_url after __init__.
+        from e2e.config import assert_safe_e2e_base_url
+
+        assert_safe_e2e_base_url(self.base_url)
         request_data = ApiRequestData(
             method="POST",
             path="/api/courses/",
