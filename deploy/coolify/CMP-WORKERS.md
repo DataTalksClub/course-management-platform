@@ -1,9 +1,11 @@
 # CMP production recurring work
 
 Owner: CMP maintainers; host monitor: machine-management operators. Exactly one
-Coolify scheduled task owns each job on contabo-a. All target application
-`cmp-production-rolling-web` (`9gqubsq4lxubaxm27v1mtq9u`), so they follow the
-current immutable app image and its Relay configuration. PostgreSQL session
+Coolify scheduled task owns each job on contabo-a. All target the stable `web` container of service
+`cmp-staging` (`avcfd5kwb7cj9r1tx4ygjs6v`), using the current immutable app
+image and verified Relay configuration. The public rolling web application is
+not a scheduler target: Coolify rejects scheduled application tasks while two
+replicas overlap. PostgreSQL session
 advisory locks fence overlaps across replicas and releases. No worker container
 or additional host scheduler executes these jobs.
 
@@ -44,13 +46,12 @@ migrate. For failover, fence the old application before activating a replacement
 against the promoted database. Do not activate AWS schedules for failover.
 
 The independent host watchdog `check-workers.sh` runs from `cmp-workers.cron`
-every minute, outside Coolify's scheduler. It resolves running containers of the rolling application, tolerates normal
-release overlap, runs `check_cmp_workers`, and alerts through the existing host MTA.
+every minute, outside Coolify's scheduler. It resolves the stable service runner container, runs `check_cmp_workers`, and alerts through the existing host MTA.
 Payload-free alarms cover missing/stale success (outbox 300s, health 900s,
 reminders 26h), failed last attempts, due backlog older than 300s, and processing
 older than 540s. State under `/var/lib/cmp-worker-monitor` deduplicates mail for
 one hour; recovery sends once. The monitor never runs jobs. Configure overrides
-in root-only `/etc/cmp-worker-monitor.env` if the rolling application changes.
+in root-only `/etc/cmp-worker-monitor.env` if the service runner changes.
 
 Recovery: restore the runner/image/configuration, inspect alarm output locally,
 verify new success timestamps and oldest-due age, and require monitor recovery.

@@ -4,14 +4,14 @@ set -euo pipefail
 if [[ -f /etc/cmp-worker-monitor.env ]]; then
   source /etc/cmp-worker-monitor.env
 fi
-prefix="${CMP_APP_PREFIX:-9gqubsq4lxubaxm27v1mtq9u-}"
+prefix="${CMP_APP_PREFIX:-web-avcfd5kwb7cj9r1tx4ygjs6v}"
 state_dir="${CMP_MONITOR_STATE:-/var/lib/cmp-worker-monitor}"
 mkdir -p "$state_dir"
 exec 9>"$state_dir/lock"
 flock -n 9 || exit 0
 mapfile -t containers < <(docker ps --format '{{.Names}}' | awk -v p="$prefix" 'index($0,p)==1')
 status=alarm
-# During a normal rolling release two web containers can coexist. They share
+# During a normal rolling release two containers may coexist. They share
 # the same durable worker timestamps; a successful check on either is enough.
 for container in "${containers[@]}"; do
   if timeout 45 docker exec "$container" python manage.py check_cmp_workers >/dev/null 2>&1; then
