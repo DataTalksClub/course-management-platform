@@ -3,7 +3,10 @@ import json
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from course_management.datamailer.client import datamailer_enabled
+from course_management.datamailer.client import (
+    datamailer_enabled,
+    get_relay_health_status,
+)
 from course_management.datamailer_outbox_status import (
     datamailer_outbox_status_summary,
 )
@@ -41,6 +44,7 @@ class Command(BaseCommand):
 
 
 def datamailer_health_payload():
+    relay_health = get_relay_health_status()
     outbox_summary = datamailer_outbox_status_summary()
     send_summary = datamailer_send_audit_summary(limit=5)
     callback_aggregate = callback_event_aggregate()
@@ -50,21 +54,29 @@ def datamailer_health_payload():
     due_count = outbox_summary["due_count"]
     failed_outbox = event_counts.get("failed", 0)
     retrying_outbox = event_counts.get("retrying", 0)
-    relay_configured = datamailer_enabled()
-    status = "ok"
-    if (
-        not relay_configured
-        or failed_sends
-        or failed_outbox
-        or retrying_outbox
-    ):
-        status = "warning"
+    relay_configured = (
+        datamailer_enabled() and relay_health["relay_config"] == "ok"
+    )
 
-    return {
+    if relay_health["status"] != "ok":
+        status = "FAIL"
+    elif failed_sends or failed_outbox or retrying_outbox:
+        status = "warning"
+    else:
+        status = "ok"
+
+    payload = {
         "status": status,
         "relay_configured": relay_configured,
-        "transactional_dry_run": settings.RELAY_TRANSACTIONAL_DRY_RUN,
-        "sync_on_user_create": settings.RELAY_SYNC_ON_USER_CREATE,
+        "relay_status": relay_health["status"],
+        "relay_error": relay_health["error"],
+        "relay_config": relay_health["relay_config"],
+        "transactional_dry_run": relay_health["dry_run"],
+        "dry_run": relay_health["dry_run"],
+        "dry_run_prod": relay_health["dry_run_on_prod"],
+        "sync_on_user_create": getattr(
+            settings, "RELAY_SYNC_ON_USER_CREATE", True
+        ),
         "outbox_due_count": due_count,
         "outbox_pending_count": event_counts.get("pending", 0),
         "outbox_retrying_count": retrying_outbox,
@@ -77,3 +89,15 @@ def datamailer_health_payload():
         "callback_duplicate_count": callback_aggregate["duplicates"] or 0,
         "callback_event_type_count": len(callback_counts),
     }
+    if relay_health["status"] != "ok":
+        payload["degraded"] = True
+        payload["relay"] = {
+            "status": "FAIL",
+            "error": relay_health["error"],
+            "degraded": True,
+            "dry_run": relay_health.get("dry_run", False),
+            "dry_run_prod": relay_health.get("dry_run_on_prod", False),
+        }
+        if relay_health.get("dry_run_on_prod"):
+            payload["RELAY_TRANSACTIONAL_DRY_RUN"] = "FAIL"
+    return payload

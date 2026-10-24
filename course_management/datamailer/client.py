@@ -23,6 +23,85 @@ logger = logging.getLogger(__name__)
 # stranded the rest.
 DEFAULT_TIMEOUT_SECONDS = 60.0
 
+RELAY_CONFIG_MISSING = "relay_config_missing"
+RELAY_CONFIG_INVALID = "relay_config_invalid"
+
+
+def is_production() -> bool:
+    """Return True if the current environment is production."""
+    env = (
+        getattr(settings, "ENVIRONMENT", None)
+        or getattr(settings, "OBSERVABILITY_ENVIRONMENT", None)
+        or ""
+    ).lower().strip()
+    return env in ("production", "prod")
+
+
+def validate_relay_config() -> tuple[bool, str, "DatamailerConfig | None"]:
+    """Validate Relay settings and build DatamailerConfig if valid.
+
+    Returns:
+        (is_valid, error_reason, config_or_none)
+    """
+    url = (getattr(settings, "RELAY_URL", "") or "").strip()
+    api_key = (getattr(settings, "RELAY_API_KEY", "") or "").strip()
+    client = (getattr(settings, "RELAY_CLIENT", "") or "").strip()
+    audience = (getattr(settings, "RELAY_AUDIENCE", "") or "").strip()
+
+    if not api_key:
+        return False, RELAY_CONFIG_MISSING, None
+    if not url:
+        return False, RELAY_CONFIG_MISSING, None
+    if not client or not audience:
+        return False, RELAY_CONFIG_MISSING, None
+
+    parsed = urlparse(url)
+    if not (parsed.scheme in ("http", "https") and parsed.netloc):
+        return False, RELAY_CONFIG_INVALID, None
+
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return False, RELAY_CONFIG_MISSING, None
+
+    return True, "", config
+
+
+def get_relay_health_status() -> dict[str, Any]:
+    """Check Relay configuration and operational health.
+
+    Returns dict with status, error, relay_config, dry_run, dry_run_on_prod.
+    """
+    is_valid, reason, _config = validate_relay_config()
+    is_prod = is_production()
+    dry_run = bool(getattr(settings, "RELAY_TRANSACTIONAL_DRY_RUN", False))
+    dry_run_on_prod = is_prod and dry_run
+
+    if not is_valid:
+        return {
+            "status": "FAIL",
+            "error": reason,
+            "relay_config": "invalid" if reason == RELAY_CONFIG_INVALID else "missing",
+            "dry_run": dry_run,
+            "dry_run_on_prod": dry_run_on_prod,
+        }
+
+    if dry_run_on_prod:
+        return {
+            "status": "FAIL",
+            "error": "RELAY_TRANSACTIONAL_DRY_RUN enabled on prod",
+            "relay_config": "ok",
+            "dry_run": dry_run,
+            "dry_run_on_prod": True,
+        }
+
+    return {
+        "status": "ok",
+        "error": "",
+        "relay_config": "ok",
+        "dry_run": dry_run,
+        "dry_run_on_prod": False,
+    }
+
 
 @dataclass(frozen=True)
 class DatamailerConfig:
@@ -37,13 +116,17 @@ class DatamailerConfig:
 
     @classmethod
     def from_settings(cls) -> "DatamailerConfig | None":
-        url = getattr(settings, "RELAY_URL", "")
-        api_key = getattr(settings, "RELAY_API_KEY", "")
-        client = getattr(settings, "RELAY_CLIENT", "")
-        audience = getattr(settings, "RELAY_AUDIENCE", "")
-        from_email = getattr(settings, "RELAY_FROM_EMAIL", "")
+        url = (getattr(settings, "RELAY_URL", "") or "").strip()
+        api_key = (getattr(settings, "RELAY_API_KEY", "") or "").strip()
+        client = (getattr(settings, "RELAY_CLIENT", "") or "").strip()
+        audience = (getattr(settings, "RELAY_AUDIENCE", "") or "").strip()
+        from_email = (getattr(settings, "RELAY_FROM_EMAIL", "") or "").strip()
 
         if not all([url, api_key, client, audience]):
+            return None
+
+        parsed = urlparse(url)
+        if not (parsed.scheme in ("http", "https") and parsed.netloc):
             return None
 
         strict = getattr(settings, "RELAY_STRICT", False)

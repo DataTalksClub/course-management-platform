@@ -142,8 +142,10 @@ class DatamailerMonitoringCommandTests(TestCase):
         call_command("monitoring_datamailer_health", "--json", stdout=output)
 
         payload = json.loads(output.getvalue())
-        self.assertEqual(payload["status"], "warning")
+        self.assertEqual(payload["status"], "FAIL")
         self.assertFalse(payload["relay_configured"])
+        self.assertEqual(payload["relay_status"], "FAIL")
+        self.assertIn("relay_config_missing", payload["relay_error"])
 
     @override_settings(
         OBSERVABILITY_EVENT_BACKENDS=["noop"],
@@ -153,6 +155,8 @@ class DatamailerMonitoringCommandTests(TestCase):
         RELAY_API_KEY="synthetic-private-key",
         RELAY_TRANSACTIONAL_DRY_RUN=True,
         RELAY_SYNC_ON_USER_CREATE=False,
+        OBSERVABILITY_ENVIRONMENT="dev",
+        ENVIRONMENT="dev",
     )
     def test_monitoring_reports_send_policy_without_credentials(self):
         output = StringIO()
@@ -165,6 +169,27 @@ class DatamailerMonitoringCommandTests(TestCase):
         self.assertFalse(payload["sync_on_user_create"])
         self.assertNotIn("synthetic-private-key", output.getvalue())
         self.assertNotIn("https://relay.example.test", output.getvalue())
+
+    @override_settings(
+        OBSERVABILITY_EVENT_BACKENDS=["noop"],
+        RELAY_URL="https://relay.example.test",
+        RELAY_CLIENT="courses",
+        RELAY_AUDIENCE="courses",
+        RELAY_API_KEY="synthetic-private-key",
+        RELAY_TRANSACTIONAL_DRY_RUN=True,
+        OBSERVABILITY_ENVIRONMENT="production",
+        ENVIRONMENT="production",
+    )
+    def test_dry_run_on_prod_fails_health_monitoring(self):
+        output = StringIO()
+
+        call_command("monitoring_datamailer_health", "--json", stdout=output)
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["status"], "FAIL")
+        self.assertTrue(payload["dry_run_prod"])
+        self.assertEqual(payload["relay_status"], "FAIL")
+        self.assertIn("RELAY_TRANSACTIONAL_DRY_RUN", payload["relay_error"])
 
     @patch(
         "data.management.commands.monitoring_datamailer_health."

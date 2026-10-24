@@ -1,11 +1,18 @@
 import logging
+import uuid
 from typing import Any
 
 import requests
+from django.conf import settings
 
+from course_management.observability import record_event
 from data.models import DatamailerSendAuditType
 
-from ..client import DatamailerClient, DatamailerConfig
+from ..client import (
+    RELAY_CONFIG_MISSING,
+    DatamailerClient,
+    validate_relay_config,
+)
 from .audit import DatamailerSendAuditData, record_datamailer_send_audit
 
 
@@ -27,15 +34,64 @@ def send_transactional_and_audit(config, payload):
 def send_transactional_email(
     payload: dict[str, Any],
 ) -> dict[str, Any] | None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return None
+    is_valid, reason, config = validate_relay_config()
+    if not is_valid or config is None:
+        return handle_transactional_config_error(
+            payload, reason or RELAY_CONFIG_MISSING
+        )
 
     payload = transactional_payload_with_config_defaults(config, payload)
     try:
         return send_transactional_and_audit(config, payload)
     except requests.RequestException as exc:
         return handle_transactional_send_error(config, payload, exc)
+
+
+def handle_transactional_config_error(
+    payload: dict[str, Any],
+    reason: str,
+) -> None:
+    logger.error("Datamailer transactional email failed: %s", reason)
+    payload_copy = dict(payload)
+    if "client" not in payload_copy:
+        client = getattr(settings, "RELAY_CLIENT", "")
+        if client:
+            payload_copy["client"] = client
+    if "audience" not in payload_copy:
+        audience = getattr(settings, "RELAY_AUDIENCE", "")
+        if audience:
+            payload_copy["audience"] = audience
+    if not payload_copy.get("idempotency_key"):
+        payload_copy["idempotency_key"] = f"transactional:relay-fail:{uuid.uuid4().hex}"
+
+    audit_data = DatamailerSendAuditData(
+        send_type=DatamailerSendAuditType.TRANSACTIONAL,
+        payload=payload_copy,
+        error=reason,
+    )
+    record_datamailer_send_audit(audit_data)
+
+    record_event(
+        "datamailer.health_warning",
+        properties={
+            "error": reason,
+            "send_type": DatamailerSendAuditType.TRANSACTIONAL,
+            "template_key": payload_copy.get("template_key", ""),
+            "idempotency_key": payload_copy.get("idempotency_key", ""),
+        },
+    )
+    record_event(
+        "datamailer.transactional_send_failed",
+        properties={
+            "error": reason,
+            "template_key": payload_copy.get("template_key", ""),
+            "idempotency_key": payload_copy.get("idempotency_key", ""),
+        },
+    )
+
+    if getattr(settings, "RELAY_STRICT", False):
+        raise RuntimeError(f"Datamailer transactional email failed: {reason}")
+    return None
 
 
 def transactional_payload_with_config_defaults(config, payload):

@@ -135,3 +135,48 @@ class DatamailerTransactionalTest(DatamailerContactBase):
             "dry_run": True,
         }
         send.assert_called_once_with(expected_payload)
+
+    @override_settings(
+        **{**RELAY_SETTINGS, "RELAY_API_KEY": ""},
+    )
+    @patch("course_management.datamailer.sync.transactional.record_event")
+    def test_send_transactional_email_empty_key_fails_loudly_with_record_and_alert(
+        self, record_event_mock
+    ):
+        payload = self.transactional_email_payload()
+        result = send_transactional_email(payload)
+
+        self.assertIsNone(result)
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(audit.send_type, DatamailerSendAuditType.TRANSACTIONAL)
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.FAILED)
+        self.assertEqual(audit.idempotency_key, "welcome:student")
+        self.assertEqual(audit.error, "relay_config_missing")
+
+        # Alert path fires
+        record_event_mock.assert_any_call(
+            "datamailer.health_warning",
+            properties={
+                "error": "relay_config_missing",
+                "send_type": DatamailerSendAuditType.TRANSACTIONAL,
+                "template_key": payload.get("template_key", ""),
+                "idempotency_key": "welcome:student",
+            },
+        )
+
+    @override_settings(
+        **{**RELAY_SETTINGS, "RELAY_URL": "invalid-url"},
+    )
+    def test_send_transactional_email_invalid_config_fails_loudly_with_record(
+        self,
+    ):
+        payload = self.transactional_email_payload()
+        result = send_transactional_email(payload)
+
+        self.assertIsNone(result)
+        audit = DatamailerSendAudit.objects.get()
+        self.assertEqual(audit.send_type, DatamailerSendAuditType.TRANSACTIONAL)
+        self.assertEqual(audit.status, DatamailerSendAuditStatus.FAILED)
+        self.assertEqual(audit.idempotency_key, "welcome:student")
+        self.assertEqual(audit.error, "relay_config_invalid")
+
