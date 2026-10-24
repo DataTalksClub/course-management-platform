@@ -45,21 +45,6 @@ def active_registration_campaign_for_course(
     )
 
 
-def should_redirect_to_registration_campaign(
-    *,
-    registration_campaign: RegistrationCampaign | None,
-    homeworks,
-    projects,
-    user,
-) -> bool:
-    return (
-        registration_campaign is not None
-        and not homeworks
-        and not projects
-        and not user.is_staff
-    )
-
-
 def has_completed_projects(projects) -> bool:
     for project in projects:
         if project.state == ProjectState.COMPLETED.value:

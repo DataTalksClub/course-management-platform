@@ -6,18 +6,12 @@ from courses.tests.registration_campaign_base import RegistrationCampaignBase
 
 
 class RegistrationCampaignCoursePageTests(RegistrationCampaignBase):
-    def test_empty_course_redirects_non_staff_to_campaign(self):
+    def test_empty_course_is_public_with_registration_link(self):
         url = reverse("course", kwargs={"course_slug": self.course.slug})
         response = self.client.get(url)
 
-        redirect_url = reverse(
-            "registration_campaign",
-            kwargs={"campaign_slug": self.campaign.slug},
-        )
-        self.assertRedirects(
-            response,
-            redirect_url,
-        )
+        self.assertContains(response, self.course.title)
+        self.assertContains(response, self.campaign_url())
 
     def test_course_with_homework_shows_workspace_and_registration_link(
         self,

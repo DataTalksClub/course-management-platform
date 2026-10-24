@@ -28,6 +28,11 @@ urlpatterns = [
         registration.registration_campaign_view,
         name="registration_campaign",
     ),
+    path(
+        "courses/<slug:course_slug>/",
+        course.legacy_course_redirect,
+        name="legacy_course",
+    ),
     path("wrapped/<int:year>/", wrapped.wrapped_view, name="wrapped"),
     path("wrapped/<int:year>/<int:student_id>/", wrapped.user_wrapped_view, name="user_wrapped"),
     path(

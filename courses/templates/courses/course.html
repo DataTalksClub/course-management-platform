@@ -18,11 +18,11 @@
   </div>
 
   <div class="course-actions mt-5 flex flex-wrap gap-2 md:mt-7">
-    {% if registration_campaign and not has_enrollment and not has_registration %}
+    {% if not registration_wall and registration_campaign and not has_enrollment and not has_registration %}
       <a href="{% url 'registration_campaign' registration_campaign.slug %}" class="primer-button primer-button-secondary course-register-button whitespace-nowrap">
         <i class="fas fa-user-plus"></i> Register
       </a>
-    {% elif course.registration_url and not has_enrollment %}
+    {% elif not registration_wall and course.registration_url and not has_enrollment %}
       <a href="{{ course.registration_url }}" class="primer-button primer-button-secondary course-register-button whitespace-nowrap">
         <i class="fas fa-user-plus"></i> Register
       </a>
@@ -72,7 +72,7 @@
       {% else %}
         <p class="font-medium app-heading">Application required — limited seats, medium–advanced level.</p>
         <p class="mt-1 text-sm app-text">
-          Homework, projects, and the full course path unlock only after your application is approved. Without approval you can still audit the public materials.
+          Course materials are public and you can audit them without approval. Homework and project submissions and enrollment features unlock after your application is approved.
         </p>
         {% if registration_campaign %}
           <a href="{% url 'registration_campaign' registration_campaign.slug %}" class="primer-button mt-3">
