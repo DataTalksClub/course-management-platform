@@ -27,9 +27,17 @@
 #   DRY_RUN=1                 # log what would be started, do not start/mail
 set -euo pipefail
 
+if [[ -f /etc/cmp-created-watchdog.env ]]; then
+  # shellcheck source=/dev/null
+  source /etc/cmp-created-watchdog.env
+fi
+
 GRACE_SEC="${GRACE_SEC:-120}"
 STATE_DIR="${STATE_DIR:-/var/lib/cmp-created-watchdog}"
 ALERT_TO="${ALERT_TO:-dev@dtcdev.click}"
+ALERT_FROM="${ALERT_FROM:-alerts@dtcdev.click}"
+ALERT_FROM_NAME="${ALERT_FROM_NAME:-DTC Alerts}"
+ALERT_MSMTP_ACCOUNT="${ALERT_MSMTP_ACCOUNT:-alerts}"
 ALERT_REPEAT_MIN="${ALERT_REPEAT_MIN:-60}"
 DRY_RUN="${DRY_RUN:-0}"
 
@@ -37,7 +45,7 @@ mkdir -p "$STATE_DIR"
 NOW="$(date -u +%FT%TZ)"
 NOW_EPOCH="$(date +%s)"
 
-send_alert() { # subject, body
+send_alert() { # subject, body, state_file
   local subject="$1" body="$2" state_file="$3"
   if [[ "$DRY_RUN" == "1" ]]; then
     echo "$NOW DRYRUN alert suppressed: $subject"
@@ -51,11 +59,50 @@ send_alert() { # subject, body
       return 0
     fi
   fi
-  if printf 'Subject: %s\nTo: %s\n\n%s\n' "$subject" "$ALERT_TO" "$body" \
-      | /usr/sbin/sendmail -t 2>/dev/null; then
+
+  local raw_from="$ALERT_FROM"
+  local from_pat='<([^>]+)>'
+  if [[ "$ALERT_FROM" =~ $from_pat ]]; then
+    raw_from="${BASH_REMATCH[1]}"
+  fi
+  local from_header
+  if [[ "$ALERT_FROM" == *"<"*">"* ]]; then
+    from_header="$ALERT_FROM"
+  elif [[ -n "${ALERT_FROM_NAME:-}" ]]; then
+    from_header="${ALERT_FROM_NAME} <${raw_from}>"
+  else
+    from_header="$raw_from"
+  fi
+
+  local msmtp_bin sendmail_bin
+  msmtp_bin="$(command -v msmtp 2>/dev/null || true)"
+  sendmail_bin="$(command -v sendmail 2>/dev/null || true)"
+  if [[ -z "$sendmail_bin" && -x /usr/sbin/sendmail ]]; then
+    sendmail_bin="/usr/sbin/sendmail"
+  fi
+
+  local send_cmd=()
+  if [[ -n "$msmtp_bin" && -x "$msmtp_bin" ]]; then
+    send_cmd=("$msmtp_bin")
+    if [[ -n "${ALERT_MSMTP_ACCOUNT:-}" ]]; then
+      send_cmd+=(-a "$ALERT_MSMTP_ACCOUNT")
+    fi
+    send_cmd+=(-f "$raw_from" -t)
+  elif [[ -n "$sendmail_bin" && -x "$sendmail_bin" ]]; then
+    send_cmd=("$sendmail_bin")
+    local target
+    target="$(readlink -f "$sendmail_bin" 2>/dev/null || true)"
+    if [[ "$target" == *"msmtp"* && -n "${ALERT_MSMTP_ACCOUNT:-}" ]]; then
+      send_cmd+=(-a "$ALERT_MSMTP_ACCOUNT")
+    fi
+    send_cmd+=(-f "$raw_from" -t)
+  fi
+
+  if [[ ${#send_cmd[@]} -gt 0 ]] && printf 'From: %s\nSubject: %s\nTo: %s\n\n%s\n' "$from_header" "$subject" "$ALERT_TO" "$body" \
+      | "${send_cmd[@]}" 2>/dev/null; then
     echo "$NOW ALERT sent: $subject -> $ALERT_TO"
   else
-    echo "$NOW WARN: sendmail failed, alert logged only: $subject"
+    echo "$NOW WARN: sendmail/msmtp failed, alert logged only: $subject"
   fi
   echo "$NOW_EPOCH" > "$state_file"
 }
