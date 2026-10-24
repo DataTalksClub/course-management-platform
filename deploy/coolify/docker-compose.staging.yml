@@ -34,8 +34,10 @@ services:
       RELAY_FROM_EMAIL: courses
       RELAY_STRICT: "0"
       RELAY_TIMEOUT_SECONDS: "60"
-      # Staging-safe: never deliver real mail / never auto-sync users.
-      RELAY_TRANSACTIONAL_DRY_RUN: "1"
+      # Production worker: real transactional mail enabled 2026-10-24 (Hub
+      # 027d1ed2, Alexey-approved). Dev stays dry-run (docker-compose.dev.yml).
+      # The native public Application mirrors this env via the rolling follower.
+      RELAY_TRANSACTIONAL_DRY_RUN: "0"
       RELAY_SYNC_ON_USER_CREATE: "0"
       RELAY_OUTBOX_DISPATCH_IMMEDIATELY: "0"
       # Secrets — populate in Coolify UI/API before first deploy.
