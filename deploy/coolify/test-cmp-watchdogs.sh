@@ -57,8 +57,8 @@ ln -s "$TMP/bin/msmtp" "$TMP/bin/sendmail"
 
 export PATH="$TMP/bin:$PATH"
 
-# Test 1: check-workers.sh defaults (From header, envelope sender, msmtp account)
-echo "[Test 1: check-workers.sh alert formatting with defaults]"
+# Test 1: check-workers.sh hysteresis (1 failure suppresses alert; 2 consecutive failures triggers alert)
+echo "[Test 1: check-workers.sh hysteresis and alert formatting with defaults]"
 rm -f "$TMP/msmtp.log" "$TMP/msmtp.mail"
 
 # Mock docker to simulate failed check (alarm)
@@ -75,11 +75,29 @@ exit 0
 EOF
 chmod +x "$TMP/bin/docker"
 
+# First failure: should record consecutive-failures=1, remain status ok, and NOT send an alert
 CMP_MONITOR_STATE="$TMP/state/worker-1" \
 CMP_ALERT_TO="dev@dtcdev.click" \
 "$SCRIPT_DIR/check-workers.sh" || true
 
-assert_eq "check-workers recorded status alarm" "alarm" "$(cat "$TMP/state/worker-1/status" 2>/dev/null || echo '')"
+assert_eq "check-workers recorded consecutive-failures=1" "1" "$(cat "$TMP/state/worker-1/consecutive-failures" 2>/dev/null || echo '')"
+assert_eq "check-workers status remains ok after 1 failure" "ok" "$(cat "$TMP/state/worker-1/status" 2>/dev/null || echo '')"
+if [[ -f "$TMP/msmtp.log" ]]; then
+  echo "  FAIL: msmtp was invoked on first transient failure (hysteresis broken)"
+  FAIL=$((FAIL + 1))
+else
+  echo "  PASS: msmtp suppressed on first transient failure"
+  PASS=$((PASS + 1))
+fi
+
+# Second consecutive failure: should reach default threshold (2), record status alarm, and send alert
+rm -f "$TMP/msmtp.log" "$TMP/msmtp.mail"
+CMP_MONITOR_STATE="$TMP/state/worker-1" \
+CMP_ALERT_TO="dev@dtcdev.click" \
+"$SCRIPT_DIR/check-workers.sh" || true
+
+assert_eq "check-workers recorded consecutive-failures=2" "2" "$(cat "$TMP/state/worker-1/consecutive-failures" 2>/dev/null || echo '')"
+assert_eq "check-workers recorded status alarm after 2 failures" "alarm" "$(cat "$TMP/state/worker-1/status" 2>/dev/null || echo '')"
 if [[ -f "$TMP/msmtp.log" ]]; then
   msmtp_args="$(cat "$TMP/msmtp.log")"
   assert_contains "msmtp account 'alerts' passed" "$msmtp_args" "-a alerts"
@@ -93,18 +111,63 @@ if [[ -f "$TMP/msmtp.mail" ]]; then
   mail_content="$(cat "$TMP/msmtp.mail")"
   assert_contains "From header contains DTC Alerts <alerts@dtcdev.click>" "$mail_content" "From: DTC Alerts <alerts@dtcdev.click>"
   assert_contains "To header contains dev@dtcdev.click" "$mail_content" "To: dev@dtcdev.click"
+  assert_contains "Subject contains CMP workers alarm" "$mail_content" "Subject: CMP workers alarm"
 else
   echo "  FAIL: msmtp mail content empty"
   FAIL=$((FAIL + 1))
 fi
 
-# Test 2: check-workers.sh custom overrides
-echo "[Test 2: check-workers.sh with custom overrides]"
+# Recovery run: mock docker succeeding -> sends recovery notice (CMP workers ok)
+rm -f "$TMP/msmtp.log" "$TMP/msmtp.mail"
+cat << 'EOF' > "$TMP/bin/docker"
+#!/bin/bash
+if [[ "$1" == "ps" ]]; then
+  echo "web-avcfd5kwb7cj9r1tx4ygjs6v-app-1"
+  exit 0
+fi
+if [[ "$1" == "exec" ]]; then
+  exit 0
+fi
+exit 0
+EOF
+chmod +x "$TMP/bin/docker"
+
+CMP_MONITOR_STATE="$TMP/state/worker-1" \
+CMP_ALERT_TO="dev@dtcdev.click" \
+"$SCRIPT_DIR/check-workers.sh" || true
+
+assert_eq "check-workers reset consecutive-failures to 0" "0" "$(cat "$TMP/state/worker-1/consecutive-failures" 2>/dev/null || echo '')"
+assert_eq "check-workers recorded status ok after recovery" "ok" "$(cat "$TMP/state/worker-1/status" 2>/dev/null || echo '')"
+if [[ -f "$TMP/msmtp.mail" ]]; then
+  mail_content="$(cat "$TMP/msmtp.mail")"
+  assert_contains "Subject contains CMP workers ok" "$mail_content" "Subject: CMP workers ok"
+else
+  echo "  FAIL: msmtp mail content empty on recovery"
+  FAIL=$((FAIL + 1))
+fi
+
+# Re-enable failing mock docker for subsequent tests
+cat << 'EOF' > "$TMP/bin/docker"
+#!/bin/bash
+if [[ "$1" == "ps" ]]; then
+  echo "web-avcfd5kwb7cj9r1tx4ygjs6v-app-1"
+  exit 0
+fi
+if [[ "$1" == "exec" ]]; then
+  exit 1
+fi
+exit 0
+EOF
+chmod +x "$TMP/bin/docker"
+
+# Test 2: check-workers.sh custom overrides and CMP_FAIL_THRESHOLD=1
+echo "[Test 2: check-workers.sh with custom overrides and CMP_FAIL_THRESHOLD=1]"
 rm -f "$TMP/msmtp.log" "$TMP/msmtp.mail"
 CMP_MONITOR_STATE="$TMP/state/worker-2" \
 CMP_ALERT_TO="ops@example.com" \
 CMP_ALERT_FROM="Custom Alerts <custom@example.com>" \
 CMP_ALERT_MSMTP_ACCOUNT="custom-acct" \
+CMP_FAIL_THRESHOLD=1 \
 "$SCRIPT_DIR/check-workers.sh" || true
 
 if [[ -f "$TMP/msmtp.log" ]]; then
@@ -118,9 +181,13 @@ if [[ -f "$TMP/msmtp.mail" ]]; then
   assert_contains "To header matches custom override" "$mail_content" "To: ops@example.com"
 fi
 
-# Test 3: cmp-check-workers symlink works identically
+# Test 3: cmp-check-workers symlink works identically (with 2 consecutive failures)
 echo "[Test 3: cmp-check-workers executable]"
 rm -f "$TMP/msmtp.log" "$TMP/msmtp.mail"
+CMP_MONITOR_STATE="$TMP/state/worker-3" \
+CMP_ALERT_TO="dev@dtcdev.click" \
+"$SCRIPT_DIR/cmp-check-workers" || true
+# Run second time to exceed threshold
 CMP_MONITOR_STATE="$TMP/state/worker-3" \
 CMP_ALERT_TO="dev@dtcdev.click" \
 "$SCRIPT_DIR/cmp-check-workers" || true

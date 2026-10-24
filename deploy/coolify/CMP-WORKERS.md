@@ -49,9 +49,13 @@ The independent host watchdog `check-workers.sh` runs from `cmp-workers.cron`
 every minute, outside Coolify's scheduler. It resolves the stable service runner container, runs `check_cmp_workers`, and alerts through the existing host MTA.
 Payload-free alarms cover missing/stale success (outbox 300s, health 900s,
 reminders 26h), failed last attempts, due backlog older than 300s, and processing
-older than 540s. State under `/var/lib/cmp-worker-monitor` deduplicates mail for
-one hour; recovery sends once. The monitor never runs jobs. Configure overrides
-in root-only `/etc/cmp-worker-monitor.env` if the service runner changes.
+older than 540s. State under `/var/lib/cmp-worker-monitor` enforces hysteresis
+via `CMP_FAIL_THRESHOLD` (default 2 consecutive failing evaluations 60s apart)
+to avoid false alarms during container replacement or rolling restarts while
+detecting true outages within 60s of breach (worst-case detection delay:
+outbox 360s, health 960s, reminders 26h+60s, backlog 360s). It deduplicates mail
+for one hour; recovery sends once. The monitor never runs jobs. Configure overrides
+in root-only `/etc/cmp-worker-monitor.env` if the service runner or thresholds change.
 
 Recovery: restore the runner/image/configuration, inspect alarm output locally,
 verify new success timestamps and oldest-due age, and require monitor recovery.

@@ -11,22 +11,42 @@ alert_to="${CMP_ALERT_TO:-dev@dtcdev.click}"
 alert_from="${CMP_ALERT_FROM:-alerts@dtcdev.click}"
 alert_from_name="${CMP_ALERT_FROM_NAME:-DTC Alerts}"
 alert_msmtp_account="${CMP_ALERT_MSMTP_ACCOUNT:-alerts}"
+fail_threshold="${CMP_FAIL_THRESHOLD:-2}"
 mkdir -p "$state_dir"
 exec 9>"$state_dir/lock"
 flock -n 9 || exit 0
 mapfile -t containers < <(docker ps --format '{{.Names}}' | awk -v p="$prefix" 'index($0,p)==1')
-status=alarm
+evaluation=alarm
 # During a normal rolling release two containers may coexist. They share
 # the same durable worker timestamps; a successful check on either is enough.
 for container in "${containers[@]}"; do
   if timeout 45 docker exec "$container" python manage.py check_cmp_workers >/dev/null 2>&1; then
-    status=ok
+    evaluation=ok
     break
   fi
 done
-previous=$(cat "$state_dir/status" 2>/dev/null || true)
+previous=$(cat "$state_dir/status" 2>/dev/null || echo "ok")
+consecutive_fails=$(cat "$state_dir/consecutive-failures" 2>/dev/null || echo 0)
 last=$(cat "$state_dir/last-alert" 2>/dev/null || echo 0)
 now=$(date +%s)
+
+if [[ "$evaluation" == "ok" ]]; then
+  if [[ "$consecutive_fails" -gt 0 && "$previous" != "alarm" ]]; then
+    logger -t cmp-workers "CMP worker check recovered before alarm threshold (after ${consecutive_fails} transient failure(s))"
+  fi
+  consecutive_fails=0
+  echo "0" > "$state_dir/consecutive-failures"
+  status=ok
+else
+  consecutive_fails=$((consecutive_fails + 1))
+  echo "$consecutive_fails" > "$state_dir/consecutive-failures"
+  logger -t cmp-workers "CMP worker check evaluation failed (evaluation ${consecutive_fails} of ${fail_threshold})"
+  if [[ "$consecutive_fails" -ge "$fail_threshold" ]]; then
+    status=alarm
+  else
+    status="${previous}"
+  fi
+fi
 if [[ "$status" != "$previous" || ( "$status" == alarm && $((now-last)) -ge 3600 ) ]]; then
   echo "CMP_WORKERS_${status^^}"
   logger -t cmp-workers "CMP_WORKERS_${status^^}"
