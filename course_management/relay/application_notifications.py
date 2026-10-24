@@ -136,7 +136,7 @@ def send_notification(notification):
     dry_run_accepted = payload.get("dry_run") and result.get("would_deliver") is True
     if not message.get("id") and not dry_run_accepted:
         raise ValueError("relay_acknowledgement_missing")
-    return str(message.get("id", ""))
+    return str(message.get("id") or "")
 
 
 def process_application_notifications(limit=100):

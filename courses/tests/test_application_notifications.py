@@ -174,6 +174,7 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
         process_application_notifications()
         self.assertTrue(request.call_args.kwargs["json"]["dry_run"])
         self.assertEqual(self.notifications().get().status, "sent")
+        self.assertEqual(self.notifications().get().relay_message_id, "")
 
     @patch("course_management.relay.application_notifications.requests.request")
     def test_unacknowledged_or_suppressed_send_is_failed(self, request):
