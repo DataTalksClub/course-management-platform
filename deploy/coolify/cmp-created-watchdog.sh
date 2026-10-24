@@ -35,12 +35,36 @@ fi
 GRACE_SEC="${GRACE_SEC:-120}"
 STATE_DIR="${STATE_DIR:-/var/lib/cmp-created-watchdog}"
 ALERT_TO="${ALERT_TO:-dev@dtcdev.click}"
-ALERT_FROM="${ALERT_FROM:-alerts@dtcdev.click}"
-ALERT_FROM_NAME="${ALERT_FROM_NAME:-DTC Alerts}"
-ALERT_MSMTP_ACCOUNT="${ALERT_MSMTP_ACCOUNT:-alerts}"
 ALERT_REPEAT_MIN="${ALERT_REPEAT_MIN:-60}"
 DRY_RUN="${DRY_RUN:-0}"
 
+
+# One client/key for Contabo monitors, stored root-owned mode 0600. The CLI
+# loads it from disk; credentials never appear in process arguments or logs.
+relay_alert() {
+  local recipients="${1// /,}" subject="$2" body="$3" recipient sent=0
+  local -a addresses=()
+  IFS=',' read -r -a addresses <<< "$recipients"
+  for recipient in "${addresses[@]}"; do
+    [[ -n "$recipient" ]] || continue
+    if ! printf '%s\n' "$body" | env -u DATAMAILER_API_KEY -u DATAMAILER_URL \
+      DATAMAILER_CONFIG="${RELAY_MONITOR_CONFIG:-/etc/relay-monitors.toml}" \
+      "${DATAMAILER_BIN:-/usr/local/bin/datamailer}" send --from alerts \
+      --to "$recipient" --subject "$subject"; then
+      echo "ERROR: Relay alert delivery request failed" >&2
+      return 1
+    fi
+    sent=$((sent + 1))
+  done
+  [[ "$sent" -gt 0 ]]
+}
+
+# Exercise this source's real transport without queries, repairs or state changes.
+# The proof destination is fixed, irrespective of the configured recipients.
+if [[ "${1:-}" == "--test-alert" ]]; then
+  relay_alert dev@dtcdev.click "TEST cmp-created-watchdog Relay alert" "Controlled cmp-created-watchdog alert transport proof."
+  exit $?
+fi
 mkdir -p "$STATE_DIR"
 NOW="$(date -u +%FT%TZ)"
 NOW_EPOCH="$(date +%s)"
@@ -60,50 +84,11 @@ send_alert() { # subject, body, state_file
     fi
   fi
 
-  local raw_from="$ALERT_FROM"
-  local from_pat='<([^>]+)>'
-  if [[ "$ALERT_FROM" =~ $from_pat ]]; then
-    raw_from="${BASH_REMATCH[1]}"
+  if ! relay_alert "$ALERT_TO" "$subject" "$body"; then
+    echo "$NOW ERROR: Relay alert request failed; dedupe state unchanged" >&2
+    return 1
   fi
-  local from_header
-  if [[ "$ALERT_FROM" == *"<"*">"* ]]; then
-    from_header="$ALERT_FROM"
-  elif [[ -n "${ALERT_FROM_NAME:-}" ]]; then
-    from_header="${ALERT_FROM_NAME} <${raw_from}>"
-  else
-    from_header="$raw_from"
-  fi
-
-  local msmtp_bin sendmail_bin
-  msmtp_bin="$(command -v msmtp 2>/dev/null || true)"
-  sendmail_bin="$(command -v sendmail 2>/dev/null || true)"
-  if [[ -z "$sendmail_bin" && -x /usr/sbin/sendmail ]]; then
-    sendmail_bin="/usr/sbin/sendmail"
-  fi
-
-  local send_cmd=()
-  if [[ -n "$msmtp_bin" && -x "$msmtp_bin" ]]; then
-    send_cmd=("$msmtp_bin")
-    if [[ -n "${ALERT_MSMTP_ACCOUNT:-}" ]]; then
-      send_cmd+=(-a "$ALERT_MSMTP_ACCOUNT")
-    fi
-    send_cmd+=(-f "$raw_from" -t)
-  elif [[ -n "$sendmail_bin" && -x "$sendmail_bin" ]]; then
-    send_cmd=("$sendmail_bin")
-    local target
-    target="$(readlink -f "$sendmail_bin" 2>/dev/null || true)"
-    if [[ "$target" == *"msmtp"* && -n "${ALERT_MSMTP_ACCOUNT:-}" ]]; then
-      send_cmd+=(-a "$ALERT_MSMTP_ACCOUNT")
-    fi
-    send_cmd+=(-f "$raw_from" -t)
-  fi
-
-  if [[ ${#send_cmd[@]} -gt 0 ]] && printf 'From: %s\nSubject: %s\nTo: %s\n\n%s\n' "$from_header" "$subject" "$ALERT_TO" "$body" \
-      | "${send_cmd[@]}" 2>/dev/null; then
-    echo "$NOW ALERT sent: $subject -> $ALERT_TO"
-  else
-    echo "$NOW WARN: sendmail/msmtp failed, alert logged only: $subject"
-  fi
+  echo "$NOW ALERT sent through Relay: $subject -> $ALERT_TO"
   echo "$NOW_EPOCH" > "$state_file"
 }
 

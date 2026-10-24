@@ -170,3 +170,19 @@ The October 23 isolation change removed DEV from the production service but
 left no DEV replacement. Traefik consequently returned its default 503 while
 the production image poller reported convergence. The isolated service closes
 that gap without changing production routing, data, or image.
+
+### Watchdog email transport
+
+`cmp-created-watchdog.sh` and `check-workers.sh` send through Datamailer CLI
+(`/usr/local/bin/datamailer`), sender `alerts`, using the dedicated Contabo
+monitors client. Its `/etc/relay-monitors.toml` is root-owned mode 0600 and holds
+the Relay URL/API key, provisioned through Relay APIs. No AWS credentials or
+SMTP credentials are needed by these two sources. The shared host SMTP setup
+is still used independently by Relay self-monitors and is not changed.
+
+`ALERT_TO` and `CMP_ALERT_TO` retain their existing recipients. Sender display
+name/address are centrally validated in Relay; old local From settings no longer
+override them. `RELAY_MONITOR_CONFIG` / `DATAMAILER_BIN` override paths for tests.
+Run either script with `--test-alert` for a real message to dev@dtcdev.click only,
+without container checks/repairs or monitor-state changes. Transport failures
+leave alert timestamps unchanged so a failed send is not deduplicated away.

@@ -8,10 +8,34 @@ fi
 prefix="${CMP_APP_PREFIX:-web-avcfd5kwb7cj9r1tx4ygjs6v}"
 state_dir="${CMP_MONITOR_STATE:-/var/lib/cmp-worker-monitor}"
 alert_to="${CMP_ALERT_TO:-dev@dtcdev.click}"
-alert_from="${CMP_ALERT_FROM:-alerts@dtcdev.click}"
-alert_from_name="${CMP_ALERT_FROM_NAME:-DTC Alerts}"
-alert_msmtp_account="${CMP_ALERT_MSMTP_ACCOUNT:-alerts}"
 fail_threshold="${CMP_FAIL_THRESHOLD:-2}"
+
+# One client/key for Contabo monitors, stored root-owned mode 0600. The CLI
+# loads it from disk; credentials never appear in process arguments or logs.
+relay_alert() {
+  local recipients="${1// /,}" subject="$2" body="$3" recipient sent=0
+  local -a addresses=()
+  IFS=',' read -r -a addresses <<< "$recipients"
+  for recipient in "${addresses[@]}"; do
+    [[ -n "$recipient" ]] || continue
+    if ! printf '%s\n' "$body" | env -u DATAMAILER_API_KEY -u DATAMAILER_URL \
+      DATAMAILER_CONFIG="${RELAY_MONITOR_CONFIG:-/etc/relay-monitors.toml}" \
+      "${DATAMAILER_BIN:-/usr/local/bin/datamailer}" send --from alerts \
+      --to "$recipient" --subject "$subject"; then
+      echo "ERROR: Relay alert delivery request failed" >&2
+      return 1
+    fi
+    sent=$((sent + 1))
+  done
+  [[ "$sent" -gt 0 ]]
+}
+
+# Exercise this source's real transport without queries, repairs or state changes.
+# The proof destination is fixed, irrespective of the configured recipients.
+if [[ "${1:-}" == "--test-alert" ]]; then
+  relay_alert dev@dtcdev.click "TEST cmp-check-workers Relay alert" "Controlled cmp-check-workers alert transport proof."
+  exit $?
+fi
 mkdir -p "$state_dir"
 exec 9>"$state_dir/lock"
 flock -n 9 || exit 0
@@ -50,47 +74,8 @@ fi
 if [[ "$status" != "$previous" || ( "$status" == alarm && $((now-last)) -ge 3600 ) ]]; then
   echo "CMP_WORKERS_${status^^}"
   logger -t cmp-workers "CMP_WORKERS_${status^^}"
-  # Existing host MTA owns credentials. Only fixed, payload-free messages leave host.
   if [[ "$status" == alarm || "$previous" == alarm ]]; then
-    raw_from="$alert_from"
-    from_pat='<([^>]+)>'
-    if [[ "$alert_from" =~ $from_pat ]]; then
-      raw_from="${BASH_REMATCH[1]}"
-    fi
-    if [[ "$alert_from" == *"<"*">"* ]]; then
-      from_header="$alert_from"
-    elif [[ -n "${alert_from_name:-}" ]]; then
-      from_header="${alert_from_name} <${raw_from}>"
-    else
-      from_header="$raw_from"
-    fi
-
-    send_cmd=()
-    msmtp_bin="$(command -v msmtp 2>/dev/null || true)"
-    sendmail_bin="$(command -v sendmail 2>/dev/null || true)"
-    if [[ -z "$sendmail_bin" && -x /usr/sbin/sendmail ]]; then
-      sendmail_bin="/usr/sbin/sendmail"
-    fi
-
-    if [[ -n "$msmtp_bin" && -x "$msmtp_bin" ]]; then
-      send_cmd=("$msmtp_bin")
-      if [[ -n "${alert_msmtp_account:-}" ]]; then
-        send_cmd+=(-a "$alert_msmtp_account")
-      fi
-      send_cmd+=(-f "$raw_from" -t)
-    elif [[ -n "$sendmail_bin" && -x "$sendmail_bin" ]]; then
-      send_cmd=("$sendmail_bin")
-      target="$(readlink -f "$sendmail_bin" 2>/dev/null || true)"
-      if [[ "$target" == *"msmtp"* && -n "${alert_msmtp_account:-}" ]]; then
-        send_cmd+=(-a "$alert_msmtp_account")
-      fi
-      send_cmd+=(-f "$raw_from" -t)
-    fi
-
-    if [[ ${#send_cmd[@]} -gt 0 ]]; then
-      printf 'From: %s\nTo: %s\nSubject: CMP workers %s\n\nCMP worker success or backlog age check: %s\n' \
-        "$from_header" "$alert_to" "$status" "$status" | "${send_cmd[@]}"
-    fi
+    relay_alert "$alert_to" "CMP workers $status" "CMP worker success or backlog age check: $status"
   fi
   echo "$now" > "$state_dir/last-alert"
 fi
