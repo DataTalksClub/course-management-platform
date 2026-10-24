@@ -126,6 +126,7 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
         payload = request.call_args.kwargs["json"]
         self.assertEqual(payload["template_key"], "application-pending-operator")
         self.assertEqual(payload["client"], "dtc-courses")
+        self.assertEqual(payload["audience"], "dtc-courses")
         self.assertEqual(payload["category_tag"], "transactional")
         self.assertEqual(self.notifications().get().status, "sent")
 

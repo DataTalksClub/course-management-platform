@@ -116,6 +116,7 @@ def relay_request(method, path, payload):
 def send_notification(notification):
     payload = {
         "client": settings.RELAY_CLIENT,
+        "audience": settings.RELAY_AUDIENCE,
         "email": notification.recipient,
         "template_key": notification.template_key,
         "category_tag": "transactional",
