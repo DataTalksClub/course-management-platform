@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+from unittest.mock import patch
+
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -14,6 +17,17 @@ from courses.models import (
 
 class RegistrationCampaignBase(TestCase):
     def setUp(self):
+        # Registration UI tests must not depend on external DNS.
+        mx = patch(
+            "courses.email_validation._mx_records_for_domain",
+            return_value=[
+                SimpleNamespace(
+                    exchange="mx.example.net.", preference=10
+                )
+            ],
+        )
+        mx.start()
+        self.addCleanup(mx.stop)
         self.client = Client()
         self.course = Course.objects.create(
             slug="llm-zoomcamp-2026",
@@ -90,12 +104,16 @@ class RegistrationCampaignBase(TestCase):
         )
 
     def assert_logged_in_registration(self, registration, user):
-        self.assertEqual(registration.email_normalized, "signed@example.com")
+        self.assertEqual(
+            registration.email_normalized, "signed@example.com"
+        )
         self.assertEqual(registration.user, user)
 
     def assert_signed_profile_updated(self, user):
         user.refresh_from_db()
-        self.assertEqual(user.certificate_name, "Updated Certificate Name")
+        self.assertEqual(
+            user.certificate_name, "Updated Certificate Name"
+        )
         self.assertEqual(user.country, "Germany")
         self.assertEqual(user.region, "Europe")
         self.assertEqual(

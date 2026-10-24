@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Fix registration email - DataTalks.Club{% endblock %}
+
+{% block breadcrumbs %}
+  {% if campaign %}
+    <li><a href="{% url 'course_list' %}">Courses</a></li>
+    <li><a href="{% url 'registration_campaign' campaign.slug %}">{{ campaign.title }} registration</a></li>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<section class="space-y-8">
+  <div class="min-w-0">
+    {% if updated %}
+      <div class="rounded-md border app-alert-success px-4 py-3">
+        <h1 class="text-2xl font-semibold app-heading">Email updated</h1>
+        <p class="mt-2 text-sm app-text">
+          Check your inbox at {{ registration.email }} — you MUST click the confirmation link to complete registration.
+        </p>
+      </div>
+    {% elif already_confirmed %}
+      <div class="rounded-md border app-alert-success px-4 py-3">
+        <h1 class="text-2xl font-semibold app-heading">Already confirmed</h1>
+        <p class="mt-2 text-sm app-text">
+          This registration is already confirmed; the address can no longer be changed here.
+        </p>
+      </div>
+    {% else %}
+      <div class="rounded-md border app-alert-warning px-4 py-3">
+        <h1 class="text-2xl font-semibold app-heading">Could not update the address</h1>
+        <p class="mt-2 text-sm app-text">{{ error|default:"Something went wrong. Please try again." }}</p>
+        {% if registration %}
+          <form method="post" action="{% url 'registration_confirmation_fix_email' %}" class="mt-3 space-y-2">
+            {% csrf_token %}
+            <input type="hidden" name="token" value="{{ registration.confirmation_management_token|default:"" }}">
+            <label for="fix-email-input" class="registration-field-label">Corrected email address</label>
+            <input id="fix-email-input" type="email" name="email" required class="form-control" value="{{ registration.email }}">
+            <button type="submit" class="primer-button">Send confirmation to this address</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endif %}
+    {% if updated %}
+      <form method="post" action="{% url 'registration_confirmation_resend' %}" class="mt-4">
+        {% csrf_token %}
+        <input type="hidden" name="token" value="{{ registration.confirmation_management_token }}">
+        <div class="flex flex-wrap gap-2 border-t app-border pt-5">
+          <button type="submit" class="primer-button-secondary">Resend confirmation email</button>
+        </div>
+      </form>
+      <a href="{% url 'registration_campaign' campaign.slug %}" class="app-link mt-3 inline-block">Back to registration</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

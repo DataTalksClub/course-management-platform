@@ -1,6 +1,7 @@
 from functools import partial
 
 from django.db import transaction
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -13,7 +14,10 @@ from course_management.relay.notifications import (
     send_registration_confirmation_email,
 )
 from course_management.observability import record_event
-from courses.models.course import CourseRegistration, RegistrationCampaign
+from courses.models.course import (
+    CourseRegistration,
+    RegistrationCampaign,
+)
 from courses.models.homework import Homework
 from courses.models.project import Project
 from courses.registration import (
@@ -21,8 +25,12 @@ from courses.registration import (
     render_markdown,
     youtube_embed_url,
 )
+from courses.registration_confirmation import issue_confirmation_token
 
-from .registration_form import CourseRegistrationForm
+from .registration_form import (
+    CourseRegistrationForm,
+    normalized_registration_email,
+)
 
 
 def campaign_course_is_open(campaign: RegistrationCampaign) -> bool:
@@ -51,14 +59,19 @@ def _existing_user_registration(
     campaign: RegistrationCampaign,
 ) -> CourseRegistration | None:
     if not request.user.is_authenticated:
-        return None
+        registration_id = request.session.get(
+            "registration_pending", {}
+        ).get(str(campaign.pk))
+        return CourseRegistration.objects.filter(
+            pk=registration_id, campaign=campaign
+        ).first()
 
     email = request.user.email or ""
     email_stripped = email.strip()
     email_normalized = email_stripped.lower()
     return CourseRegistration.objects.filter(
+        Q(user=request.user) | Q(email_normalized=email_normalized),
         campaign=campaign,
-        email_normalized=email_normalized,
     ).first()
 
 
@@ -76,6 +89,7 @@ def _registration_form(
     return CourseRegistrationForm(campaign=campaign, user=request.user)
 
 
+@transaction.atomic
 def _save_registration_if_valid(
     form: CourseRegistrationForm,
 ) -> CourseRegistration | None:
@@ -83,6 +97,9 @@ def _save_registration_if_valid(
         return None
 
     registration = form.save()
+    # New registrations start pending email confirmation: issue the
+    # token now so the Relay confirmation email carries the link.
+    issue_confirmation_token(registration)
     sync_callback = partial(
         sync_registration_to_relay,
         registration,
@@ -103,6 +120,41 @@ def _start_course_url(campaign: RegistrationCampaign) -> str:
     return reverse(
         "course",
         kwargs={"course_slug": campaign.current_course.slug},
+    )
+
+
+def _pending_duplicate_registration(
+    request: HttpRequest,
+    campaign: RegistrationCampaign,
+    form: CourseRegistrationForm,
+) -> CourseRegistration | None:
+    """Recover the pending block after a refresh/double POST.
+
+    Only for anonymous users whose POST failed on the duplicate-email
+    error while the existing registration is still unconfirmed.
+    """
+    if request.user.is_authenticated or "email" not in form.errors:
+        return None
+    email_error = " ".join(str(error) for error in form.errors["email"])
+    if "already registered" not in email_error:
+        return None
+    normalized = normalized_registration_email(
+        request.POST.get("email", "")
+    )
+    registration_id = request.session.get(
+        "registration_pending", {}
+    ).get(str(campaign.pk))
+    if not normalized or not registration_id:
+        return None
+    return (
+        CourseRegistration.objects.filter(
+            campaign=campaign,
+            pk=registration_id,
+            email_normalized=normalized,
+            email_confirmed=False,
+        )
+        .select_related("campaign", "course")
+        .first()
     )
 
 
@@ -149,9 +201,22 @@ def registration_campaign_view(
     form = _registration_form(request, campaign)
 
     registration = None
+    saved_fresh = False
     if request.method == "POST":
         registration = _save_registration_if_valid(form)
-        if registration is not None:
+        saved_fresh = registration is not None
+        if saved_fresh:
+            pending = request.session.get("registration_pending", {})
+            pending[str(campaign.pk)] = registration.pk
+            request.session["registration_pending"] = pending
+        if registration is None:
+            # Refresh-after-POST (or double submit) re-posts the same
+            # address: surface the pending confirmation block with its
+            # resend/fix options instead of only a duplicate error.
+            registration = _pending_duplicate_registration(
+                request, campaign, form
+            )
+        if saved_fresh:
             course_slug = ""
             if registration.course_id:
                 course_slug = registration.course.slug

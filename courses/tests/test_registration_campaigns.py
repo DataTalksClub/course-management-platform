@@ -129,6 +129,7 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
             region="Europe",
             role=CourseRegistration.Role.DATA_ENGINEER,
             accepted_newsletter=True,
+            email_confirmed=True,
         )
 
         url = self.campaign_url()
@@ -242,6 +243,15 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
         user = self.create_registered_course_user()
         self.client.force_login(user)
 
+        # Pre-confirmation-link registrations were backfilled as
+        # confirmed; they keep the original "already registered" view.
+        registration = CourseRegistration.objects.get(
+            campaign=self.campaign,
+            user=user,
+        )
+        registration.email_confirmed = True
+        registration.save(update_fields=["email_confirmed"])
+
         url = reverse(
             "registration_campaign",
             kwargs={"campaign_slug": self.campaign.slug},
@@ -250,6 +260,21 @@ class RegistrationCampaignPublicTests(RegistrationCampaignBase):
 
         self.assertContains(response, "You are already registered")
         self.assertNotContains(response, 'name="email"')
+
+    def test_registration_page_shows_pending_for_unconfirmed_user(
+        self,
+    ):
+        user = self.create_registered_course_user()
+        self.client.force_login(user)
+
+        url = reverse(
+            "registration_campaign",
+            kwargs={"campaign_slug": self.campaign.slug},
+        )
+        response = self.client.get(url)
+
+        self.assertContains(response, "Check your inbox")
+        self.assertContains(response, "MUST click the confirmation link")
 
 
 class RegistrationCampaignMalformedEmailTests(RegistrationCampaignBase):

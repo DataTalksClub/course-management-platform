@@ -225,6 +225,45 @@
 
     <section class="settings-section space-y-4 border-t pt-6">
         <div>
+            <h2 class="settings-section-title text-lg font-semibold">Course registrations</h2>
+            <p class="settings-section-copy mt-1 text-sm leading-6">Confirm your email to complete registration. Look for the confirmation email, including in spam.</p>
+        </div>
+        <div class="overflow-hidden rounded-md border app-border app-surface">
+            {% if course_registrations %}
+                <div class="divide-y app-divide">
+                    {% for registration in course_registrations %}
+                        <article class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <p class="font-medium app-heading">
+                                    {{ registration.campaign.title }}
+                                </p>
+                                <p class="mt-1 truncate text-xs app-muted">{{ registration.email_normalized }}</p>
+                                {% if registration.email_confirmed %}
+                                    <p class="mt-1 text-xs font-medium app-alert-success">Email confirmed</p>
+                                {% else %}
+                                    <p class="mt-1 text-xs font-medium app-danger-text">Unconfirmed — check your inbox and click the confirmation link</p>
+                                {% endif %}
+                            </div>
+                            {% if not registration.email_confirmed %}
+                                <form method="post" action="{% url 'registration_confirmation_resend' %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="token" value="{{ registration.confirmation_management_token|default:"" }}">
+                                    <button type="submit" class="primer-button primer-button-secondary w-fit">
+                                        Resend confirmation
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="px-4 py-5 text-sm app-muted">You have no course registrations yet.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="settings-section space-y-4 border-t pt-6">
+        <div>
             <h2 class="settings-section-title text-lg font-semibold">Courses enrolled</h2>
             <p class="settings-section-copy mt-1 text-sm leading-6">Course-specific profile details can still be edited per course.</p>
         </div>

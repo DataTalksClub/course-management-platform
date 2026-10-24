@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-07-01T22:02:32.672009459Z"
+exclude-newer = "2026-10-17T14:26:13.521433353Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -264,6 +264,7 @@ dependencies = [
     { name = "django-allauth" },
     { name = "django-loginas" },
     { name = "django-unfold" },
+    { name = "dnspython" },
     { name = "gunicorn" },
     { name = "mistune" },
     { name = "psycopg2-binary" },
@@ -295,6 +296,7 @@ requires-dist = [
     { name = "django-allauth", extras = ["slack"] },
     { name = "django-loginas" },
     { name = "django-unfold" },
+    { name = "dnspython", specifier = ">=2.9.0" },
     { name = "gunicorn" },
     { name = "mistune", specifier = ">=3.1.3" },
     { name = "psycopg2-binary" },
@@ -437,6 +439,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/23/cd/a50fe52cd1cad37dec0c437ed179c218bc7534fece9c1da266bcc62118c6/django_unfold-0.62.0.tar.gz", hash = "sha256:fa931018b5c3f501b589d1785c430964a5b37ab1259ecb3ccb516efe075311bc", size = 1064095, upload-time = "2025-07-02T10:06:47.482Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8f/e4/d88e06cdacb883d329f01757133858a5527ae0be4913525f77883ddf1b8b/django_unfold-0.62.0-py3-none-any.whl", hash = "sha256:58889ba0069cd272a471458a48b4c86b5e5580649fe50a8b21543bf2d82f18fd", size = 1170897, upload-time = "2025-07-02T10:06:45.92Z" },
+]
+
+[[package]]
+name = "dnspython"
+version = "2.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/4a/50822184bd67cc6493f0fb6a880749158fcd31ab3fa07409acfd91f9fc85/dnspython-2.9.0.tar.gz", hash = "sha256:b44dc6b18f07a8b1c56676a19fbfdb5209415b046a9cece286baafa87ff3f7f1", size = 423560, upload-time = "2026-10-09T00:07:24.352Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/02/cdcc9b7c051786a103c3b09e1003a82fa0c66bcb91ffbdabcfbf7b4163b9/dnspython-2.9.0-py3-none-any.whl", hash = "sha256:9a4aedb833c3c1b49214d04d44d3032ab7a9135f7c1d29a549b4ff78fd82fda9", size = 354822, upload-time = "2026-10-09T00:07:22.622Z" },
 ]
 
 [[package]]

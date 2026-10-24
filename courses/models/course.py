@@ -283,6 +283,35 @@ class CourseRegistration(models.Model):
         help_text="Review status for registration-wall courses. "
         + "Only approved registrations unlock the gated course path.",
     )
+    email_confirmed = models.BooleanField(
+        default=False,
+        help_text="Whether the registrant clicked the email "
+        + "confirmation link (double opt-in).",
+    )
+    email_confirmation_token = models.CharField(
+        max_length=64,
+        unique=True,
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Secret token for the email confirmation link. "
+        + "Null for rows confirmed by the backfill migration.",
+    )
+    email_confirmation_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the latest confirmation email was sent.",
+    )
+    email_confirmation_confirmed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the email confirmation link was clicked.",
+    )
+    email_confirmation_resend_count = models.PositiveIntegerField(
+        default=0,
+        help_text="How many confirmation emails were sent "
+        + "(initial send counts as the first).",
+    )
     experience = models.TextField(
         blank=True,
         default="",
@@ -350,6 +379,11 @@ class CourseRegistration(models.Model):
             fields = kwargs.get("update_fields")
             if previous is None or fields is None or "status" in fields:
                 queue_application_notifications(self, previous)
+
+    @property
+    def confirmation_management_token(self):
+        from courses.registration_confirmation import management_token
+        return management_token(self)
 
     def __str__(self):
         return f"{self.email_normalized} registered for {self.campaign}"

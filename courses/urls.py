@@ -18,11 +18,27 @@ from .views import project_results
 from .views import project_statistics
 from .views import project_submissions
 from .views import registration
+from .views import registration_confirmation
 from .views import wrapped
 
 
 urlpatterns = [
     path("", course_list.course_list, name="course_list"),
+    path(
+        "register/confirm/<str:token>/",
+        registration_confirmation.registration_confirm_view,
+        name="registration_confirm",
+    ),
+    path(
+        "register/resend-confirmation/",
+        registration_confirmation.registration_confirmation_resend_view,
+        name="registration_confirmation_resend",
+    ),
+    path(
+        "register/fix-email/",
+        registration_confirmation.registration_confirmation_fix_email_view,
+        name="registration_confirmation_fix_email",
+    ),
     path(
         "register/<slug:campaign_slug>/",
         registration.registration_campaign_view,

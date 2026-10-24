@@ -6,11 +6,17 @@ SUBMISSION_TEMPLATES = {
         "name": "Course Registration Confirmation",
         "description": (
             "Triggered when a learner registers for a course campaign. "
-            "Sent to that learner."
+            "Sent to that learner; the confirmation link must be clicked. "
+            "Resends and corrected addresses receive a fresh link."
         ),
         "subject": "{{ email_subject }}",
         "html_body": (
             "<p>{{ intro_text }}</p>"
+            "{% if confirmation_url %}"
+            '<p><a href="{{ confirmation_url }}">Confirm registration</a></p>'
+            "<p>You MUST click this confirmation link to complete registration. "
+            "The link expires after 7 days. If you did not register, ignore this email.</p>"
+            "{% endif %}"
             "{% if course_url %}"
             '<p><a href="{{ course_url }}">Open the course workspace</a></p>'
             "{% endif %}"
@@ -24,6 +30,9 @@ SUBMISSION_TEMPLATES = {
         ),
         "text_body": (
             "{{ intro_text }}\n\n"
+            "{% if confirmation_url %}Confirm registration: {{ confirmation_url }}\n"
+            "You MUST click this confirmation link to complete registration. "
+            "The link expires after 7 days. If you did not register, ignore this email.\n\n{% endif %}"
             "{% if course_url %}Course workspace: {{ course_url }}\n{% endif %}"
             "{% if registration_url %}Registration page: {{ registration_url }}\n{% endif %}"
             "\n{{ notification_footer_text }}\n"
@@ -38,7 +47,7 @@ SUBMISSION_TEMPLATES = {
             {"name": "notification_footer_text", "description": "Plain-text preference footer."},
         ],
         "example_context": {
-            "email_subject": "Registration confirmed: LLM Zoomcamp",
+            "email_subject": "Confirm your registration: LLM Zoomcamp",
             "campaign_title": "LLM Zoomcamp",
             "campaign_slug": "llm-zoomcamp",
             "course_title": "LLM Zoomcamp 2026",
@@ -47,7 +56,8 @@ SUBMISSION_TEMPLATES = {
             "registration_url": "https://courses.datatalks.club/register/llm-zoomcamp/",
             "course_url": "https://courses.datatalks.club/llm-zoomcamp-2026/",
             "profile_url": "https://courses.datatalks.club/accounts/settings/",
-            "intro_text": "Your registration for LLM Zoomcamp is confirmed.",
+            "confirmation_url": "https://courses.datatalks.club/register/confirm/example-only/",
+            "intro_text": "Click the confirmation link to complete your LLM Zoomcamp registration.",
             "notification_footer": "You are receiving this because course-related emails are enabled.",
             "notification_footer_text": "Manage preferences: https://courses.datatalks.club/accounts/settings/",
         },

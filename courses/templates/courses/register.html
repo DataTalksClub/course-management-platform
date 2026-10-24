@@ -86,6 +86,7 @@
 
   <aside class="registration-panel rounded-md border app-border app-surface-muted p-5">
     {% if registration %}
+      {% if registration.email_confirmed %}
       <div class="rounded-md border app-alert-success px-4 py-3">
         <h2 class="text-lg font-semibold app-heading">
           {% if form.is_bound %}You are registered{% else %}You are already registered{% endif %}
@@ -112,6 +113,45 @@
           {% endif %}
         {% endif %}
       </div>
+      {% else %}
+      <div class="rounded-md border app-alert-warning px-4 py-3" data-pending-confirmation>
+        <h2 class="text-lg font-semibold app-heading">Check your inbox to finish registering</h2>
+        <p class="mt-2 text-sm app-text">
+          We sent a confirmation email to <strong>{{ registration.email }}</strong>.
+          You MUST click the confirmation link in that email to complete your registration.
+        </p>
+        <p class="mt-2 text-sm app-text">
+          Didn't get it? Check spam, then resend:
+        </p>
+        <form method="post" action="{% url 'registration_confirmation_resend' %}" class="mt-2">
+          {% csrf_token %}
+          <input type="hidden" name="token" value="{{ registration.confirmation_management_token|default:"" }}">
+          <div class="flex flex-wrap gap-2 border-t app-border pt-5">
+            <button type="submit" class="primer-button-secondary">Resend confirmation email</button>
+          </div>
+        </form>
+        <div class="mt-4 border-t app-border pt-3">
+          <p class="text-sm font-medium app-heading">Wrong email? Fix it:</p>
+          <form method="post" action="{% url 'registration_confirmation_fix_email' %}" class="mt-2 space-y-2" data-fix-email-form>
+            {% csrf_token %}
+            <input type="hidden" name="token" value="{{ registration.confirmation_management_token|default:"" }}">
+            <label for="fix-email-input" class="registration-field-label">Corrected email address</label>
+            <input id="fix-email-input" type="email" name="email" required class="form-control" value="{{ registration.email_normalized }}" data-fix-email-input>
+            <p class="mt-1 text-xs app-muted" data-fix-email-hint hidden></p>
+            <p class="settings-helper">Wait a minute between requests. Confirmation links expire after 7 days.</p>
+            <div class="flex flex-wrap gap-2 border-t app-border pt-5">
+              <button type="submit" class="primer-button">Send confirmation to this address</button>
+            </div>
+          </form>
+        </div>
+
+        {% if registration_wall %}
+          <p class="mt-3 text-sm app-text">
+            After confirming your email, your application will be reviewed. Only approved applicants join the full course path.
+          </p>
+        {% endif %}
+      </div>
+      {% endif %}
     {% else %}
       <div class="mb-4">
         <h2 class="text-xl font-semibold app-heading">Register</h2>
@@ -159,6 +199,9 @@
               {% if field.help_text %}
                 <p class="mt-1 text-xs app-muted">{{ field.help_text }}</p>
               {% endif %}
+              {% if field.name == 'email' and not user.is_authenticated %}
+                <p class="mt-1 text-xs app-muted" data-email-typo-hint hidden></p>
+              {% endif %}
               {% if field.name == 'email' and user.is_authenticated %}
                 <p class="mt-1 text-xs app-muted">
                   <a href="{% url 'account_logout' %}?next={{ request.path }}" class="app-link">Log out</a> to use a different email address.
@@ -187,6 +230,79 @@
 {% block extra_js %}
   {{ block.super }}
   <script src="{% static 'country_combobox.js' %}"></script>
+  <script>
+    // Client-side "did you mean ...?" hint for common email domain typos.
+    // Non-blocking: the server still validates and rejects unknown domains.
+    (function () {
+      const TYPO_MAP = {
+        "hmail.com": "gmail.com",
+        "gamil.com": "gmail.com",
+        "gmali.com": "gmail.com",
+        "gmial.com": "gmail.com",
+        "gmai.com": "gmail.com",
+        "gmal.com": "gmail.com",
+        "gmail.co": "gmail.com",
+        "gmail.con": "gmail.com",
+        "gmail.cm": "gmail.com",
+        "gnail.com": "gmail.com",
+        "yahooo.com": "yahoo.com",
+        "yaho.com": "yahoo.com",
+        "yahoo.con": "yahoo.com",
+        "yahoo.co": "yahoo.com",
+        "hotmial.com": "hotmail.com",
+        "hotmai.com": "hotmail.com",
+        "hotmail.con": "hotmail.com",
+        "hotamil.com": "hotmail.com",
+        "outlok.com": "outlook.com",
+        "outllok.com": "outlook.com",
+        "outlook.co": "outlook.com",
+        "outlook.con": "outlook.com",
+        "iclod.com": "icloud.com",
+        "icloud.con": "icloud.com",
+        "protonmai.com": "protonmail.com"
+      };
+
+      function suggestionFor(value) {
+        const at = value.lastIndexOf("@");
+        if (at < 1) return null;
+        const local = value.slice(0, at);
+        const domain = value.slice(at + 1).toLowerCase();
+        if (!local || !domain || domain.indexOf("@") !== -1) return null;
+        const mapped = TYPO_MAP[domain];
+        if (mapped) return local + "@" + mapped;
+        return null;
+      }
+
+      function watchEmailInput(input, hint) {
+        if (!input || !hint) return;
+        const update = () => {
+          const suggestion = suggestionFor(input.value.trim());
+          if (suggestion) {
+            hint.textContent = "Did you mean " + suggestion + "?";
+            hint.hidden = false;
+          } else {
+            hint.textContent = "";
+            hint.hidden = true;
+          }
+        };
+        input.addEventListener("input", update);
+        update();
+      }
+
+      document.querySelectorAll('[data-registration-form]').forEach((form) => {
+        watchEmailInput(
+          form.querySelector('input[type="email"]'),
+          form.querySelector("[data-email-typo-hint]")
+        );
+      });
+      document.querySelectorAll('[data-fix-email-form]').forEach((form) => {
+        watchEmailInput(
+          form.querySelector("[data-fix-email-input]"),
+          form.querySelector("[data-fix-email-hint]")
+        );
+      });
+    })();
+  </script>
   <script>
     document.querySelectorAll('[data-registration-form]').forEach((form) => {
       const submitButton = form.querySelector('[data-registration-submit]');

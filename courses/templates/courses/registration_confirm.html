@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirm your registration - DataTalks.Club{% endblock %}
+
+{% block breadcrumbs %}
+  {% if campaign %}
+    <li><a href="{% url 'course_list' %}">Courses</a></li>
+    <li><a href="{% url 'registration_campaign' campaign.slug %}">{{ campaign.title }} registration</a></li>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<section class="space-y-8">
+  <div class="min-w-0">
+    {% if outcome == "confirmed" or outcome == "already_confirmed" %}
+      <div class="rounded-md border app-alert-success px-4 py-3">
+        <h1 class="text-2xl font-semibold app-heading">Your email is confirmed</h1>
+        <p class="mt-2 text-sm app-text">
+          {% if outcome == "already_confirmed" %}
+            This address was already confirmed.
+          {% else %}
+            Thank you for confirming your email.
+          {% endif %}
+          {% if registration %}
+            Your email for {{ campaign.title }} ({{ registration.email }}) is confirmed.
+            {% if registration.course.requires_registration_approval %}
+              Your application status is {{ registration.get_status_display }}. Email confirmation does not grant course approval.
+            {% else %}
+              Your registration is now complete.
+            {% endif %}
+          {% endif %}
+        </p>
+        {% if campaign and campaign.current_course %}
+          <a href="{% url 'course' campaign.current_course.slug %}" class="primer-button mt-3">
+            Start course
+          </a>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="rounded-md border app-alert-warning px-4 py-3">
+        <h1 class="text-2xl font-semibold app-heading">Confirmation link {% if outcome == "expired" %}expired{% else %}invalid{% endif %}</h1>
+        <p class="mt-2 text-sm app-text">
+          {% if outcome == "expired" %}
+            This confirmation link is older than 7 days and no longer works.
+          {% else %}
+            We could not find a registration for this confirmation link. It may have been used already, or the address may have changed.
+          {% endif %}
+        </p>
+        {% if registration and campaign %}
+          <p class="mt-2 text-sm app-text">
+            We can send a fresh confirmation email to {{ registration.email_normalized }}.
+          </p>
+          <form method="post" action="{% url 'registration_confirmation_resend' %}" class="mt-3">
+            {% csrf_token %}
+            <input type="hidden" name="token" value="{{ registration.confirmation_management_token|default:"" }}">
+            <button type="submit" class="primer-button">Resend confirmation email</button>
+          </form>
+        {% elif campaign %}
+          <p class="mt-2 text-sm app-text">
+            <a href="{% url 'registration_campaign' campaign.slug %}" class="app-link">Register again</a>.
+          </p>
+        {% else %}
+          <p class="mt-2 text-sm app-text">Request a fresh link using the address and course you registered with.</p>
+          <form method="post" action="{% url 'registration_confirmation_resend' %}" class="mt-4 space-y-4">
+            {% csrf_token %}
+            <div>
+              <label for="recovery-email" class="settings-label">Email address</label>
+              <input id="recovery-email" type="email" name="email" class="form-control" required>
+            </div>
+            <div>
+              <label for="recovery-campaign" class="settings-label">Course</label>
+              <select id="recovery-campaign" name="campaign_slug" class="form-control" required>
+                {% for item in campaigns %}
+                  <option value="{{ item.slug }}">{{ item.title }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="flex flex-wrap gap-2 border-t app-border pt-5">
+              <button type="submit" class="primer-button">Resend confirmation email</button>
+            </div>
+          </form>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

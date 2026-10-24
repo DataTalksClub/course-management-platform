@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import hashlib
 from typing import Any
 
 from django.utils.dateformat import format as format_date
@@ -21,7 +22,7 @@ class RegistrationConfirmationPayloadData:
     email: str
 
 
-def registration_confirmation_urls(campaign, course) -> dict[str, str]:
+def registration_confirmation_urls(campaign, course, token="") -> dict[str, str]:
     registration_kwargs = {"campaign_slug": campaign.slug}
     registration_url = public_route_url(
         "registration_campaign",
@@ -32,10 +33,17 @@ def registration_confirmation_urls(campaign, course) -> dict[str, str]:
         course_kwargs = {"course_slug": course.slug}
         course_url = public_route_url("course", course_kwargs)
     profile_url = public_route_url("account_settings")
+    confirmation_url = ""
+    if token:
+        confirmation_url = public_route_url(
+            "registration_confirm",
+            {"token": token},
+        )
     return {
         "registration_url": registration_url,
         "course_url": course_url,
         "profile_url": profile_url,
+        "confirmation_url": confirmation_url,
     }
 
 
@@ -75,15 +83,18 @@ def registration_confirmation_context(registration, campaign, course, urls):
     profile_url = urls["profile_url"]
     course_context = registration_confirmation_course_context(course)
     context = {
-        "email_subject": f"Registration confirmed: {campaign.title}",
+        "email_subject": f"Confirm your registration: {campaign.title}",
         "campaign_title": campaign.title,
         "campaign_slug": campaign.slug,
         "registration_id": registration.pk,
         "registration_url": urls["registration_url"],
         "course_url": urls["course_url"],
         "profile_url": profile_url,
+        "confirmation_url": urls.get("confirmation_url", ""),
         "intro_text": (
-            f"Your registration for {campaign.title} is confirmed."
+            f"Thanks for registering for {campaign.title}! "
+            "Please click the confirmation link to complete "
+            "your registration."
         ),
         "next_steps_text": (
             "Closer to the start, we will send you another email with "
@@ -114,7 +125,8 @@ def registration_confirmation_payload(registration) -> dict[str, Any] | None:
 
     campaign = registration.campaign
     course = registration.course
-    urls = registration_confirmation_urls(campaign, course)
+    token = registration.email_confirmation_token or ""
+    urls = registration_confirmation_urls(campaign, course, token=token)
     payload_data = RegistrationConfirmationPayloadData(
         config=config,
         registration=registration,
@@ -130,9 +142,11 @@ def registration_confirmation_delivery_fields(
     data: RegistrationConfirmationPayloadData,
 ) -> dict[str, Any]:
     category = EMAIL_PREFERENCE_CATEGORIES["email_course_updates"]
-    idempotency_key = (
-        f"registration-confirmation:{data.registration.pk}"
-    )
+    token = data.registration.email_confirmation_token or ""
+    idempotency_key = f"registration-confirmation:{data.registration.pk}"
+    if token:
+        generation = hashlib.sha256(token.encode()).hexdigest()[:24]
+        idempotency_key += f":{generation}"
     return {
         "audience": data.config.audience,
         "client": data.config.client,

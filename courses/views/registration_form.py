@@ -1,5 +1,9 @@
 from django import forms
 
+from courses.email_validation import (
+    email_domain_has_mx,
+    suggest_email_correction,
+)
 from courses.models.course import CourseRegistration
 from courses.registration import region_for_country
 from courses.views.registration_profile import (
@@ -60,7 +64,9 @@ def configure_registration_form_fields(form):
     for field_name in OPTIONAL_REGISTRATION_FIELDS:
         form.fields[field_name].required = False
 
-    country_widget = forms.TextInput(attrs=COUNTRY_COMBOBOX_WIDGET_ATTRS)
+    country_widget = forms.TextInput(
+        attrs=COUNTRY_COMBOBOX_WIDGET_ATTRS
+    )
     form.fields["country"].widget = country_widget
 
     role_choices = [("", "Select role")]
@@ -240,7 +246,9 @@ class CourseRegistrationForm(forms.ModelForm):
         course = getattr(campaign, "current_course", None)
         if course is None:
             return False
-        return bool(getattr(course, "requires_registration_approval", False))
+        return bool(
+            getattr(course, "requires_registration_approval", False)
+        )
 
     def apply_registration_wall_requirements(self):
         if not self.campaign_has_registration_wall():
@@ -266,6 +274,15 @@ class CourseRegistrationForm(forms.ModelForm):
         if registration_email_taken(self.campaign, email_normalized):
             raise forms.ValidationError(
                 "You have already registered for this course."
+            )
+        suggestion = suggest_email_correction(email_normalized)
+        if suggestion and suggestion.lower() != email_normalized:
+            raise forms.ValidationError(f"Did you mean {suggestion}?")
+        mx_result = email_domain_has_mx(email_normalized)
+        if mx_result is False:
+            raise forms.ValidationError(
+                "That email domain does not accept mail. "
+                "Please check the address."
             )
         return email_normalized
 
@@ -303,6 +320,15 @@ class CourseRegistrationForm(forms.ModelForm):
         if has_authenticated_registration_user(self.user):
             registration.user = self.user
             registration.email = self.user.email
+        else:
+            # clean_email() normalizes; keep the exact address the user
+            # typed so the pending page can show it back verbatim.
+            raw_email = ""
+            if hasattr(self, "data") and self.data is not None:
+                raw_email = self.data.get("email", "")
+            raw_email = (raw_email or "").strip()
+            if raw_email:
+                registration.email = raw_email
         if commit:
             registration.save()
             save_registration_user_profile(self.user, registration)
