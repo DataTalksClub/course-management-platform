@@ -7,6 +7,7 @@ from ..client import DatamailerConfig
 from ..payloads.peer_review import (
     peer_review_assignment_notification_payload,
 )
+from .transactional import notification_config_or_audit
 from .recipient_list_send import (
     DatamailerNotificationErrorData,
     RecipientListSendSyncData,
@@ -27,7 +28,9 @@ class PeerReviewAssignmentSendData:
 def send_peer_review_assignment_notification(
     project,
 ) -> dict[str, Any] | None:
-    config = DatamailerConfig.from_settings()
+    config = notification_config_or_audit(
+        "peer-review-assignment", project.pk, recipient_list=True
+    )
     if config is None:
         return None
 

@@ -18,7 +18,10 @@ from .bulk import (
     RecipientListBulkUpsertData,
     bulk_upsert_recipient_list_members_before_send,
 )
-from .transactional import send_transactional_and_audit
+from .transactional import (
+    notification_config_or_audit,
+    send_transactional_and_audit,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +41,9 @@ class CertificateAvailabilitySendData:
 def send_certificate_availability_notification(
     enrollment,
 ) -> dict[str, Any] | None:
-    config = DatamailerConfig.from_settings()
+    config = notification_config_or_audit(
+        "certificate-availability-notification", enrollment.pk
+    )
     if config is None:
         return None
 

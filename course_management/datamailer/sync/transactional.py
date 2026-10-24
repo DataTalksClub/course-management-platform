@@ -50,6 +50,7 @@ def send_transactional_email(
 def handle_transactional_config_error(
     payload: dict[str, Any],
     reason: str,
+    send_type: str = DatamailerSendAuditType.TRANSACTIONAL,
 ) -> None:
     logger.error("Datamailer transactional email failed: %s", reason)
     payload_copy = dict(payload)
@@ -65,7 +66,7 @@ def handle_transactional_config_error(
         payload_copy["idempotency_key"] = f"transactional:relay-fail:{uuid.uuid4().hex}"
 
     audit_data = DatamailerSendAuditData(
-        send_type=DatamailerSendAuditType.TRANSACTIONAL,
+        send_type=send_type,
         payload=payload_copy,
         error=reason,
     )
@@ -75,7 +76,7 @@ def handle_transactional_config_error(
         "datamailer.health_warning",
         properties={
             "error": reason,
-            "send_type": DatamailerSendAuditType.TRANSACTIONAL,
+            "send_type": send_type,
             "template_key": payload_copy.get("template_key", ""),
             "idempotency_key": payload_copy.get("idempotency_key", ""),
         },
@@ -117,4 +118,29 @@ def handle_transactional_send_error(config, payload, exc):
     record_datamailer_send_audit(audit_data)
     if config.strict:
         raise
+    return None
+
+
+def notification_config_or_audit(template_key, object_id, *, recipient_list=False):
+    """Validate before payload builders can silently return for missing config.
+
+    Record the attempted notification's identity even when configuration is
+    insufficient to construct its recipient payload.
+    """
+    valid, reason, config = validate_relay_config()
+    if valid and config is not None:
+        return config
+    send_type = (
+        DatamailerSendAuditType.RECIPIENT_LIST
+        if recipient_list else DatamailerSendAuditType.TRANSACTIONAL
+    )
+    handle_transactional_config_error(
+        {
+            "template_key": template_key,
+            "idempotency_key": f"relay-config:{template_key}:{object_id}",
+            "metadata": {"source": "course-management-platform"},
+        },
+        reason or RELAY_CONFIG_MISSING,
+        send_type=send_type,
+    )
     return None

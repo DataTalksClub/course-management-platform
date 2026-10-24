@@ -34,7 +34,23 @@ def is_production() -> bool:
         or getattr(settings, "OBSERVABILITY_ENVIRONMENT", None)
         or ""
     ).lower().strip()
-    return env in ("production", "prod")
+    # The private production release and its public rolling follower retain
+    # the historical "staging" environment (deploy/coolify/README.md).
+    # The isolated development service uses "dev".
+    return env in ("production", "prod", "staging")
+
+
+def _valid_relay_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+        # Accessing hostname/port also validates malformed IPv6 and ports.
+        return bool(
+            parsed.scheme in ("http", "https")
+            and parsed.hostname
+            and (parsed.port is None or parsed.port > 0)
+        )
+    except ValueError:
+        return False
 
 
 def validate_relay_config() -> tuple[bool, str, "DatamailerConfig | None"]:
@@ -55,8 +71,7 @@ def validate_relay_config() -> tuple[bool, str, "DatamailerConfig | None"]:
     if not client or not audience:
         return False, RELAY_CONFIG_MISSING, None
 
-    parsed = urlparse(url)
-    if not (parsed.scheme in ("http", "https") and parsed.netloc):
+    if not _valid_relay_url(url):
         return False, RELAY_CONFIG_INVALID, None
 
     config = DatamailerConfig.from_settings()
@@ -125,8 +140,7 @@ class DatamailerConfig:
         if not all([url, api_key, client, audience]):
             return None
 
-        parsed = urlparse(url)
-        if not (parsed.scheme in ("http", "https") and parsed.netloc):
+        if not _valid_relay_url(url):
             return None
 
         strict = getattr(settings, "RELAY_STRICT", False)

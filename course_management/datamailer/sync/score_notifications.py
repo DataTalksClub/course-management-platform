@@ -7,13 +7,13 @@ from course_management.datamailer_outbox import (
     enqueue_datamailer_outbox_event,
 )
 
-from ..client import DatamailerConfig
 from ..keys import homework_submitters_list_key, project_submitters_list_key
 from ..payloads.homework_scores import homework_score_notification_payload
 from ..payloads.project_outcomes import (
     project_passed_recipient_list_payload,
 )
 from ..payloads.project_scores import project_score_notification_payload
+from .transactional import notification_config_or_audit
 from .recipient_list_send import (
     DatamailerNotificationErrorData,
     RecipientListSendSyncData,
@@ -55,7 +55,9 @@ def queue_project_score_notification(project):
 
 
 def send_homework_score_notification(homework) -> dict[str, Any] | None:
-    config = DatamailerConfig.from_settings()
+    config = notification_config_or_audit(
+        "homework-score-notification", homework.pk, recipient_list=True
+    )
     if config is None:
         return None
 
@@ -100,7 +102,9 @@ def _send_homework_score_notification_if_ready(config, list_key, payload):
 
 
 def send_project_score_notification(project) -> dict[str, Any] | None:
-    config = DatamailerConfig.from_settings()
+    config = notification_config_or_audit(
+        "project-score-notification", project.pk, recipient_list=True
+    )
     if config is None:
         return None
 
