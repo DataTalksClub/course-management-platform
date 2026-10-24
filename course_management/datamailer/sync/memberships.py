@@ -6,11 +6,9 @@ from ..payloads.base import (
 from ..payloads.project_outcomes import (
     project_passed_recipient_list_member_payload,
 )
-from ..payloads.registration_contacts import (
-    registration_contact_payload,
-)
-from ..payloads.registration_members import (
-    registration_recipient_list_payload,
+# The registration mutation API still imports this compatibility name.
+from course_management.relay.registration import (
+    sync_registration_to_relay as sync_registration_to_datamailer,
 )
 from ..payloads.submissions import (
     homework_submission_recipient_list_payload,
@@ -22,22 +20,6 @@ from .membership_events import (
     remove_recipient_list_memberships,
     sync_contact_and_membership,
 )
-
-
-def sync_registration_to_datamailer(registration) -> None:
-    config = DatamailerConfig.from_settings()
-    if config is None:
-        return
-
-    contact_payload = registration_contact_payload(registration)
-    list_payload = registration_recipient_list_payload(registration)
-    sync_data = ContactMembershipSyncData(
-        contact_payload=contact_payload,
-        list_payload=list_payload,
-        label="registration",
-        obj=registration,
-    )
-    sync_contact_and_membership(sync_data)
 
 
 def sync_enrollment_to_datamailer(enrollment) -> None:

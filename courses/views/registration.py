@@ -6,10 +6,10 @@ from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
-from course_management.datamailer.sync.memberships import (
-    sync_registration_to_datamailer,
+from course_management.relay.registration import (
+    sync_registration_to_relay,
 )
-from course_management.datamailer.sync.notifications import (
+from course_management.relay.notifications import (
     send_registration_confirmation_email,
 )
 from course_management.observability import record_event
@@ -84,7 +84,7 @@ def _save_registration_if_valid(
 
     registration = form.save()
     sync_callback = partial(
-        sync_registration_to_datamailer,
+        sync_registration_to_relay,
         registration,
     )
     email_callback = partial(
