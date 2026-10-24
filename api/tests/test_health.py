@@ -57,6 +57,24 @@ class HealthViewTests(TestCase):
         self.assertEqual(data.get("relay_status"), "ok")
 
     @override_settings(
+        **{
+            **RELAY_HEALTHY_SETTINGS,
+            "OBSERVABILITY_ENVIRONMENT": "dev",
+            "ENVIRONMENT": "dev",
+            "RELAY_API_KEY": "",
+            "RELAY_TRANSACTIONAL_DRY_RUN": True,
+        },
+    )
+    def test_health_empty_api_key_on_dev_is_ok(self):
+        url = reverse("api_health")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data.get("relay_status"), "unconfigured")
+
+    @override_settings(
         **{**RELAY_HEALTHY_SETTINGS, "RELAY_API_KEY": ""},
     )
     def test_health_empty_api_key_fails_loudly(self):

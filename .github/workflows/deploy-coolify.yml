@@ -264,3 +264,25 @@ jobs:
           print(f"::error::Timed out waiting for {want} to run (last: {last})", flush=True)
           sys.exit(1)
           PY
+
+      - name: "Guard: verify dev health endpoint is healthy (cfaf0378)"
+        # Fails loudly if dev CMP returns 503 or unhealthy after deploy.
+        run: |
+          set -euo pipefail
+          echo "Verifying dev health endpoint (https://dev.courses.datatalks.club/api/health/)..."
+          healthy=false
+          resp=""
+          for i in $(seq 1 12); do
+            resp=$(curl -fsS --max-time 10 https://dev.courses.datatalks.club/api/health/ || true)
+            echo "Attempt $i: $resp"
+            if echo "$resp" | grep -q '"status": *"ok"'; then
+              healthy=true
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$healthy" != "true" ]]; then
+            echo "::error::https://dev.courses.datatalks.club/api/health/ failed health check: $resp"
+            exit 1
+          fi
+          echo "Dev health check OK."

@@ -9,7 +9,11 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
-from course_management.datamailer.client import get_relay_health_status
+from course_management.datamailer.client import (
+    RELAY_CONFIG_MISSING,
+    get_relay_health_status,
+    is_production,
+)
 
 
 @require_GET
@@ -21,12 +25,23 @@ def health_view(request):
         JSON response with version and status information.
     """
     relay_health = get_relay_health_status()
+    is_prod = is_production()
     is_healthy = relay_health["status"] == "ok"
+
+    if (
+        not is_healthy
+        and not is_prod
+        and relay_health.get("error") == RELAY_CONFIG_MISSING
+    ):
+        is_healthy = True
+        relay_status = "unconfigured"
+    else:
+        relay_status = relay_health.get("relay_status", relay_health["status"])
 
     payload = {
         "status": "ok" if is_healthy else "FAIL",
         "version": settings.VERSION,
-        "relay_status": relay_health["status"],
+        "relay_status": relay_status,
     }
 
     if not is_healthy:
