@@ -227,6 +227,21 @@ class EmailCampaignAdmin(ModelAdmin):
 
 @admin.register(CourseRegistration)
 class CourseRegistrationAdmin(ModelAdmin):
+    actions = ["approve_selected", "reject_selected"]
+
+    @admin.action(description="Approve selected applications")
+    def approve_selected(self, request, queryset):
+        from courses.registration_wall import approve_registration
+
+        for registration in queryset.order_by("pk"):
+            approve_registration(registration)
+
+    @admin.action(description="Reject selected applications")
+    def reject_selected(self, request, queryset):
+        for registration in queryset.order_by("pk"):
+            registration.status = CourseRegistration.Status.REJECTED
+            registration.save(update_fields=["status", "updated_at"])
+
     list_display = [
         "email_normalized",
         "campaign",

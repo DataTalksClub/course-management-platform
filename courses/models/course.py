@@ -333,7 +333,23 @@ class CourseRegistration(models.Model):
         self.email_normalized = email_stripped.lower()
         if self.campaign and self.course_id is None:
             self.course = self.campaign.current_course
-        super().save(*args, **kwargs)
+        from django.db import transaction
+        from course_management.relay.application_notifications import (
+            queue_application_notifications,
+        )
+
+        # Lock the persisted status so concurrent/repeated review requests
+        # cannot enqueue the same decision twice. Queue in the same commit.
+        with transaction.atomic():
+            previous = None
+            if self.pk:
+                previous = type(self).objects.select_for_update().filter(
+                    pk=self.pk,
+                ).values_list("status", flat=True).first()
+            super().save(*args, **kwargs)
+            fields = kwargs.get("update_fields")
+            if previous is None or fields is None or "status" in fields:
+                queue_application_notifications(self, previous)
 
     def __str__(self):
         return f"{self.email_normalized} registered for {self.campaign}"

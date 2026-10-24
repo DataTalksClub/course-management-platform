@@ -1,4 +1,5 @@
 from . import course, project, homework, wrapped  # noqa: F401
+from .application_notification import ApplicationNotification
 
 from django.contrib.auth import get_user_model
 
@@ -41,6 +42,7 @@ from .wrapped import UserWrappedStatistics, WrappedStatistics
 User = get_user_model()
 
 __all__ = (
+    "ApplicationNotification",
     "Answer",
     "AnswerTypes",
     "Course",

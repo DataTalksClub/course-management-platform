@@ -232,6 +232,9 @@ CLOUDWATCH_APP_METRIC_REGION = os.getenv(
 )
 
 RELAY_URL = os.getenv("RELAY_URL", "")
+APPLICATION_NOTIFICATION_OPERATORS = env_list(
+    "APPLICATION_NOTIFICATION_OPERATORS", "alexey@datatalks.club",
+)
 RELAY_API_KEY = os.getenv("RELAY_API_KEY", "")
 RELAY_CLIENT = os.getenv("RELAY_CLIENT", "")
 RELAY_AUDIENCE = os.getenv("RELAY_AUDIENCE", "")

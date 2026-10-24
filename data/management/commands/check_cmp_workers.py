@@ -2,6 +2,7 @@ import json
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from data.models import CmpJobState, DatamailerOutboxEvent
+from courses.models import ApplicationNotification
 
 LIMITS = {'outbox': 300, 'health': 900, 'reminders': 26*3600}
 
@@ -25,6 +26,13 @@ def worker_alarms(now=None):
     ).exists()
     if overdue or abandoned:
         alarms.append('outbox:backlog_age')
+    if ApplicationNotification.objects.filter(status='failed').exists():
+        alarms.append('application_notifications:failed')
+    if ApplicationNotification.objects.filter(
+        status__in=['pending', 'processing'],
+        created_at__lt=now-timezone.timedelta(seconds=600),
+    ).exists():
+        alarms.append('application_notifications:backlog_age')
     return alarms
 
 
