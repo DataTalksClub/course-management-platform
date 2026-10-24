@@ -5,6 +5,7 @@ import pytest
 import requests
 
 from e2e.api_client import ApiError, ApiRequestData, CmpApiClient
+from e2e.config import ConfigError
 
 
 @dataclass(frozen=True)
@@ -44,9 +45,27 @@ class FakeSession:
 
 
 def client_with(responses):
-    client = CmpApiClient("https://cmp.example", "token-123")
+    client = CmpApiClient("http://localhost:8000", "token-123")
     client.session = FakeSession(responses)
     return client
+
+
+@pytest.mark.parametrize(
+    ("base_url", "error"),
+    [
+        ("https://courses.datatalks.club", "PRODUCTION"),
+        ("https://cmp.example", "non-DEV"),
+    ],
+)
+def test_client_refuses_unsafe_host_before_opening_session(
+    base_url, error, monkeypatch
+):
+    def unexpected_session():
+        pytest.fail("Unsafe target must be rejected before opening a session")
+
+    monkeypatch.setattr("e2e.api_client.requests.Session", unexpected_session)
+    with pytest.raises(ConfigError, match=error):
+        CmpApiClient(base_url, "token-123")
 
 
 def test_request_retries_network_errors(monkeypatch):
@@ -109,4 +128,5 @@ def test_request_serializes_json_payload():
     client._request(request_data)
 
     call = client.session.calls[0]
+    assert call.url == "http://localhost:8000/api/courses/"
     assert call.kwargs["data"] == '{"slug": "ml-zoomcamp"}'

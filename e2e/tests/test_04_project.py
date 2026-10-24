@@ -89,7 +89,7 @@ def test_project_confirmation_email(send_audits, run_state):
         )
     except SendAuditTimeout as exc:
         pytest.xfail(
-            "No project-confirmation send audit found; ensure Datamailer is "
+            "No project-confirmation send audit found; ensure Relay is "
             "configured on the target with RELAY_TRANSACTIONAL_DRY_RUN=1. "
             f"({exc})"
         )

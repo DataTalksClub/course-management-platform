@@ -25,7 +25,7 @@ class ApiError(RuntimeError):
 
 
 class SendAuditTimeout(AssertionError):
-    """Raised when no matching Datamailer send audit appears in time."""
+    """Raised when no matching Relay send audit appears in time."""
 
 
 @dataclass(frozen=True)
@@ -420,10 +420,10 @@ class CmpApiClient:
             time.sleep(poll_interval)
 
         raise SendAuditTimeout(
-            f"No Datamailer send audit for {email!r} with "
+            f"No Relay send audit for {email!r} with "
             f"template_key={template_key!r} / body~={body_contains!r} within "
             f"{timeout}s. Seen: {[a.get('idempotency_key') for a in seen]!r}. "
-            "Is Datamailer configured on the target with "
+            "Is Relay configured on the target with "
             "RELAY_TRANSACTIONAL_DRY_RUN=1?"
         )
 

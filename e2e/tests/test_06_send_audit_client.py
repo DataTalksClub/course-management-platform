@@ -61,7 +61,7 @@ class FakeSession:
 
 
 def _client(responses):
-    client = CmpApiClient("https://cmp.example", "token-123")
+    client = CmpApiClient("http://localhost:8000", "token-123")
     client.session = FakeSession(responses)
     return client
 
@@ -103,7 +103,7 @@ def test_send_audits_sends_token_and_query_params():
     call = client.session.calls[0]
     assert call.method == "GET"
     assert call.url.startswith(
-        "https://cmp.example/api/datamailer/send-audits?"
+        "http://localhost:8000/api/datamailer/send-audits?"
     )
     assert "email=e2e-smoke-1%40example.com" in call.url
     assert "template_key=homework-submission-confirmation" in call.url
@@ -114,7 +114,7 @@ def test_send_audits_sends_token_and_query_params():
 
 
 def test_client_sets_token_auth_header_on_session():
-    client = CmpApiClient("https://cmp.example", "token-123")
+    client = CmpApiClient("http://localhost:8000", "token-123")
     assert client.session.headers["Authorization"] == "Token token-123"
 
 
@@ -122,7 +122,7 @@ def test_send_audits_without_filters_hits_bare_path():
     client = _client([FakeResponse(200, {"audits": [], "count": 0})])
     assert client.datamailer_send_audits() == []
     call = client.session.calls[0]
-    assert call.url == "https://cmp.example/api/datamailer/send-audits"
+    assert call.url == "http://localhost:8000/api/datamailer/send-audits"
 
 
 # -- body matching ---------------------------------------------------------
@@ -282,11 +282,19 @@ def test_assert_safe_e2e_base_url_refuses_prod():
             assert_safe_e2e_base_url(url)
 
 
-def test_assert_safe_e2e_base_url_refuses_unknown_remote():
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://staging.courses.datatalks.club",
+        "https://cmp.example",
+        "https://dev.courses.datatalks.club.cmp.example",
+    ],
+)
+def test_assert_safe_e2e_base_url_refuses_unknown_remote(url):
     from e2e.config import ConfigError, assert_safe_e2e_base_url
 
     with pytest.raises(ConfigError, match="non-DEV"):
-        assert_safe_e2e_base_url("https://staging.courses.datatalks.club")
+        assert_safe_e2e_base_url(url)
 
 
 def test_load_settings_refuses_prod_base_url(monkeypatch):
