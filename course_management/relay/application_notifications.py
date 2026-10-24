@@ -42,7 +42,7 @@ def notification_context(registration):
     base = base.rstrip("/")
     course = registration.course
     return {
-        "name": registration.name,
+        "name": (registration.name or "").strip() or "Applicant",
         "applicant_email": registration.email_normalized,
         "campaign_title": registration.campaign.title,
         "course_title": course.title if course else registration.campaign.title,

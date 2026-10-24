@@ -199,3 +199,12 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
         model_admin.reject_selected(None, selected)
         for template in ["application-approved", "application-rejected"]:
             self.assertEqual(self.notifications().filter(template_key=template).count(), 2)
+
+    def test_blank_applicant_name_still_supplies_required_template_context(self):
+        registration = CourseRegistration.objects.create(
+            campaign=self.campaign, email="unnamed@example.com", name="",
+        )
+        approve_registration(registration)
+        self.assertEqual(self.notifications().count(), 2)
+        for notification in self.notifications():
+            self.assertEqual(notification.context["name"], "Applicant")
