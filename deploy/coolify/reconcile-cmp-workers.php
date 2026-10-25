@@ -21,7 +21,9 @@ Illuminate\Support\Facades\DB::transaction(function () use ($specs, $target, $ap
         }
         $changes = ['service_id' => $target->id, 'application_id' => null,
             'container' => 'web', 'command' => "python manage.py run_cmp_job $job",
-            'frequency' => $frequency, 'enabled' => true, 'timeout' => 300];
+            'frequency' => $frequency, 'enabled' => true,
+            // Bulk reminders are paced below Relay's edge rate limit.
+            'timeout' => $job === 'reminders' ? 1800 : 300];
         if ($apply) { $task->update($changes); }
         echo json_encode(['task' => $uuid, 'job' => $job, 'frequency' => $frequency,
             'timezone' => 'UTC', 'applied' => $apply]).PHP_EOL;

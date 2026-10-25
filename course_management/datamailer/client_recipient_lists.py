@@ -1,6 +1,7 @@
 from typing import Any
 
 from .client_chunking import chunk_payload_by_members
+from .client_pacing import PacedMemberRequest
 from .client_types import DatamailerRequest, DatamailerRequestData
 
 
@@ -13,6 +14,9 @@ class DatamailerRecipientListClients:
         self.members = DatamailerRecipientListMemberClient(config, request)
         self.imports = DatamailerRecipientListImportClient(config, request)
         self.sends = DatamailerRecipientListSendClient(config, request)
+        paced_request = PacedMemberRequest(request)
+        self.members.member_request = paced_request
+        self.sends.member_request = paced_request
 
 
 class DatamailerRecipientListMemberClient:
@@ -23,6 +27,7 @@ class DatamailerRecipientListMemberClient:
     ):
         self.config = config
         self.request = request
+        self.member_request = PacedMemberRequest(request)
 
     def upsert(
         self,
@@ -91,7 +96,7 @@ class DatamailerRecipientListMemberClient:
                 path=f"/api/recipient-lists/{list_key}/members/bulk-upsert",
                 json=chunk,
             )
-            response = self.request(request_data)
+            response = self.member_request(request_data)
             if response is None:
                 continue
             for key in ("created_count", "updated_count"):
@@ -164,6 +169,7 @@ class DatamailerRecipientListSendClient:
     ):
         self.config = config
         self.request = request
+        self.member_request = PacedMemberRequest(request)
 
     def send_to_list(
         self,
@@ -200,7 +206,7 @@ class DatamailerRecipientListSendClient:
                 path="/api/transient-recipient-lists/transactional-send",
                 json=chunk,
             )
-            response = self.request(request_data)
+            response = self.member_request(request_data)
             if response is None:
                 continue
             for key in count_keys:

@@ -36,6 +36,14 @@ current deadline windows using `send_deadline_reminders --dry-run`; never pass
 historical `--now` values in production as a catch-up shortcut. Preserve audit
 and failed rows for owner disposition.
 
+Bulk member upserts and transient reminder sends share a per-client pace of
+one request start per 1.25 seconds (at most 240 starts per five minutes),
+leaving headroom under Relay's 300/5m per-IP edge limit. Bodies remain below
+7 KiB. The reminder schedule timeout is 1800 seconds; the other jobs retain
+300 seconds. A large reminder run can legitimately take over ten minutes.
+Partial sends retain the same per-member idempotency keys on recovery; inspect
+the current window before retrying. Do not change keys or replay old windows.
+
 `reconcile-cmp-workers.php` is the idempotent schedule definition. Copy it into
 the Coolify container, run `php` on the file for a dry run, and add `--apply`
 after verifying the image and database migration. It moves existing schedules;
@@ -51,9 +59,11 @@ Payload-free alarms cover missing/stale success (outbox 300s, health 900s,
 reminders 26h), failed last attempts, due backlog older than 300s, and processing
 older than 540s. State under `/var/lib/cmp-worker-monitor` enforces hysteresis
 via `CMP_FAIL_THRESHOLD` (default 2 consecutive failing evaluations 60s apart)
-to avoid false alarms during container replacement or rolling restarts while
-detecting true outages within 60s of breach (worst-case detection delay:
-outbox 360s, health 960s, reminders 26h+60s, backlog 360s). It deduplicates mail
+to avoid false alarms during container replacement or rolling restarts.
+Two minute-spaced evaluations add up to 120s after a breach, plus check time
+(45s timeout for the single stable runner). Detection bounds, including that
+timeout, are outbox/backlog 465s, health 1065s, and reminders 26h+165s from
+last success/due time. Email transport latency is additional. It deduplicates mail
 for one hour; recovery sends once. The monitor never runs jobs. Configure overrides
 in root-only `/etc/cmp-worker-monitor.env` if the service runner or thresholds change.
 

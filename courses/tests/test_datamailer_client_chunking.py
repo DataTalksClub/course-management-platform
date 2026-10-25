@@ -1,7 +1,8 @@
 import json
 
 import requests
-from django.test import TestCase
+from django.test import SimpleTestCase
+from unittest.mock import patch
 
 from course_management.datamailer.client import (
     DatamailerClient,
@@ -75,7 +76,16 @@ def Mock_response():
     return response
 
 
-class BulkUpsertChunkingTest(TestCase):
+class BulkUpsertChunkingTest(SimpleTestCase):
+    def setUp(self):
+        self.clock = 0.0
+        self.addCleanup(patch.stopall)
+        patch("time.monotonic", side_effect=lambda: self.clock).start()
+        patch("time.sleep", side_effect=self.advance_clock).start()
+
+    def advance_clock(self, seconds):
+        self.clock += seconds
+
     def config(self):
         return DatamailerConfig(
             url="https://relay.example.com",
@@ -205,3 +215,38 @@ class BulkUpsertChunkingTest(TestCase):
         self.assertEqual(len(session.request_bodies), 1)
         self.assertEqual(seen, payload)
         self.assertEqual(response["enqueued_count"], 5)
+
+    def test_large_reminders_stay_below_edge_rate_limit_across_events(self):
+        starts = []
+
+        def respond(chunk):
+            starts.append(self.clock)
+            recent = [start for start in starts if self.clock - start < 300]
+            if len(recent) > 300:
+                raise requests.HTTPError("403: edge rate limit")
+            self.advance_clock(0.5)
+            return json_response({"created_count": len(chunk["members"])})
+
+        client = DatamailerClient(self.config(), session=WafSession(respond))
+        # Large per-recipient deadline context, as in the production run.
+        members = [member(i) | {"metadata": {"deadline": "x" * 3200}} for i in range(680)]
+        for event in ("homework", "project"):
+            payload = transient_send_payload(members)
+            payload["idempotency_key"] = event
+            response = client.recipient_lists.sends.send_to_transient_list(payload)
+            self.assertEqual(response["created_count"], len(members))
+
+        self.assertGreater(len(starts), 300)
+        self.assertTrue(all(b - a >= 1.25 for a, b in zip(starts, starts[1:])))
+
+    def test_edge_errors_remain_visible_without_blind_retries(self):
+        def reject(chunk):
+            raise requests.HTTPError("403: forbidden")
+
+        session = WafSession(reject)
+        client = DatamailerClient(self.config(), session=session)
+        with self.assertRaisesMessage(requests.HTTPError, "403: forbidden"):
+            client.recipient_lists.sends.send_to_transient_list(
+                transient_send_payload([member(1)])
+            )
+        self.assertEqual(len(session.request_bodies), 1)
