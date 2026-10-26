@@ -161,6 +161,11 @@ class RegistrationDigestTests(RegistrationCampaignBase):
         row = RegistrationDigestSend.objects.get(date=DUE_NOW.date())
         self.assertEqual(row.status, DigestModel.Status.SKIPPED_EMPTY)
         self.assertEqual(row.total_count, 0)
+        with patch(self.request_path(), side_effect=relay_ok) as request:
+            repeat = send_registration_digest(now=DUE_NOW)
+        self.assertFalse(repeat.sent)
+        self.assertEqual(repeat.reason, "already-sent")
+        request.assert_not_called()
 
     def test_digest_is_idempotent_per_day(self):
         from course_management.relay.registration_digest import send_registration_digest

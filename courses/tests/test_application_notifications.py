@@ -44,7 +44,7 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
         from courses.models import ApplicationNotification
         return ApplicationNotification.objects.all()
 
-    def test_new_pending_application_notifies_operator_once(self):
+    def test_new_registration_creates_no_operator_notification(self):
         registration = self.registration()
         registration.name = "Updated"
         registration.save()

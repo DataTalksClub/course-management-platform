@@ -61,8 +61,10 @@ restarts and rolling overlap reuse the same Relay idempotency keys
 the same day twice. A `--force` resend reuses the same keys.
 
 When the window holds zero registrations no email is sent; a `skipped_empty`
-row records the decision (this is the chosen zero-case behavior). Digest
-trouble never blocks the outbox: failures are logged with a sanitized error,
+row records the decision (this is the chosen zero-case behavior). The window
+is always the literal previous 24h, so on the Europe/Berlin DST switch days
+it shifts by one hour against local midnight; the Berlin date still changes
+exactly once per day. Digest trouble never blocks the outbox: failures are logged with a sanitized error,
 emit `datamailer.health_warning`, mark the `digest` job failed for the
 `check_cmp_workers` 26h alarm, and retry on the next minute tick. Manual use:
 

@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand, CommandError
 
 from course_management.relay.registration_digest import (
@@ -20,7 +22,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--force",
             action="store_true",
-            help="Resend even if today's digest was already sent.",
+            help="Bypass the local already-sent guard and re-run "
+            "(same Relay idempotency keys; Relay will not duplicate delivery).",
         )
         parser.add_argument(
             "--dry-run",
@@ -33,7 +36,6 @@ class Command(BaseCommand):
         day = digest_day(now)
         if options["dry_run"]:
             window_end = now
-            from datetime import timedelta
             registrations = collect_digest_registrations(
                 window_end - timedelta(hours=24), window_end,
             )

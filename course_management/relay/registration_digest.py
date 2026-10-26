@@ -68,10 +68,12 @@ def digest_due(now=None):
     ).exists()
 
 
-def digest_idempotency_key(day, index):
-    # Stable per day (and recipient slot) so restarts and rolling overlap
-    # never double-send even if Relay receives the request twice.
-    return f"cmp-registration-digest:{day.isoformat()}:{index}"
+def digest_idempotency_key(day, recipient):
+    # Stable per day and recipient so restarts and rolling overlap never
+    # double-send even if Relay receives the request twice. The recipient
+    # address is already part of the Relay payload, so the key adds no new
+    # PII exposure; keys never appear in logs.
+    return f"cmp-registration-digest:{day.isoformat()}:{recipient}"
 
 
 def collect_digest_registrations(window_start, window_end):
@@ -182,7 +184,13 @@ def mark_digest_job(started=False, succeeded=False, failed=False):
 
 
 def send_registration_digest(now=None, force=False):
-    """Send today's digest once. Raises on transport failure; never double-sends."""
+    """Send today's digest once. Raises on transport failure; never double-sends.
+
+    Without ``force``, any existing row for the day (sent or skipped_empty)
+    is final. Relay sends run outside the database transaction; a crash
+    between sending and recording retries with the same per-day,
+    per-recipient idempotency keys, which Relay deduplicates.
+    """
     moment = digest_moment(now)
     day = moment.astimezone(DIGEST_TIMEZONE).date()
     window_start = moment - DIGEST_WINDOW
@@ -196,11 +204,7 @@ def send_registration_digest(now=None, force=False):
                 existing = RegistrationDigestSend.objects.select_for_update().filter(
                     date=day,
                 ).first()
-                if (
-                    existing is not None
-                    and existing.status == RegistrationDigestSend.Status.SENT
-                    and not force
-                ):
+                if existing is not None and not force:
                     mark_digest_job(succeeded=True)
                     return DigestResult(
                         sent=False, reason="already-sent", date=day,
@@ -208,9 +212,6 @@ def send_registration_digest(now=None, force=False):
                         relay_message_ids=list(existing.relay_message_ids or []),
                     )
                 registrations = collect_digest_registrations(window_start, window_end)
-                confirmed = sum(
-                    1 for item in registrations if item.email_confirmed
-                )
                 if not registrations:
                     RegistrationDigestSend.objects.update_or_create(
                         date=day,
@@ -229,17 +230,18 @@ def send_registration_digest(now=None, force=False):
                     )
                     mark_digest_job(succeeded=True)
                     return DigestResult(sent=False, reason="empty", date=day)
-                context = build_digest_context(registrations, day)
-                recipients = operator_recipients()
-                message_ids = []
-                idempotency_keys = []
-                for index, recipient in enumerate(recipients):
-                    key = digest_idempotency_key(day, index)
-                    message_ids.append(send_transactional_message(
-                        DIGEST_TEMPLATE, recipient, context, key,
-                        source="cmp-registration-digest",
-                    ))
-                    idempotency_keys.append(key)
+            context = build_digest_context(registrations, day)
+            recipients = operator_recipients()
+            message_ids = []
+            idempotency_keys = []
+            for recipient in recipients:
+                key = digest_idempotency_key(day, recipient)
+                message_ids.append(send_transactional_message(
+                    DIGEST_TEMPLATE, recipient, context, key,
+                    source="cmp-registration-digest",
+                ))
+                idempotency_keys.append(key)
+            with transaction.atomic():
                 RegistrationDigestSend.objects.update_or_create(
                     date=day,
                     defaults={
@@ -247,20 +249,24 @@ def send_registration_digest(now=None, force=False):
                         "window_start": window_start,
                         "window_end": window_end,
                         "total_count": len(registrations),
-                        "confirmed_count": confirmed,
-                        "unconfirmed_count": len(registrations) - confirmed,
+                        "confirmed_count": sum(
+                            1 for item in registrations if item.email_confirmed
+                        ),
+                        "unconfirmed_count": sum(
+                            1 for item in registrations if not item.email_confirmed
+                        ),
                         "course_count": context["course_count"],
                         "recipients": list(recipients),
                         "relay_message_ids": message_ids,
                         "relay_idempotency_keys": idempotency_keys,
                     },
                 )
-                mark_digest_job(succeeded=True)
-                return DigestResult(
-                    sent=True, reason="sent", date=day,
-                    total_count=len(registrations),
-                    relay_message_ids=message_ids,
-                )
+            mark_digest_job(succeeded=True)
+            return DigestResult(
+                sent=True, reason="sent", date=day,
+                total_count=len(registrations),
+                relay_message_ids=message_ids,
+            )
         except Exception as exc:
             mark_digest_job(failed=True)
             # Never persist response bodies, credentials or recipient data.
@@ -283,13 +289,17 @@ def maybe_send_scheduled_digest(now=None):
     Returns a DigestResult (or None when not due). Never raises: digest
     trouble must not block Datamailer outbox processing.
     """
+    moment = digest_moment(now)
     try:
-        if not digest_due(now):
+        if not digest_due(moment):
             return None
-        return send_registration_digest(now=now)
+        return send_registration_digest(now=moment)
     except Exception as exc:
         logger.error(
             "Scheduled registration digest skipped error=%s",
             type(exc).__name__,
         )
-        return DigestResult(sent=False, reason="failed")
+        return DigestResult(
+            sent=False, reason="failed",
+            date=moment.astimezone(DIGEST_TIMEZONE).date(),
+        )

@@ -73,7 +73,9 @@ class WorkerRecoveryTests(TestCase):
         from io import StringIO
         now = timezone.now()
         for job in ['outbox','health','reminders','digest']:
-            CmpJobState.objects.create(job=job,last_success_at=now)
+            CmpJobState.objects.update_or_create(
+                job=job, defaults={'last_success_at': now, 'last_failed_at': None},
+            )
         self.assertEqual(worker_alarms(), [])
         CmpJobState.objects.filter(job='outbox').update(last_success_at=now-timedelta(minutes=6))
         DatamailerOutboxEvent.objects.create(
