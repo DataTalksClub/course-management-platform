@@ -1,2 +1,3 @@
-# Independent worker alarm; product cadence is owned solely by Coolify tasks 1-3.
+# Independent worker alarm; product cadence is owned solely by Coolify tasks 1-3
+# (the registration digest rides the outbox tick, no extra task).
 * * * * * root /usr/local/sbin/cmp-check-workers >> /var/log/cmp-worker-monitor.log 2>&1

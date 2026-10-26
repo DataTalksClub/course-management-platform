@@ -1,10 +1,11 @@
 # Application notifications through Relay
 
-New pending registrations for a course requiring approval create one durable
-`ApplicationNotification` per operator. `APPLICATION_NOTIFICATION_OPERATORS`
+New registrations no longer notify operators individually. Operators receive
+one daily registration digest instead (see below). `APPLICATION_NOTIFICATION_OPERATORS`
 is a comma-separated deployment setting; `alexey@datatalks.club` is always
 included, including when the setting is empty. Addresses are normalized and
-deduplicated. Open-course registrations do not notify operators.
+deduplicated. The digest covers every new registration regardless of the
+course wall setting.
 
 Changing an existing registration to approved or rejected creates an applicant
 notification in the same database transaction. Cadmin review, the approval
@@ -17,7 +18,10 @@ review decisions. Existing registration and wall rules remain unchanged.
 Relay client: `dtc-courses`. Templates use HTML and text bodies in CMP's existing
 per-site style, with no new client branding configuration:
 
-- `application-pending-operator`: applicant identity and pending review link.
+- `application-pending-operator`: retained for already-queued rows only; new
+  registrations no longer create it.
+- `registration-digest-operator`: daily digest, grouped by course with count,
+  name, email and confirmed/unconfirmed state per registrant, plus totals.
 - `application-approved`: acceptance, course workspace link and instruction to
   sign in using the application email address.
 - `application-rejected`: polite cohort rejection, without review internals.
@@ -44,3 +48,25 @@ logs a sanitized error, and emits the existing `datamailer.health_warning` event
 `check_cmp_workers` detects failed notifications and a backlog older than ten
 minutes, feeding the existing host operator alert transport. Failed sends retry
 after five minutes with the same key. No historical applications are backfilled.
+
+## Daily registration digest
+
+The minutely `process_datamailer_outbox` schedule calls
+`maybe_send_scheduled_digest()`: once per Europe/Berlin day after 09:00 it
+sends one digest covering the previous 24h of registrations (`created_at` in
+`[now - 24h, now)`), grouped by course with per-course pending-review links.
+One `RegistrationDigestSend` row per Berlin date makes the send idempotent:
+restarts and rolling overlap reuse the same Relay idempotency keys
+(`cmp-registration-digest:<date>:<recipient slot>`) and never record or send
+the same day twice. A `--force` resend reuses the same keys.
+
+When the window holds zero registrations no email is sent; a `skipped_empty`
+row records the decision (this is the chosen zero-case behavior). Digest
+trouble never blocks the outbox: failures are logged with a sanitized error,
+emit `datamailer.health_warning`, mark the `digest` job failed for the
+`check_cmp_workers` 26h alarm, and retry on the next minute tick. Manual use:
+
+```
+uv run python manage.py send_registration_digest --dry-run
+uv run python manage.py send_registration_digest --force
+```

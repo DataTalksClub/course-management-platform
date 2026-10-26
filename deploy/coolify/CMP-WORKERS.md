@@ -14,6 +14,18 @@ or additional host scheduler executes these jobs.
 | outbox | 1uyereuryah2gkppequp4vjn | python manage.py run_cmp_job outbox | every minute |
 | health | hhxzn2v587ml3a0tw87xbx79 | python manage.py run_cmp_job health | every five minutes |
 | reminders | qj3p3gksnxr74mvtqofqdm0k | python manage.py run_cmp_job reminders | daily 09:00 UTC |
+| digest | — (piggybacked on outbox) | maybe_send_scheduled_digest() inside process_datamailer_outbox | once per Europe/Berlin day after 09:00 Berlin |
+
+The digest needs no Coolify task: the minutely outbox tick in the stable
+container sends at most one digest per Europe/Berlin date (07:00 UTC in
+summer CEST, 08:00 UTC in winter CET — "around 09:00 Berlin" both ways),
+covering the previous 24h of registrations grouped by course. One
+`RegistrationDigestSend` row per Berlin date plus stable per-date Relay
+idempotency keys make it idempotent across restarts and rolling overlap.
+Zero registrations in the window means no email (a `skipped_empty` row is
+recorded). Digest failures never block the outbox; they retry on the next
+minute tick. Manual trigger: `python manage.py send_registration_digest`
+(`--dry-run` prints without sending; `--force` resends with the same keys).
 
 Business timezone is explicitly UTC, including reminder selection; no DST
 shift. Coolify server timezone must remain UTC. A failed or missed reminder
@@ -56,7 +68,7 @@ against the promoted database. Do not activate AWS schedules for failover.
 The independent host watchdog `check-workers.sh` runs from `cmp-workers.cron`
 every minute, outside Coolify's scheduler. It resolves the stable service runner container, runs `check_cmp_workers`, and alerts through the existing host MTA.
 Payload-free alarms cover missing/stale success (outbox 300s, health 900s,
-reminders 26h), failed last attempts, due backlog older than 300s, and processing
+reminders 26h, digest 26h), failed last attempts, due backlog older than 300s, and processing
 older than 540s. State under `/var/lib/cmp-worker-monitor` enforces hysteresis
 via `CMP_FAIL_THRESHOLD` (default 2 consecutive failing evaluations 60s apart)
 to avoid false alarms during container replacement or rolling restarts.
