@@ -156,7 +156,7 @@ def test_homework_confirmation_email(send_audits, run_state):
     an inbox: the prod path runs (outbox -> dispatch -> /api/transactional/send
     -> audit), but with ``RELAY_TRANSACTIONAL_DRY_RUN=1`` the render is
     returned inline and nothing is delivered. xfails cleanly when no audit
-    appears (Datamailer not configured / dry-run off on the target), so the
+    appears (Relay not configured / dry-run off on the target), so the
     suite stays green until it is switched on.
     """
     require_submitted(run_state)
