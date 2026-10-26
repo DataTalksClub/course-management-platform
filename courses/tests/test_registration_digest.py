@@ -59,6 +59,14 @@ class RegistrationDigestTests(RegistrationCampaignBase):
     def request_path(self):
         return "course_management.relay.application_notifications.requests.request"
 
+    def test_new_registration_creates_no_operator_notification(self):
+        from course_management.relay.application_notifications import (
+            process_application_notifications,
+        )
+        self.make_registration("fresh@example.com", now=DUE_NOW)
+        process_application_notifications()
+        self.assertFalse(CourseRegistration.objects.get().application_notifications.exists())
+
     def test_digest_covers_last_24h_grouped_by_course(self):
         from course_management.relay.registration_digest import send_registration_digest
         self.make_registration(

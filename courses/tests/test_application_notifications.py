@@ -48,24 +48,27 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
         registration = self.registration()
         registration.name = "Updated"
         registration.save()
-        self.assertEqual(self.notifications().count(), 1)
-        notification = self.notifications().get()
-        self.assertEqual(notification.recipient, "alexey@datatalks.club")
-        self.assertEqual(notification.template_key, "application-pending-operator")
-        self.assertIn("status=pending", notification.context["review_url"])
+        self.assertFalse(self.notifications().exists())
 
     @override_settings(APPLICATION_NOTIFICATION_OPERATORS=[
         "OTHER@example.com", "alexey@datatalks.club", "other@example.com",
     ])
     def test_configured_operator_list_includes_default_and_deduplicates(self):
-        self.registration()
-        self.assertEqual(set(self.notifications().values_list("recipient", flat=True)), {
-            "alexey@datatalks.club", "other@example.com",
-        })
+        from course_management.relay.application_notifications import (
+            operator_recipients,
+        )
+        self.assertEqual(
+            operator_recipients(),
+            ["alexey@datatalks.club", "other@example.com"],
+        )
 
     def test_open_course_has_no_operator_notification(self):
         self.course.requires_registration_approval = False
         self.course.save()
+        self.registration()
+        self.assertFalse(self.notifications().exists())
+
+    def test_wall_course_creation_queues_no_operator_notification(self):
         self.registration()
         self.assertFalse(self.notifications().exists())
 
@@ -97,7 +100,7 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
             "decision_sequence").values_list("template_key", flat=True)), [
                 "application-approved", "application-rejected", "application-approved",
             ])
-        self.assertEqual(self.notifications().values("idempotency_key").distinct().count(), 4)
+        self.assertEqual(self.notifications().values("idempotency_key").distinct().count(), 3)
 
     def test_cadmin_approve_and_reject_queue_applicant_email(self):
         from accounts.models import CustomUser
@@ -119,12 +122,13 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
     def test_relay_sends_once_per_notification(self, request):
         from course_management.relay.application_notifications import process_application_notifications
         request.return_value.json.return_value = {"message": {"id": 123, "status": "queued"}}
-        self.registration()
+        registration = self.registration()
+        approve_registration(registration)
         process_application_notifications()
         process_application_notifications()
         request.assert_called_once()
         payload = request.call_args.kwargs["json"]
-        self.assertEqual(payload["template_key"], "application-pending-operator")
+        self.assertEqual(payload["template_key"], "application-approved")
         self.assertEqual(payload["client"], "dtc-courses")
         self.assertEqual(payload["audience"], "dtc-courses")
         self.assertEqual(payload["category_tag"], "transactional")
@@ -137,7 +141,8 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
         from django.utils import timezone
         from course_management.relay.application_notifications import process_application_notifications
         from data.management.commands.check_cmp_workers import worker_alarms
-        self.registration()
+        registration = self.registration()
+        approve_registration(registration)
         request.side_effect = requests.Timeout("private provider response")
         with self.assertLogs("course_management.relay.application_notifications", level="ERROR") as logs:
             process_application_notifications()
@@ -159,7 +164,8 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
     @override_settings(RELAY_API_KEY="")
     def test_missing_relay_configuration_fails_loudly(self):
         from course_management.relay.application_notifications import process_application_notifications
-        self.registration()
+        registration = self.registration()
+        approve_registration(registration)
         with self.assertLogs("course_management.relay.application_notifications", level="ERROR"):
             process_application_notifications()
         self.assertEqual(self.notifications().get().status, "failed")
@@ -171,7 +177,8 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
         request.return_value.json.return_value = {
             "message": {"id": None, "status": "queued"}, "would_deliver": True,
         }
-        self.registration()
+        registration = self.registration()
+        approve_registration(registration)
         process_application_notifications()
         self.assertTrue(request.call_args.kwargs["json"]["dry_run"])
         self.assertEqual(self.notifications().get().status, "sent")
@@ -180,7 +187,8 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
     @patch("course_management.relay.application_notifications.requests.request")
     def test_unacknowledged_or_suppressed_send_is_failed(self, request):
         from course_management.relay.application_notifications import process_application_notifications
-        self.registration()
+        registration = self.registration()
+        approve_registration(registration)
         request.return_value.json.return_value = {"message": {"id": 123, "status": "skipped"}}
         with self.assertLogs("course_management.relay.application_notifications", level="ERROR"):
             process_application_notifications()
@@ -207,6 +215,6 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
             campaign=self.campaign, email="unnamed@example.com", name="",
         )
         approve_registration(registration)
-        self.assertEqual(self.notifications().count(), 2)
+        self.assertEqual(self.notifications().count(), 1)
         for notification in self.notifications():
             self.assertEqual(notification.context["name"], "Applicant")

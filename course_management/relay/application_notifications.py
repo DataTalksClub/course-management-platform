@@ -62,14 +62,10 @@ def notification_context(registration):
 def queue_application_notifications(registration, previous_status):
     created = previous_status is None
     if created:
-        if registration.status != "pending" or not (
-            registration.course
-            and registration.course.requires_registration_approval
-        ):
-            return
-        template = "application-pending-operator"
-        recipients = operator_recipients()
-        sequence = 0
+        # Per-registration operator emails are disabled: operators receive
+        # one daily registration digest instead (see registration_digest).
+        # Registrant-facing decision mail below is unchanged.
+        return
     elif registration.status != previous_status and registration.status in {
         "approved", "rejected",
     }:
