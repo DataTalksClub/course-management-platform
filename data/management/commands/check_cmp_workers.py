@@ -4,7 +4,7 @@ from django.utils import timezone
 from data.models import CmpJobState, DatamailerOutboxEvent
 from courses.models import ApplicationNotification
 
-LIMITS = {'outbox': 300, 'health': 900, 'reminders': 26*3600}
+LIMITS = {'outbox': 300, 'health': 900, 'reminders': 26*3600, 'digest': 26*3600}
 
 
 def worker_alarms(now=None):

@@ -113,16 +113,19 @@ def relay_request(method, path, payload):
     return result
 
 
-def send_notification(notification):
+def send_transactional_message(
+    template_key, recipient, context, idempotency_key,
+    source="cmp-application-notifications",
+):
     payload = {
         "client": settings.RELAY_CLIENT,
         "audience": settings.RELAY_AUDIENCE,
-        "email": notification.recipient,
-        "template_key": notification.template_key,
+        "email": recipient,
+        "template_key": template_key,
         "category_tag": "transactional",
-        "idempotency_key": f"cmp-application:{notification.idempotency_key}",
-        "context": notification.context,
-        "metadata": {"source": "cmp-application-notifications"},
+        "idempotency_key": idempotency_key,
+        "context": context,
+        "metadata": {"source": source},
     }
     if getattr(settings, "RELAY_FROM_EMAIL", ""):
         payload["from_email"] = settings.RELAY_FROM_EMAIL
@@ -138,6 +141,15 @@ def send_notification(notification):
     if not message.get("id") and not dry_run_accepted:
         raise ValueError("relay_acknowledgement_missing")
     return str(message.get("id") or "")
+
+
+def send_notification(notification):
+    return send_transactional_message(
+        notification.template_key,
+        notification.recipient,
+        notification.context,
+        f"cmp-application:{notification.idempotency_key}",
+    )
 
 
 def process_application_notifications(limit=100):

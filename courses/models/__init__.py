@@ -1,5 +1,6 @@
 from . import course, project, homework, wrapped  # noqa: F401
 from .application_notification import ApplicationNotification
+from .registration_digest import RegistrationDigestSend
 
 from django.contrib.auth import get_user_model
 
@@ -43,6 +44,7 @@ User = get_user_model()
 
 __all__ = (
     "ApplicationNotification",
+    "RegistrationDigestSend",
     "Answer",
     "AnswerTypes",
     "Course",
