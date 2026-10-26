@@ -76,22 +76,34 @@ if not latest:
     sys.exit(0)
 print(f"latest GHCR tag: {latest}")
 
-# 2. running image in Coolify
+# 2. running image + pinned VERSION in Coolify (both must match latest:
+# /api/health/ reports VERSION, and the public rolling follower mirrors it)
 _st, svc = coolify("GET", f"/api/v1/services/{uuid}")
 running = (svc["applications"][0]["image"] or "")
 print(f"coolify running image: {running}")
-if running == f"{image_ref}:{latest}":
+raw = svc["docker_compose_raw"]
+_version_match = re.search(r"(?m)^\s*VERSION\s*:\s*(.+?)\s*$", raw)
+compose_version = (_version_match.group(1).strip().strip("'\"") if _version_match else None)
+print(f"coolify compose VERSION: {compose_version}")
+if running == f"{image_ref}:{latest}" and compose_version == latest:
     print("converged: nothing to do")
     sys.exit(0)
 
-# 3. pin compose + force deploy (same as GHA deploy job)
-raw = svc["docker_compose_raw"]
+# 3. pin compose image + VERSION env, then force deploy (same as GHA deploy job)
 new, n = re.subn(re.escape(f"{image_ref}:") + r"[^\s'\"]+", f"{image_ref}:{latest}", raw, count=1)
 if n != 1:
     raise SystemExit(f"could not pin image in compose (matches={n})")
+new, m = re.subn(
+    r"(?m)^(\s*VERSION\s*:\s*)([^\s'\"]+|'[^']*'|\"[^\"]*\")\s*$",
+    r"\g<1>" + latest,
+    new,
+    count=1,
+)
+if m != 1:
+    raise SystemExit(f"could not pin VERSION in compose (matches={m})")
 coolify("PATCH", f"/api/v1/services/{uuid}",
         {"docker_compose_raw": base64.b64encode(new.encode()).decode()})
-print(f"pinned compose to {latest}")
+print(f"pinned compose image and VERSION to {latest}")
 _st, out = coolify("POST", f"/api/v1/deploy?uuid={uuid}&force=true")
 print(json.dumps(out)[:200])
 with open(os.path.join(state_dir, "last_rollout"), "w") as f:

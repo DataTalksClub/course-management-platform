@@ -6,6 +6,9 @@
 # AUTH_TOKEN, DEV_AUTH_TOKEN) live in Coolify UI / API environment
 # variables — never inline them here.
 # Image tag: exact ECR format YYYYMMDD-HHMMSS-<7> (never :latest, never sha-<…>).
+# VERSION must equal the image tag: /api/health/ reports it, and the native
+# public rolling Application mirrors this env via the follower. Keep both in
+# lockstep on every release (deploy automation pins both together).
 # CD path: GitHub Actions → GHCR → private release → healthy-image follower
 # → native public rolling Application (healthy replacement before old drain).
 # (no git clone on Contabo). Coolify needs a ghcr.io registry entry
@@ -22,7 +25,7 @@ services:
       DEBUG: "0"
       IS_LOCAL: "0"
       SITE_ID: "2"
-      VERSION: staging-coolify
+      VERSION: 20261021-094333-f922dc4
       PUBLIC_BASE_URL: ""
       EXTRA_ALLOWED_HOSTS: ""
       OBSERVABILITY_ENVIRONMENT: staging

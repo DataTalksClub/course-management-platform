@@ -112,6 +112,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Bake the release identity into the image so /api/health/
+          # reports the deployed tag even without a runtime VERSION override.
+          build-args: |
+            VERSION=${{ steps.identity.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -135,7 +139,13 @@ jobs:
             echo "Missing Coolify secrets: COOLIFY_URL, COOLIFY_TOKEN, COOLIFY_CMP_SERVICE_UUID" >&2
             exit 1
           fi
-          # Exact ECR tag (YYYYMMDD-HHMMSS-<7>): pin Coolify compose, never :latest.
+          # Exact ECR tag (YYYYMMDD-HHMMSS-<7>): pin Coolify compose image AND
+          # VERSION env to the same tag, never :latest.
+          # /api/health/ reports settings.VERSION, so a stale VERSION env
+          # makes prod report the previous release after a deploy (intake
+          # 91dbd820: prod still reported 20261025-092420-c0db50c after the
+          # 0c8eaab deploy). The native public rolling Application mirrors
+          # this env via the follower, so the source must carry the new tag.
           # Coolify compose services store the image in docker_compose_raw (base64 on write).
           # NOTE: GHA runners often cannot reach COOLIFY_URL (:8000 timeout), but the
           # image was already pushed to GHCR by the build-and-push job. Network-level
@@ -183,6 +193,16 @@ jobs:
               )
               if n != 1:
                   raise SystemExit(f"Could not pin image {prefix}* in Coolify compose (matches={n})")
+              # Keep VERSION in lockstep with the image tag: the health
+              # endpoint (and the public rolling follower) read this env.
+              new, m = re.subn(
+                  r"(?m)^(\s*VERSION\s*:\s*)([^\s'\"]+|'[^']*'|\"[^\"]*\")\s*$",
+                  r"\g<1>" + image_tag,
+                  new,
+                  count=1,
+              )
+              if m != 1:
+                  raise SystemExit(f"Could not pin VERSION in Coolify compose (matches={m})")
               call(
                   "PATCH",
                   f"/api/v1/services/{uuid}",
@@ -190,7 +210,7 @@ jobs:
               )
               _st, out = call("POST", f"/api/v1/deploy?uuid={uuid}&force=true")
               print(json.dumps(out))
-              print(f"Pinned {prefix}{image_tag} and triggered Coolify deploy for {uuid}")
+              print(f"Pinned {prefix}{image_tag} with VERSION={image_tag} and triggered Coolify deploy for {uuid}")
 
           try:
               main()

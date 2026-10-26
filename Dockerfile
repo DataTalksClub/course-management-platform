@@ -5,6 +5,13 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/code/.venv/bin:$PATH"
 
+# Release identity baked at build time so /api/health/ reports the deployed
+# image tag even if the runtime VERSION env is missing. GHA passes
+# --build-arg VERSION=<YYYYMMDD-HHMMSS-<7>> (same value as the GHCR tag);
+# deploy automation also pins the Coolify compose VERSION env to that tag.
+ARG VERSION=local-development-build-version-not-configured
+ENV VERSION=${VERSION}
+
 WORKDIR /code
 
 # Install dependencies

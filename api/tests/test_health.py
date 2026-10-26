@@ -24,6 +24,17 @@ class HealthViewTests(TestCase):
         self.assertIn("version", data)
         self.assertEqual(data.get("relay_status"), "ok")
 
+    @override_settings(**{**RELAY_HEALTHY_SETTINGS, "VERSION": "test-0c8eaab"})
+    def test_health_version_matches_configured_release(self):
+        # Intake 91dbd820: /api/health/ must report the deployed release.
+        # The deploy config pins VERSION to the image tag; the endpoint must
+        # surface that exact value (not a stale default).
+        url = reverse("api_health")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["version"], "test-0c8eaab")
+
     @override_settings(
         **{**RELAY_HEALTHY_SETTINGS, "RELAY_TRANSACTIONAL_DRY_RUN": True},
     )

@@ -181,8 +181,8 @@ if is_test:
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-VERSION = os.getenv(
-    "VERSION", "local-development-build-version-not-configured"
+VERSION = os.getenv("VERSION") or (
+    "local-development-build-version-not-configured"
 )
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
 
