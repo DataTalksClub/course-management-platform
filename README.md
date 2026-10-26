@@ -60,6 +60,17 @@ uv sync --dev
 
 ## Running Locally
 
+Run the full pytest suite and Django checks against PostgreSQL 16, as in CI:
+
+```bash
+make tests-postgres
+```
+
+This needs Docker and uv. It starts a disposable database on an available
+loopback port and removes the container when tests finish. It does not use
+your configured application database. To pass pytest options, use
+`bash scripts/test_postgres.sh -q`.
+
 Use SQLite for local development:
 
 ```bash

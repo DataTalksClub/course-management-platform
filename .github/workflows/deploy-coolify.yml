@@ -35,6 +35,21 @@ env:
 jobs:
   test:
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: cmp_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cmp_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres@localhost:5432/cmp_test
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
@@ -42,6 +57,7 @@ jobs:
         run: uv sync --locked
       - name: Django checks
         run: |
+          uv run python manage.py shell -c "from django.db import connection; connection.ensure_connection(); print('CI database:', connection.vendor, connection.pg_version); assert connection.vendor == 'postgresql'"
           uv run python manage.py makemigrations --check --dry-run
           uv run python manage.py check
       - name: Tests
