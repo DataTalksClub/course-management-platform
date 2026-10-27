@@ -1,6 +1,3 @@
-from courses.models.homework import Submission
-
-
 # Buckets of how early a submission arrived, keyed by a lower bound in days
 # before the due date. Ordered from earliest to latest.
 TIMING_BUCKETS = (
@@ -12,16 +9,18 @@ TIMING_BUCKETS = (
 )
 
 
-def dashboard_submission_timing(course):
-    submissions = (
-        Submission.objects
-        .filter(homework__course=course)
-        .values_list("submitted_at", "homework__due_date")
-    )
+def dashboard_submission_timing(homework_submissions):
+    """Buckets how early submissions arrived relative to their due date.
 
+    Consumes the same rows dashboard_homework_submissions() already
+    fetched: issuing a separate query here meant a second full scan of
+    every submission in the course on each dashboard cold build.
+    """
     counts = {label: 0 for _, label in TIMING_BUCKETS}
     total = 0
-    for submitted_at, due_date in submissions:
+    for submission in homework_submissions:
+        submitted_at = submission.get("submitted_at")
+        due_date = submission.get("homework__due_date")
         if submitted_at is None or due_date is None:
             continue
         days_before = (due_date - submitted_at).total_seconds() / 86400

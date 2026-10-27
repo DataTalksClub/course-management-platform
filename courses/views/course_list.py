@@ -31,13 +31,16 @@ class CourseListCourses:
 
 def visible_course_list_queryset():
     courses = Course.objects.filter(visible=True)
+    # NOTE: keep this annotation list minimal. Every Count here joins
+    # another table, multiplying the row count (homeworks x projects x
+    # enrollments per course). The homepage rendered in ~1 s because
+    # learner_count multiplied by thousands of enrollments; it is never
+    # rendered and must not come back.
     homework_count = Count("homework", distinct=True)
     project_count = Count("project", distinct=True)
-    learner_count = Count("enrollment", distinct=True)
     courses = courses.annotate(
         homework_count=homework_count,
         project_count=project_count,
-        learner_count=learner_count,
     )
     courses = courses.prefetch_related("homework_set", "project_set")
     return courses.order_by("-id")

@@ -24,7 +24,7 @@ from courses.models import (
     QuestionTypes,
     User,
 )
-from courses.models.project import Project
+from courses.models.project import Project, ProjectSubmission
 
 
 def make_course(slug="perf-2026"):
@@ -204,6 +204,96 @@ class PagePerformanceTestCase(TestCase):
         )
         self.assertIsNotNone(
             cache.get(f"leaderboard:breakdown:{self.enrollment.id}:v1")
+        )
+
+
+class ColdBuildRegressionTestCase(TestCase):
+    """Regressions for the ~1 s homepage miss and ~350 ms leaderboard cold
+    build (both were dominated by avoidable join/row overhead, measured in
+    the agent report)."""
+
+    def setUp(self):
+        cache.clear()
+        self.course = make_course()
+        self.user = User.objects.create_user(
+            username="lb@t.com", email="lb@t.com", password="x"
+        )
+        self.enrollment = Enrollment.objects.create(
+            student=self.user,
+            course=self.course,
+            display_name="LB",
+            total_score=10,
+            position_on_leaderboard=1,
+        )
+
+    def test_homepage_queryset_has_no_enrollment_join(self):
+        # learner_count (Count over enrollment) multiplied every course row
+        # by homeworks x projects x enrollments and made the homepage cache
+        # miss render in ~1 s. It is never rendered; the queryset must not
+        # touch the enrollment table again.
+        from courses.views.course_list import visible_course_list_queryset
+
+        sql = str(visible_course_list_queryset().query).upper()
+        self.assertNotIn("ENROLLMENT", sql)
+
+    def test_leaderboard_cold_build_two_queries_exact_shape(self):
+        project = make_project(self.course, "proj-lb")
+        project.state = ProjectState.COMPLETED.value
+        project.save(update_fields=["state"])
+        other_user = User.objects.create_user(
+            username="lb2@t.com", email="lb2@t.com", password="x"
+        )
+        hidden_enrollment = Enrollment.objects.create(
+            student=other_user,
+            course=self.course,
+            display_name="Hidden",
+            display_on_leaderboard=False,
+        )
+        # Passed first (attempt 1), failed second (attempt 2, skipped).
+        ProjectSubmission.objects.create(
+            student=self.user,
+            enrollment=self.enrollment,
+            project=project,
+            passed=True,
+        )
+        ProjectSubmission.objects.create(
+            student=self.user,
+            enrollment=self.enrollment,
+            project=project,
+            passed=False,
+        )
+        ProjectSubmission.objects.create(
+            student=other_user,
+            enrollment=hidden_enrollment,
+            project=project,
+            passed=True,
+        )
+
+        from courses.views.course_leaderboard_data import (
+            build_leaderboard_data,
+        )
+
+        with CaptureQueriesContext(connection) as ctx:
+            data = build_leaderboard_data(
+                self.course, "perf:leaderboard:cold"
+            )
+        self.assertEqual(
+            len(ctx), 2, f"cold build used {len(ctx)} queries"
+        )
+        self.assertEqual(len(data), 1)
+        row = data[0]
+        self.assertEqual(row["id"], self.enrollment.id)
+        self.assertEqual(row["display_name"], "LB")
+        self.assertEqual(row["total_score"], 10)
+        self.assertEqual(row["position_on_leaderboard"], 1)
+        self.assertEqual(
+            row["passed_projects"],
+            [{
+                "title": project.title,
+                "slug": project.slug,
+                "attempt": 1,
+                "medal_index": 1,
+            }],
         )
 
 

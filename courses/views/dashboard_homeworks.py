@@ -29,12 +29,17 @@ def dashboard_homeworks(course):
 
 
 def dashboard_homework_submissions(course):
+    # submitted_at and homework__due_date ride along so the submission
+    # timing breakdown can reuse these rows instead of issuing a second
+    # full scan of every submission in the course.
     submission_fields = (
         "homework_id",
         "time_spent_lectures",
         "time_spent_homework",
         "questions_score",
         "total_score",
+        "submitted_at",
+        "homework__due_date",
     )
     return (
         Submission.objects

@@ -1,9 +1,10 @@
 import logging
+from collections import defaultdict
 from dataclasses import dataclass
 
 from django.core.cache import cache
 from django.core.paginator import Paginator
-from django.db.models import Prefetch, Value
+from django.db.models import Value
 from django.db.models.functions import Coalesce
 
 from courses.models.course import Enrollment
@@ -74,62 +75,70 @@ def current_student_leaderboard_enrollment(course, user):
     return CurrentLeaderboardStudent(enrollment=None, enrollment_id=None)
 
 
-def completed_project_submissions_prefetch():
-    submissions = ProjectSubmission.objects.filter(
-        project__state=ProjectState.COMPLETED.value,
-        volunteer_review_only=False,
-    )
-    submissions = submissions.select_related("project")
-    submissions = submissions.order_by("project__id")
-    return Prefetch(
-        "projectsubmission_set",
-        queryset=submissions,
-        to_attr="completed_project_submissions",
-    )
-
-
-def serialize_leaderboard_enrollment(enrollment):
-    passed_projects = []
-    completed_submissions = enrollment.completed_project_submissions
-    for index, submission in enumerate(completed_submissions, 1):
-        if not submission.passed:
-            continue
-        passed_project = {
-            "title": submission.project.title,
-            "slug": submission.project.slug,
-            "attempt": index,
-            "medal_index": ((index - 1) % 5) + 1,
-        }
-        passed_projects.append(passed_project)
-
-    return {
-        "id": enrollment.id,
-        "display_name": enrollment.display_name,
-        "total_score": enrollment.total_score,
-        "position_on_leaderboard": enrollment.position_on_leaderboard,
-        "passed_projects": passed_projects,
-    }
-
-
 def build_leaderboard_data(course, cache_key):
     logger.info(f"Cache miss for leaderboard of course {course.slug}")
+    # Plain values() rows on both queries: a cold build scans thousands of
+    # enrollments and full model instances only pay for fields the
+    # leaderboard never renders.
     enrollments = Enrollment.objects.filter(
         course=course,
         display_on_leaderboard=True,
     )
-    enrollments = enrollments.select_related("student")
-    completed_submissions = completed_project_submissions_prefetch()
-    enrollments = enrollments.prefetch_related(completed_submissions)
     unranked_position = Value(999999)
     leaderboard_position = Coalesce(
         "position_on_leaderboard",
         unranked_position,
     )
-    enrollments = enrollments.order_by(leaderboard_position, "id")
+    enrollment_rows = enrollments.order_by(
+        leaderboard_position,
+        "id",
+    ).values(
+        "id",
+        "display_name",
+        "total_score",
+        "position_on_leaderboard",
+    )
+    completed_submissions = (
+        ProjectSubmission.objects.filter(
+            enrollment__course=course,
+            enrollment__display_on_leaderboard=True,
+            project__state=ProjectState.COMPLETED.value,
+            volunteer_review_only=False,
+        )
+        .order_by("project__id")
+        .values(
+            "enrollment_id",
+            "passed",
+            "project__title",
+            "project__slug",
+        )
+    )
+    submissions_by_enrollment = defaultdict(list)
+    for row in completed_submissions:
+        submissions_by_enrollment[row["enrollment_id"]].append(row)
     enrollments_data = []
-    for enrollment in enrollments:
-        enrollment_data = serialize_leaderboard_enrollment(enrollment)
-        enrollments_data.append(enrollment_data)
+    for row in enrollment_rows:
+        passed_projects = []
+        for index, submission in enumerate(
+            submissions_by_enrollment.get(row["id"], ()), 1
+        ):
+            if not submission["passed"]:
+                continue
+            passed_project = {
+                "title": submission["project__title"],
+                "slug": submission["project__slug"],
+                "attempt": index,
+                "medal_index": ((index - 1) % 5) + 1,
+            }
+            passed_projects.append(passed_project)
+
+        enrollments_data.append({
+            "id": row["id"],
+            "display_name": row["display_name"],
+            "total_score": row["total_score"],
+            "position_on_leaderboard": row["position_on_leaderboard"],
+            "passed_projects": passed_projects,
+        })
     cache.set(cache_key, enrollments_data, 3600)
     return enrollments_data
 

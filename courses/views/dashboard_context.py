@@ -16,7 +16,7 @@ from courses.views.dashboard_timing import dashboard_submission_timing
 def dashboard_context(course):
     total_enrollments = Enrollment.objects.filter(course=course).count()
     homeworks = dashboard_homeworks(course)
-    homework_submissions = dashboard_homework_submissions(course)
+    homework_submissions = list(dashboard_homework_submissions(course))
     homework_stats, homework_difficulty_stats = dashboard_homework_stats(
         homeworks,
         homework_submissions,
@@ -36,7 +36,7 @@ def dashboard_context(course):
     overall_completion_rate = dashboard_overall_completion_rate(homework_stats)
     total_score_distribution = quartile_fields("total_score", total_scores)
     question_difficulty = dashboard_question_difficulty(course)
-    submission_timing = dashboard_submission_timing(course)
+    submission_timing = dashboard_submission_timing(homework_submissions)
     engagement_trend = dashboard_engagement_trend(course)
     graduates_count = dashboard_graduates_count(course)
     project_stats = dashboard_project_stats(course, total_enrollments)
