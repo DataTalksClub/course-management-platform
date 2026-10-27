@@ -1,0 +1,1 @@
+{"base": "http://127.0.0.1:8931", "requests": 465, "p50_ms": 111.9, "p95_ms": 30030.1, "max_ms": 30031.9, "status_counts": {"200": 425, "0": 40}, "errors": {"TimeoutError": 40}}

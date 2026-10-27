@@ -33,16 +33,6 @@ def project_for_action(data):
     return project
 
 
-def project_action_route_response(data, action):
-    staff_error = require_staff_token(data.request)
-    if staff_error:
-        return staff_error
-
-    project = project_for_action(data)
-    response = action(project)
-    return response
-
-
 def project_async_action_route_response(data, enqueue, status):
     """Async variant: POST enqueues a background job, GET reports status."""
     staff_error = require_staff_token(data.request)
