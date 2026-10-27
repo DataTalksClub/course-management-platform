@@ -16,6 +16,11 @@ on:
         description: "Run checks without building, publishing or deploying an image"
         required: false
         default: false
+      dev_only:
+        type: boolean
+        description: "Publish a dev-prefixed image and deploy only isolated cmp-dev"
+        required: false
+        default: false
   push:
     branches: [main]
     paths-ignore:
@@ -82,14 +87,22 @@ jobs:
 
       - name: Construct release identity (exact ECR tag format)
         id: identity
+        env:
+          DEV_ONLY: ${{ inputs.dev_only || false }}
         run: |
           set -euo pipefail
-          # Same construction as website .github/workflows/deploy-dev.yml:
-          #   version="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA:0:7}"
-          # CMP/AISHL deploy-dev: DATE=$(date +'%Y%m%d-%H%M%S'); SHORT_SHA=…; TAG=${DATE}-${SHORT_SHA}
-          # Live ECR example (CMP): 20261021-094333-f922dc4
-          version="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA:0:7}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          python3 - <<'PY'
+          import os
+          from datetime import datetime, timezone
+          from deploy.coolify.release_target import release_tag
+          version = release_tag(
+              datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"),
+              os.environ["GITHUB_SHA"][:7],
+              os.environ["DEV_ONLY"] == "true",
+          )
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"version={version}\n")
+          PY
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -132,7 +145,19 @@ jobs:
     runs-on: ubuntu-24.04
     # Environment name retained for existing secrets; targets production courses.
     environment: coolify-staging
+    env:
+      DEPLOY_DEV_ONLY: ${{ inputs.dev_only || false }}
     steps:
+      - uses: actions/checkout@v5
+
+      - name: Record production version before isolated DEV deployment
+        if: inputs.dev_only
+        id: production-before
+        run: |
+          set -euo pipefail
+          version=$(curl -fsS --max-time 20 https://courses.datatalks.club/api/health/ | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Pin Coolify image to ECR tag YYYYMMDD-HHMMSS-<7> and deploy
         id: coolify-deploy
         env:
@@ -165,10 +190,12 @@ jobs:
           set +e
           python3 - <<'PY'
           import base64, json, os, re, socket, sys, urllib.error, urllib.request
+          from deploy.coolify.release_target import service_uuid, validate_service
 
           base = os.environ["COOLIFY_URL"].rstrip("/")
           token = os.environ["COOLIFY_TOKEN"]
-          uuid = os.environ["COOLIFY_SERVICE_UUID"]
+          dev_only = os.environ["DEPLOY_DEV_ONLY"] == "true"
+          uuid = service_uuid(dev_only, os.environ["COOLIFY_SERVICE_UUID"])
           image_ref = os.environ["IMAGE_REF"]
           image_tag = os.environ["IMAGE_TAG"]
           prefix = f"{image_ref}:"
@@ -192,6 +219,7 @@ jobs:
 
           def main():
               _st, svc = call("GET", f"/api/v1/services/{uuid}")
+              validate_service(uuid, svc, dev_only)
               raw = svc["docker_compose_raw"]
               # Pin every service running our image (web + scoring worker).
               new, n = re.subn(
@@ -250,6 +278,10 @@ jobs:
           rc=$?
           set -e
           if [[ $rc -eq 47 ]]; then
+            if [[ "$DEPLOY_DEV_ONLY" == "true" ]]; then
+              echo "::error::DEV deploy API unavailable; production poller cannot deploy DEV images"
+              exit 1
+            fi
             echo "reachable=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -275,10 +307,12 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import json, os, sys, time, urllib.error, urllib.request
+          from deploy.coolify.release_target import service_uuid, validate_service
 
           base = os.environ["COOLIFY_URL"].rstrip("/")
           token = os.environ["COOLIFY_TOKEN"]
-          uuid = os.environ["COOLIFY_SERVICE_UUID"]
+          dev_only = os.environ["DEPLOY_DEV_ONLY"] == "true"
+          uuid = service_uuid(dev_only, os.environ["COOLIFY_SERVICE_UUID"])
           want = f"{os.environ['IMAGE_REF']}:{os.environ['IMAGE_TAG']}"
           deadline = time.time() + 300  # 5 min for pull + migrate + gunicorn boot
 
@@ -294,6 +328,7 @@ jobs:
           while time.time() < deadline:
               try:
                   svc = fetch()
+                  validate_service(uuid, svc, dev_only)
                   apps = svc.get("applications") or [{}]
                   web_apps = [a for a in apps if a.get("name") == "web"] or apps[:1]
                   app = web_apps[0]
@@ -316,6 +351,9 @@ jobs:
 
       - name: "Guard: verify dev health endpoint is healthy (cfaf0378)"
         # Fails loudly if dev CMP returns 503 or unhealthy after deploy.
+        env:
+          EXPECTED_DEV_VERSION: ${{ inputs.dev_only && needs.build-and-push.outputs.image_tag || '' }}
+          PRODUCTION_VERSION_BEFORE: ${{ steps.production-before.outputs.version }}
         run: |
           set -euo pipefail
           echo "Verifying dev health endpoint (https://dev.courses.datatalks.club/api/health/)..."
@@ -325,8 +363,11 @@ jobs:
             resp=$(curl -fsS --max-time 10 https://dev.courses.datatalks.club/api/health/ || true)
             echo "Attempt $i: $resp"
             if echo "$resp" | grep -q '"status": *"ok"'; then
-              healthy=true
-              break
+              if [[ -z "$EXPECTED_DEV_VERSION" ]] || \
+                 [[ "$(echo "$resp" | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')" == "$EXPECTED_DEV_VERSION" ]]; then
+                healthy=true
+                break
+              fi
             fi
             sleep 5
           done
@@ -335,3 +376,16 @@ jobs:
             exit 1
           fi
           echo "Dev health check OK."
+          if [[ -n "$EXPECTED_DEV_VERSION" ]]; then
+            actual=$(echo "$resp" | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
+            if [[ "$actual" != "$EXPECTED_DEV_VERSION" ]]; then
+              echo "::error::DEV version $actual does not match $EXPECTED_DEV_VERSION"
+              exit 1
+            fi
+            production_after=$(curl -fsS --max-time 20 https://courses.datatalks.club/api/health/ | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
+            if [[ "$production_after" != "$PRODUCTION_VERSION_BEFORE" ]]; then
+              echo "::error::Production version changed during DEV-only deployment"
+              exit 1
+            fi
+            echo "Isolated DEV version verified; production version unchanged."
+          fi
