@@ -258,7 +258,7 @@
     var button = document.querySelector('.leaderboard-flag-button');
 
     button.addEventListener('click', function() {
-      form.action = button.dataset.flagUrl;
+      form.setAttribute('action', button.dataset.flagUrl);
       record.textContent = button.dataset.flagName;
       description.value = '';
       dialog.showModal();

@@ -19,10 +19,12 @@ from .views import project_statistics
 from .views import project_submissions
 from .views import registration
 from .views import registration_confirmation
+from .views import robots
 from .views import wrapped
 
 
 urlpatterns = [
+    path("robots.txt", robots.robots_txt_view, name="robots_txt"),
     path("", course_list.course_list, name="course_list"),
     path(
         "register/confirm/<str:token>/",

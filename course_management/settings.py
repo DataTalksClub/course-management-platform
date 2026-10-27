@@ -72,6 +72,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "course_management.middleware.HealthCheckMiddleware",
+    "course_management.middleware.RateLimitMiddleware",
     "course_management.middleware.ObservabilityExceptionMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -174,6 +175,26 @@ if is_test:
     STATICFILES_STORAGE = (
         "django.contrib.staticfiles.storage.StaticFilesStorage"
     )
+
+
+# Per-IP rate limiting (Traefik-style average + burst). Disabled in the
+# test suite by default so unrelated tests never flake on 429s or see
+# stale cached pages; the protection tests enable it explicitly via
+# override_settings. Note: `is_test` above only triggers for
+# `manage.py test`, so pytest runs are detected via sys.modules.
+_RUNNING_TESTS = is_test or ("pytest" in sys.modules)
+RATELIMIT_ENABLED = (os.getenv("RATELIMIT_ENABLED", "1") == "1") and not _RUNNING_TESTS
+RATELIMIT_AVERAGE = float(os.getenv("RATELIMIT_AVERAGE", "10"))
+RATELIMIT_BURST = int(os.getenv("RATELIMIT_BURST", "30"))
+RATELIMIT_EXEMPT_PATHS = ["/", "/api/health/", "/ping", "/robots.txt"]
+RATELIMIT_EXEMPT_PREFIXES = ["/static/"]
+
+# Homepage cache for anonymous visitors (crawler-facing). Authenticated
+# pages are never cached. Disabled in tests by default (see above).
+HOMEPAGE_ANON_CACHE_ENABLED = (
+    os.getenv("HOMEPAGE_ANON_CACHE_ENABLED", "1") == "1"
+) and not _RUNNING_TESTS
+HOMEPAGE_ANON_CACHE_TTL = int(os.getenv("HOMEPAGE_ANON_CACHE_TTL", "60"))
 
 
 # Default primary key field type

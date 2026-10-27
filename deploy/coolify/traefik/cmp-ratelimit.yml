@@ -1,0 +1,56 @@
+# CMP public rate limiting for courses.datatalks.club (Traefik file provider).
+#
+# Install on contabo-a at /data/coolify/proxy/dynamic/cmp-ratelimit.yml.
+# Traefik watches that directory (--providers.file.watch=true), so installing
+# or updating this file is a hot reload: no proxy restart, no downtime.
+#
+# Design (mirrors origin-enforce.yml in the same directory):
+# - These file routers (priority 200/190) shadow Coolify's generated
+#   routers (priority 110) for Host(courses.datatalks.club) on entrypoint
+#   https. HTTP behaviour is untouched: Coolify's http routers still 301
+#   redirect to https, where the rules below apply.
+# - cmp-exempt-https (priority 200): health and monitor paths
+#   (/api/health/, /, /ping, /robots.txt, /static/*) bypass rate limiting.
+#   ACME challenge path is carved out like origin-enforce.yml.
+# - cmp-limited-https (priority 190): everything else is limited per client
+#   IP to ~10 req/s average with burst 30 (the crawler ran at ~20 req/s).
+# - Docker service names (https-0-*-web-2567) are stable across Coolify
+#   redeploys (verified: identical on the 23:21Z and 23:56Z 2026-10-26
+#   public containers). If a future recreate ever renames them, update the
+#   `service:` lines below (and this comment) and re-verify.
+# - Rolling behaviour is preserved: same backend service (with its
+#   /ready health gate), same gzip + rolling-retry middlewares as the
+#   Coolify router this shadows.
+http:
+  middlewares:
+    cmp-ratelimit:
+      rateLimit:
+        average: 10
+        burst: 30
+        period: 1s
+
+  routers:
+    cmp-exempt-https:
+      entryPoints:
+        - https
+      rule: "Host(`courses.datatalks.club`) && (Path(`/api/health/`) || Path(`/`) || Path(`/ping`) || Path(`/robots.txt`) || PathPrefix(`/static/`) || PathPrefix(`/.well-known/acme-challenge/`))"
+      service: https-0-9gqubsq4lxubaxm27v1mtq9uv3-web-2567@docker
+      priority: 200
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - gzip@docker
+        - rolling-retry@docker
+
+    cmp-limited-https:
+      entryPoints:
+        - https
+      rule: "Host(`courses.datatalks.club`) && PathPrefix(`/`)"
+      service: https-0-9gqubsq4lxubaxm27v1mtq9uv3-web-2567@docker
+      priority: 190
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - cmp-ratelimit
+        - gzip@docker
+        - rolling-retry@docker

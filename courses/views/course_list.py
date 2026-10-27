@@ -1,6 +1,9 @@
 from collections import defaultdict
 from dataclasses import dataclass
 
+from django.conf import settings
+from django.contrib.auth.models import AnonymousUser
+from django.core.cache import cache
 from django.db.models import Count
 from django.shortcuts import render
 from django.utils import timezone
@@ -173,11 +176,40 @@ def course_list_context(user):
     }
 
 
+ANON_HOMEPAGE_CACHE_KEY = "course_list:anonymous:v1"
+
+
+def cached_anonymous_course_list_context():
+    context = cache.get(ANON_HOMEPAGE_CACHE_KEY)
+    if context is None:
+        context = course_list_context(AnonymousUser())
+        cache.set(
+            ANON_HOMEPAGE_CACHE_KEY,
+            context,
+            settings.HOMEPAGE_ANON_CACHE_TTL,
+        )
+    return context
+
+
 def course_list(request):
-    context = course_list_context(request.user)
+    if request.user.is_authenticated or not getattr(
+        settings, "HOMEPAGE_ANON_CACHE_ENABLED", True
+    ):
+        context = course_list_context(request.user)
+        response = render(
+            request,
+            "courses/course_list.html",
+            context,
+        )
+        response["Cache-Control"] = "private, max-age=0, must-revalidate"
+        return response
+    context = cached_anonymous_course_list_context()
     response = render(
         request,
         "courses/course_list.html",
         context,
+    )
+    response["Cache-Control"] = (
+        f"public, max-age={settings.HOMEPAGE_ANON_CACHE_TTL}"
     )
     return response
