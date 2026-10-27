@@ -25,6 +25,10 @@ per-site style, with no new client branding configuration:
 - `application-approved`: acceptance, course workspace link and instruction to
   sign in using the application email address.
 - `application-rejected`: polite cohort rejection, without review internals.
+- `registration-confirmation-reminder-1`: first reminder 24h after an
+  unconfirmed registration (confirmation link + course title).
+- `registration-confirmation-reminder-2`: final reminder 72h after an
+  unconfirmed registration (confirmation link + 7-day deletion deadline).
 
 Publish to each environment with its own Relay configuration:
 
@@ -46,8 +50,12 @@ advisory lock fence concurrent workers. A network failure, rejected/suppressed
 message, malformed acknowledgement or missing Relay configuration sets `failed`,
 logs a sanitized error, and emits the existing `datamailer.health_warning` event.
 `check_cmp_workers` detects failed notifications and a backlog older than ten
-minutes, feeding the existing host operator alert transport. Failed sends retry
-after five minutes with the same key. No historical applications are backfilled.
+minutes, feeding the existing host operator alert transport. Transient failures
+retry after five minutes with the same key; permanent Relay 4xx (for example an
+unknown `template_key`) backs off 24h to avoid hot retry loops. Confirmation
+reminders use the same policy via `confirmation_reminder_next_attempt_at`:
+transient 5min, permanent 4xx 24h. No historical applications are backfilled.
+Provision new template keys in each environment before they send:
 
 ## Daily registration digest
 
