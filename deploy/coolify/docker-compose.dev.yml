@@ -29,6 +29,10 @@ services:
       RELAY_TRANSACTIONAL_DRY_RUN: "1"
       RELAY_SYNC_ON_USER_CREATE: "0"
       RELAY_OUTBOX_DISPATCH_IMMEDIATELY: "0"
+      # Dedicated worker service owns scoring here, so the web entrypoint's
+      # embedded scoring fallback stays off (prod web-only compose leaves it
+      # unset/default-on). Safe either way via worker_lock + idempotency.
+      CMP_EMBEDDED_SCORING_WORKER: "0"
       # Secrets — populate in Coolify UI/API before first deploy.
       # Names only; no values committed anywhere.
       SECRET_KEY: ${SECRET_KEY}

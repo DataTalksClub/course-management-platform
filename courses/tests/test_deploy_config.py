@@ -217,6 +217,106 @@ class DeployConfigTestCase(SimpleTestCase):
         )
 
 
+class EmbeddedScoringWorkerTestCase(SimpleTestCase):
+    """Prod web-only Coolify compose must still run scoring after a normal deploy.
+
+    2026-10-27 scoring:success_stale incident: the prod compose only defines
+    `web`, so a dedicated `worker` service never started and scoring queued
+    forever. The image's entrypoint.sh therefore supervises run_scoring_worker
+    inside web when serving gunicorn (default-on; staging/dev web opt out
+    because they run the dedicated worker). These tests fail if the fallback
+    is removed or defaults to off.
+    """
+
+    def repo_root(self):
+        return Path(__file__).resolve().parents[2]
+
+    def test_entrypoint_supervises_scoring_worker_for_gunicorn(self):
+        script = (self.repo_root() / "entrypoint.sh").read_text()
+        self.assertIn(
+            "run_scoring_worker",
+            script,
+            "entrypoint.sh must supervise the scoring worker so a web-only "
+            "prod deploy still executes scoring.",
+        )
+        self.assertIn(
+            "gunicorn",
+            script,
+            "entrypoint.sh must gate the embedded worker on gunicorn traffic "
+            "(worker containers run run_scoring_worker directly).",
+        )
+        self.assertIn(
+            "CMP_EMBEDDED_SCORING_WORKER",
+            script,
+            "entrypoint.sh must respect CMP_EMBEDDED_SCORING_WORKER opt-out.",
+        )
+
+    def test_entrypoint_embedded_worker_defaults_to_enabled(self):
+        # Prod compose sets no CMP_EMBEDDED_SCORING_WORKER env (web-only,
+        # lives in Coolify outside the repo), so the script default must be
+        # enabled. ${VAR:-1} with != "0" means unset/empty/1 all enable.
+        script = (self.repo_root() / "entrypoint.sh").read_text()
+        self.assertRegex(
+            script,
+            r"\$\{CMP_EMBEDDED_SCORING_WORKER:-1\}",
+            "entrypoint.sh must default CMP_EMBEDDED_SCORING_WORKER to "
+            "enabled so prod web-only containers start scoring with no "
+            "Coolify env edit.",
+        )
+        self.assertRegex(
+            script,
+            r'CMP_EMBEDDED_SCORING_WORKER[^&]*!=\s*"0"',
+            "entrypoint.sh must only skip the embedded worker on explicit 0.",
+        )
+
+    def test_entrypoint_embedded_worker_restarts_on_exit(self):
+        script = (self.repo_root() / "entrypoint.sh").read_text()
+        self.assertIn(
+            "while true",
+            script,
+            "embedded scoring loop must restart run_scoring_worker on exit "
+            "(container restart policy alone does not revive a dead child).",
+        )
+
+    def test_dockerfile_prod_entrypoint_uses_embedded_capable_script(self):
+        dockerfile = (self.repo_root() / "Dockerfile").read_text()
+        self.assertRegex(
+            dockerfile,
+            r'(?m)^ENTRYPOINT\s+\["/code/entrypoint\.sh"\]',
+            "Dockerfile ENTRYPOINT must be entrypoint.sh so prod web runs "
+            "the embedded scoring fallback after a normal deploy.",
+        )
+        self.assertIn(
+            "gunicorn",
+            dockerfile,
+            "Dockerfile default CMD must serve gunicorn (the embedded-worker "
+            "trigger) for prod web containers.",
+        )
+
+    def test_staging_and_dev_web_disable_embedded_worker(self):
+        # Staging/dev run the dedicated worker service; their web containers
+        # opt out of the embedded loop to avoid duplicate work. Prod has no
+        # such env (defaults on), so this also pins the intended split.
+        for template_name in (
+            "deploy/coolify/docker-compose.staging.yml",
+            "deploy/coolify/docker-compose.dev.yml",
+        ):
+            services = yaml.safe_load(
+                (self.repo_root() / template_name).read_text()
+            )["services"]
+            self.assertIn(
+                "worker", services, f"{template_name} must keep the dedicated worker"
+            )
+            web_env = services["web"]["environment"]
+            self.assertEqual(
+                str(web_env.get("CMP_EMBEDDED_SCORING_WORKER")),
+                "0",
+                f"{template_name} web must set CMP_EMBEDDED_SCORING_WORKER=0 "
+                "(dedicated worker owns scoring there; prod web-only "
+                "defaults to enabled).",
+            )
+
+
 class HealthVersionWiringTestCase(SimpleTestCase):
     """Intake 91dbd820: VERSION must track the deployed image tag.
 

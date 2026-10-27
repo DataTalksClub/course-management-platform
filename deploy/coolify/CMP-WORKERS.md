@@ -103,13 +103,22 @@ file (stale after 90s). The image pins (`web.image`, `worker.image`,
 replace the image and every VERSION occurrence in all services, and the
 deploy verify selects the `web` application by name.
 
-The production `cmp-staging` service must carry the same `worker` service
-(synced once from `docker-compose.staging.yml` through the Coolify UI/API;
-secrets already live in the service environment): without it, prod queues
-scoring jobs forever and `check_cmp_workers` raises `scoring:success_stale`
-(2026-10-27 incident — the monitor started requiring scoring success within
-600s before prod ran any scoring). After that one-time sync, every deploy
-re-pins the worker image/VERSION automatically; no per-release step is needed.
+Durability without a Coolify compose edit: the image's `entrypoint.sh`
+supervises the same `run_scoring_worker` loop inside the `web` container
+whenever the container serves gunicorn traffic and
+`CMP_EMBEDDED_SCORING_WORKER` is not `0` (prod web-only compose leaves it
+unset, so it defaults to enabled; staging/dev `web` sets it to `0` because
+they run the dedicated `worker` service). A normal image deploy therefore
+starts scoring on prod even though the prod Coolify compose only defines
+`web` — no Coolify UI/API compose edit is required. Running both the
+embedded loop and a dedicated worker is safe (singleton `worker_lock` +
+idempotent scoring + 10-minute stale reclaim), so adding a `worker` service
+later never double-scores.
+
+The previous one-time-sync instruction (copy `worker` from
+`docker-compose.staging.yml` into the prod Coolify compose) is superseded:
+it required a human Coolify edit outside the repo deploy path and left prod
+queuing forever until done (2026-10-27 `scoring:success_stale` incident).
 
 Each worker loop iteration runs through `run_cmp_job scoring`, so every
 pass records `CmpJobState('scoring')` success (or failure, then the loop
