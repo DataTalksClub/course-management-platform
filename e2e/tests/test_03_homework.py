@@ -188,7 +188,7 @@ def test_score_homework(api, run_state):
     result = api.score_homework(
         run_state.course.slug, run_state.course.homework_id
     )
-    assert result.get("status") == "OK", f"Scoring failed: {result}"
+    assert result.get("status") in {"OK", "SUCCEEDED"}, f"Scoring failed: {result}"
 
     data = api.homework_submissions(
         run_state.course.slug, run_state.course.homework_slug

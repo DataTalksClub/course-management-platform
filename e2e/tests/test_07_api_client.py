@@ -130,3 +130,44 @@ def test_request_serializes_json_payload():
     call = client.session.calls[0]
     assert call.url == "http://localhost:8000/api/courses/"
     assert call.kwargs["data"] == '{"slug": "ml-zoomcamp"}'
+
+
+def test_score_homework_polls_queued_job_until_succeeded(monkeypatch):
+    monkeypatch.setattr("e2e.api_client.time.sleep", lambda _: None)
+    client = client_with([
+        FakeResponse(202, {"status": "QUEUED", "job_id": 7}),
+        FakeResponse(200, {"status": "RUNNING", "job_id": 7}),
+        FakeResponse(200, {"status": "SUCCEEDED", "job_id": 7}),
+    ])
+    result = client.score_homework("smoke", 3)
+    assert result["status"] == "SUCCEEDED"
+    assert [call.method for call in client.session.calls] == ["POST", "GET", "GET"]
+    assert all(call.url == "http://localhost:8000/api/courses/smoke/homeworks/3/score/" for call in client.session.calls)
+
+
+def test_score_homework_reports_failed_job(monkeypatch):
+    monkeypatch.setattr("e2e.api_client.time.sleep", lambda _: None)
+    client = client_with([
+        FakeResponse(202, {"status": "QUEUED", "job_id": 7}),
+        FakeResponse(200, {"status": "FAILED", "job_id": 7, "message": "worker failed"}),
+    ])
+    with pytest.raises(ApiError, match="worker failed"):
+        client.score_homework("smoke", 3)
+
+
+def test_score_homework_times_out_without_resubmitting(monkeypatch):
+    ticks = iter([0, 0, 121])
+    monkeypatch.setattr("e2e.api_client.time.monotonic", lambda: next(ticks))
+    monkeypatch.setattr("e2e.api_client.time.sleep", lambda _: None)
+    client = client_with([
+        FakeResponse(202, {"status": "QUEUED", "job_id": 7}),
+        FakeResponse(200, {"status": "RUNNING", "job_id": 7}),
+    ])
+    with pytest.raises(ApiError, match="timed out"):
+        client.score_homework("smoke", 3)
+    assert [call.method for call in client.session.calls] == ["POST", "GET"]
+
+
+def test_score_homework_preserves_synchronous_response():
+    client = client_with([FakeResponse(200, {"status": "OK"})])
+    assert client.score_homework("smoke", 3) == {"status": "OK"}

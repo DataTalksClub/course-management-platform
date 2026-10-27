@@ -251,13 +251,30 @@ class CmpApiClient:
         return self._request(request_data)
 
     def score_homework(self, course_slug: str, hw_id: int) -> dict:
-        request_data = ApiRequestData(
-            method="POST",
-            path=f"/api/courses/{course_slug}/homeworks/{hw_id}/score/",
-            expected=(200, 400),
-        )
-        resp = self._request(request_data)
-        return resp.json()
+        path = f"/api/courses/{course_slug}/homeworks/{hw_id}/score/"
+        resp = self._request(ApiRequestData(
+            method="POST", path=path, expected=(200, 202, 400),
+        ))
+        result = resp.json()
+        if resp.status_code != 202:
+            return result
+
+        # Poll the same endpoint with GET; never enqueue another scoring job.
+        deadline = time.monotonic() + 120
+        while time.monotonic() < deadline:
+            resp = self._request(ApiRequestData(
+                method="GET", path=path, expected=(200,),
+            ))
+            result = resp.json()
+            if result.get("status") == "SUCCEEDED":
+                return result
+            if result.get("status") == "FAILED":
+                raise ApiError(
+                    f"Homework scoring failed: {result.get('message', '')}",
+                    body=result,
+                )
+            time.sleep(2)
+        raise ApiError("Homework scoring timed out after 120 seconds", body=result)
 
     def homework_submissions(self, course_slug: str, hw_slug: str) -> dict:
         request_data = ApiRequestData(
