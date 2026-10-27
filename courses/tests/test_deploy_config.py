@@ -146,6 +146,50 @@ class DeployConfigTestCase(SimpleTestCase):
 
         self.assertIn("scoring", LIMITS)
 
+    def test_coolify_deploy_pins_every_version_occurrence(self):
+        # Prod compose runs web + scoring worker, each with a VERSION env.
+        # The GHA pin step and hetzner-rollout.sh must move every occurrence:
+        # pinning only the first leaves the worker on a stale tag, and the
+        # poller (which requires all VERSIONs to match the newest tag)
+        # never converges.
+        repo = Path(__file__).resolve().parents[2]
+        workflow = (
+            repo / ".github" / "workflows" / "deploy-coolify.yml"
+        ).read_text()
+        poller = (repo / "deploy/coolify" / "hetzner-rollout.sh").read_text()
+        for text, name in (
+            (workflow, "deploy-coolify.yml"),
+            (poller, "hetzner-rollout.sh"),
+        ):
+            self.assertNotIn(
+                "count=1",
+                text,
+                f"{name} must pin every VERSION occurrence, not just the first",
+            )
+            match = re.search(
+                r're\.subn\(\s*r"((?:[^"\\]|\\.)*)"\s*,\s*r"\\g<1>"',
+                text,
+            )
+            self.assertIsNotNone(
+                match, f"{name} must pin VERSION via re.subn with \\g<1>"
+            )
+            pattern = match.group(1)
+            sample = (
+                "services:\n"
+                "  web:\n"
+                "    image: ghcr.io/datatalksclub/course-management-platform:old\n"
+                "    environment:\n"
+                "      VERSION: old\n"
+                "  worker:\n"
+                "    image: ghcr.io/datatalksclub/course-management-platform:old\n"
+                "    environment:\n"
+                "      VERSION: old\n"
+            )
+            new, m = re.subn(pattern, r"\g<1>newtag", sample)
+            self.assertEqual(m, 2, f"{name} must pin both services")
+            self.assertNotIn("VERSION: old", new)
+            self.assertEqual(new.count("VERSION: newtag"), 2)
+
     def gunicorn_timeout_seconds(self):
         dockerfile = Path(__file__).resolve().parents[2] / "Dockerfile"
         contents = dockerfile.read_text()

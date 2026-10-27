@@ -195,13 +195,16 @@ jobs:
                   raise SystemExit(f"Could not pin image {prefix}* in Coolify compose (matches={n})")
               # Keep VERSION in lockstep with the image tag: the health
               # endpoint (and the public rolling follower) read this env.
+              # Pin every VERSION occurrence (web + scoring worker): pinning
+              # only the first leaves the worker on a stale tag, and the
+              # Hetzner poller requires all VERSIONs to match before it
+              # reports converged.
               new, m = re.subn(
                   r"(?m)^(\s*VERSION\s*:\s*)([^\s'\"]+|'[^']*'|\"[^\"]*\")\s*$",
                   r"\g<1>" + image_tag,
                   new,
-                  count=1,
               )
-              if m != 1:
+              if m < 1:
                   raise SystemExit(f"Could not pin VERSION in Coolify compose (matches={m})")
               call(
                   "PATCH",

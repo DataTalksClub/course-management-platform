@@ -127,6 +127,58 @@ class HomeworkScoringQueueTests(TestCase):
         state = CmpJobState.objects.get(job="scoring")
         self.assertIsNotNone(state.last_success_at)
 
+    def test_scoring_worker_loop_records_success_and_clears_stale_alarm(self):
+        import tempfile
+        from io import StringIO
+        from pathlib import Path
+
+        from data.models import CmpJobState
+
+        enqueue_homework_scoring(self.homework)
+        with tempfile.TemporaryDirectory() as tmp:
+            heartbeat = str(Path(tmp) / "heartbeat")
+            call_command(
+                "run_scoring_worker",
+                interval=0,
+                max_iterations=2,
+                heartbeat=heartbeat,
+                stdout=StringIO(),
+            )
+            self.assertTrue(Path(heartbeat).exists())
+        state = CmpJobState.objects.get(job="scoring")
+        self.assertIsNotNone(state.last_success_at)
+        self.assertIsNone(state.last_failed_at)
+        self.assertNotIn("scoring:success_stale", worker_alarms())
+        self.assertNotIn("scoring:failed", worker_alarms())
+
+    def test_scoring_worker_loop_records_failure(self):
+        import tempfile
+        from io import StringIO
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from data.models import CmpJobState
+
+        enqueue_homework_scoring(self.homework)
+        with tempfile.TemporaryDirectory() as tmp:
+            heartbeat = str(Path(tmp) / "heartbeat")
+            with patch(
+                "courses.management.commands.process_scoring_queue.process_one_job",
+                side_effect=RuntimeError("controlled scoring failure"),
+            ):
+                with self.assertRaises(RuntimeError):
+                    call_command(
+                        "run_scoring_worker",
+                        interval=0,
+                        max_iterations=1,
+                        heartbeat=heartbeat,
+                        stdout=StringIO(),
+                    )
+            self.assertFalse(Path(heartbeat).exists())
+        state = CmpJobState.objects.get(job="scoring")
+        self.assertIsNotNone(state.last_failed_at)
+        self.assertIn("scoring:failed", worker_alarms())
+
     def test_stale_pending_job_raises_backlog_alarm(self):
         job, _ = enqueue_homework_scoring(self.homework)
         ScoringJob.objects.filter(pk=job.pk).update(

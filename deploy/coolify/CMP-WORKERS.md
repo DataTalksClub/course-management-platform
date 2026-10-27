@@ -1,13 +1,14 @@
 # CMP production recurring work
 
 Owner: CMP maintainers; host monitor: machine-management operators. Exactly one
-Coolify scheduled task owns each job on contabo-a. All target the stable `web` container of service
+Coolify scheduled task owns each of outbox/health/reminders on contabo-a. All target the stable `web` container of service
 `cmp-staging` (`avcfd5kwb7cj9r1tx4ygjs6v`), using the current immutable app
 image and verified Relay configuration. The public rolling web application is
 not a scheduler target: Coolify rejects scheduled application tasks while two
 replicas overlap. PostgreSQL session
-advisory locks fence overlaps across replicas and releases. No worker container
-or additional host scheduler executes these jobs.
+advisory locks fence overlaps across replicas and releases. No additional
+host scheduler executes these jobs. Scoring runs in the always-on `worker`
+service (see "Scoring worker" below), not in a scheduled task.
 
 | Job | Coolify task UUID | Command | Cadence |
 | --- | --- | --- | --- |
@@ -99,8 +100,21 @@ Execution owns the `worker` service in `docker-compose.dev.yml`,
 `restart: unless-stopped`, healthcheck on the `/tmp/scoring-worker-heartbeat`
 file (stale after 90s). The image pins (`web.image`, `worker.image`,
 `VERSION`) must move together; the GHA pin step and `hetzner-rollout.sh`
-replace the image in every service, and the deploy verify selects the `web`
-application by name.
+replace the image and every VERSION occurrence in all services, and the
+deploy verify selects the `web` application by name.
+
+The production `cmp-staging` service must carry the same `worker` service
+(synced once from `docker-compose.staging.yml` through the Coolify UI/API;
+secrets already live in the service environment): without it, prod queues
+scoring jobs forever and `check_cmp_workers` raises `scoring:success_stale`
+(2026-10-27 incident — the monitor started requiring scoring success within
+600s before prod ran any scoring). After that one-time sync, every deploy
+re-pins the worker image/VERSION automatically; no per-release step is needed.
+
+Each worker loop iteration runs through `run_cmp_job scoring`, so every
+pass records `CmpJobState('scoring')` success (or failure, then the loop
+exits and the container restarts) — this is the freshness evidence the
+600s monitor requires, including idle passes with an empty queue.
 
 Fallback: `python manage.py run_cmp_job scoring` processes up to 25 pending
 jobs (Coolify scheduled-task compatible, singleton via `worker_lock`).
