@@ -3,7 +3,9 @@ import logging
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
+import requests
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from course_management.datamailer.payloads.registration_confirmations import registration_confirmation_urls
@@ -14,11 +16,35 @@ from .application_notifications import send_transactional_message
 
 logger = logging.getLogger(__name__)
 REMINDERS = ((1, timedelta(hours=24)), (2, timedelta(hours=72)))
+RETRYABLE_BACKOFF = timedelta(minutes=5)
+PERMANENT_BACKOFF = timedelta(hours=24)
+
+
+def is_permanent_relay_error(exc):
+    """True for Relay 4xx that will never succeed on retry (except 429)."""
+    if not isinstance(exc, requests.HTTPError):
+        return False
+    response = getattr(exc, "response", None)
+    status_code = getattr(response, "status_code", 0) or 0
+    if not status_code:
+        return False
+    if status_code == 429:
+        return False
+    return 400 <= status_code < 500
+
+
+def backoff_for_error(exc):
+    if is_permanent_relay_error(exc):
+        return PERMANENT_BACKOFF
+    return RETRYABLE_BACKOFF
 
 
 def reminder_action(row, now):
     deadline = row.created_at + timedelta(days=7)
     if row.email_confirmed:
+        return None
+    next_attempt_at = getattr(row, "confirmation_reminder_next_attempt_at", None)
+    if next_attempt_at is not None and next_attempt_at > now:
         return None
     if now > deadline and row.confirmation_reminder_2_sent_at is not None:
         return "delete"
@@ -58,23 +84,48 @@ def process_one(pk, now):
         if action == "delete":
             row.delete()
             return "deleted"
-        if isinstance(action, int):
-            send_transactional_message(
-                f"registration-confirmation-reminder-{action}", row.email_normalized,
-                reminder_context(row), f"cmp-confirmation-reminder:{row.pk}:{action}",
-                source="cmp-confirmation-reminders",
-            )
-            field = f"confirmation_reminder_{action}_sent_at"
-            setattr(row, field, now)
-            row.save(update_fields=[field])
-            return "reminded"
-    return None
+        if not isinstance(action, int):
+            return None
+        template_key = f"registration-confirmation-reminder-{action}"
+        recipient = row.email_normalized
+        context = reminder_context(row)
+        idempotency_key = f"cmp-confirmation-reminder:{row.pk}:{action}"
+    # Send outside the DB transaction: a failure must persist backoff even
+    # though the send itself raises (saving inside the atomic block above
+    # would roll back). Permanent Relay 4xx back off 24h, retryable 5min.
+    try:
+        send_transactional_message(
+            template_key, recipient, context, idempotency_key,
+            source="cmp-confirmation-reminders",
+        )
+    except Exception as exc:
+        # Never persist response bodies or recipient data.
+        delay = backoff_for_error(exc)
+        CourseRegistration.objects.filter(pk=pk).update(
+            confirmation_reminder_next_attempt_at=timezone.now() + delay,
+        )
+        raise
+    with transaction.atomic():
+        row = CourseRegistration.objects.select_for_update(of=("self",)).get(pk=pk)
+        # Re-check under lock so a concurrent success cannot double-send.
+        if reminder_action(row, now) != action:
+            return None
+        field = f"confirmation_reminder_{action}_sent_at"
+        setattr(row, field, now)
+        row.confirmation_reminder_next_attempt_at = None
+        row.save(update_fields=[field, "confirmation_reminder_next_attempt_at"])
+        return "reminded"
 
 
 def process_confirmation_reminders(now=None, dry_run=False, limit=100):
     now = now or timezone.now()
     result = {"reminded": 0, "deleted": 0, "failed": 0}
-    rows = CourseRegistration.objects.filter(email_confirmed=False, created_at__lte=now-timedelta(hours=24)).order_by("created_at", "pk")
+    rows = CourseRegistration.objects.filter(
+        email_confirmed=False, created_at__lte=now - timedelta(hours=24),
+    ).filter(
+        Q(confirmation_reminder_next_attempt_at__isnull=True)
+        | Q(confirmation_reminder_next_attempt_at__lte=now),
+    ).order_by("created_at", "pk")
     # Select only actionable rows so completed reminders cannot starve new ones.
     processed = 0
     for row in rows.iterator():

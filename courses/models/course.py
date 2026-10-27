@@ -315,6 +315,11 @@ class CourseRegistration(models.Model):
     )
     confirmation_reminder_1_sent_at = models.DateTimeField(null=True, blank=True)
     confirmation_reminder_2_sent_at = models.DateTimeField(null=True, blank=True)
+    confirmation_reminder_next_attempt_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Earliest time a failed confirmation reminder may be retried. "
+        + "Permanent Relay 4xx errors back off for 24h to avoid hot retry loops.",
+    )
     email_confirmation_resend_count = models.PositiveIntegerField(
         default=0,
         help_text="How many confirmation emails were sent "

@@ -161,6 +161,29 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
         self.assertEqual(request.call_args.kwargs["json"]["idempotency_key"], first_key)
         self.assertEqual(self.notifications().get().status, "sent")
 
+    @patch("course_management.relay.application_notifications.requests.request")
+    def test_permanent_404_backs_off_24h_not_5min(self, request):
+        import requests
+        from datetime import timedelta
+        from django.utils import timezone
+        from course_management.relay.application_notifications import process_application_notifications
+        response = requests.Response()
+        response.status_code = 404
+        error = requests.HTTPError("Relay 404")
+        error.response = response
+        request.side_effect = error
+        registration = self.registration()
+        approve_registration(registration)
+        with self.assertLogs("course_management.relay.application_notifications", level="ERROR"):
+            process_application_notifications()
+        notification = self.notifications().get()
+        self.assertEqual(notification.status, "failed")
+        backoff = notification.next_attempt_at - timezone.now()
+        self.assertGreaterEqual(backoff, timedelta(hours=23))
+        calls = request.call_count
+        process_application_notifications()
+        self.assertEqual(request.call_count, calls)
+
     @override_settings(RELAY_API_KEY="")
     def test_missing_relay_configuration_fails_loudly(self):
         from course_management.relay.application_notifications import process_application_notifications

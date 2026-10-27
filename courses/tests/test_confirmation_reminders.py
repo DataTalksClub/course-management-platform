@@ -123,7 +123,11 @@ class ConfirmationReminderTests(RegistrationCampaignBase):
         first_call = self.send.call_args
         row.refresh_from_db()
         self.assertIsNone(row.confirmation_reminder_1_sent_at)
+        # Retryable errors back off 5min: immediate rerun must not hammer Relay.
+        self.assertEqual(self.run_job()["failed"], 0)
+        self.assertEqual(self.send.call_count, 1)
         self.send.side_effect = None
+        self.now += timedelta(minutes=6)
         self.run_job()
         self.assertEqual(self.send.call_args, first_call)
 
@@ -150,6 +154,44 @@ class ConfirmationReminderTests(RegistrationCampaignBase):
         self.assertEqual(self.run_job(dry_run=True)["deleted"], 1)
         self.assertTrue(CourseRegistration.objects.filter(pk=row.pk).exists())
         self.send.assert_not_called()
+
+    def _http_error(self, status_code):
+        import requests
+        response = requests.Response()
+        response.status_code = status_code
+        error = requests.HTTPError(f"Relay returned {status_code}")
+        error.response = response
+        return error
+
+    def test_permanent_404_backs_off_24h_and_does_not_hot_loop(self):
+        from datetime import timedelta as delta
+        row = self.make_registration(delta(hours=24))
+        self.send.side_effect = self._http_error(404)
+        self.assertEqual(self.run_job()["failed"], 1)
+        row.refresh_from_db()
+        self.assertIsNone(row.confirmation_reminder_1_sent_at)
+        self.assertIsNotNone(row.confirmation_reminder_next_attempt_at)
+        backoff = row.confirmation_reminder_next_attempt_at - self.now
+        self.assertGreaterEqual(backoff, delta(hours=23))
+        # Minutely reruns must skip until backoff expires.
+        self.assertEqual(self.run_job()["failed"], 0)
+        self.assertEqual(self.send.call_count, 1)
+        self.now += delta(hours=24, minutes=1)
+        self.send.side_effect = None
+        self.assertEqual(self.run_job()["reminded"], 1)
+        row.refresh_from_db()
+        self.assertIsNotNone(row.confirmation_reminder_1_sent_at)
+        self.assertIsNone(row.confirmation_reminder_next_attempt_at)
+
+    def test_retryable_429_uses_short_backoff(self):
+        from datetime import timedelta as delta
+        row = self.make_registration(delta(hours=24))
+        self.send.side_effect = self._http_error(429)
+        self.assertEqual(self.run_job()["failed"], 1)
+        row.refresh_from_db()
+        backoff = row.confirmation_reminder_next_attempt_at - self.now
+        self.assertLess(backoff, delta(hours=1))
+        self.assertGreaterEqual(backoff, delta(minutes=4))
 
     def test_minutely_outbox_invokes_reminders(self):
         from django.core.management.base import CommandError

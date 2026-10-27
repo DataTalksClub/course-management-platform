@@ -19,6 +19,21 @@ from courses.models.application_notification import ApplicationNotification
 
 logger = logging.getLogger(__name__)
 DEFAULT_OPERATOR = "alexey@datatalks.club"
+RETRYABLE_BACKOFF = timedelta(minutes=5)
+PERMANENT_BACKOFF = timedelta(hours=24)
+
+
+def is_permanent_relay_error(exc):
+    """True for Relay 4xx that will never succeed on retry (except 429)."""
+    if not isinstance(exc, requests.HTTPError):
+        return False
+    response = getattr(exc, "response", None)
+    status_code = getattr(response, "status_code", 0) or 0
+    if not status_code:
+        return False
+    if status_code == 429:
+        return False
+    return 400 <= status_code < 500
 
 
 def operator_recipients():
@@ -182,11 +197,17 @@ def dispatch_notification(pk, now, lease_expired):
     except (requests.RequestException, ValueError, ValidationError) as exc:
         # Never persist response bodies, credentials or recipient data in
         # logs/alerts. The failed row retains the identity for safe retry.
+        # Permanent Relay 4xx (e.g. unknown template_key) backs off 24h to
+        # avoid hot retry loops; transient errors retry in 5min.
         error = type(exc).__name__
         logger.error("Relay application notification failed id=%s error=%s", pk, error)
+        if is_permanent_relay_error(exc):
+            delay = PERMANENT_BACKOFF
+        else:
+            delay = RETRYABLE_BACKOFF
         ApplicationNotification.objects.filter(pk=pk).update(
             status="failed", last_error=error,
-            next_attempt_at=timezone.now() + timedelta(minutes=5),
+            next_attempt_at=timezone.now() + delay,
             updated_at=timezone.now(),
         )
         record_event("datamailer.health_warning", properties={
