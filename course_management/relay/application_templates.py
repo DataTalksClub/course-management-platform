@@ -15,7 +15,7 @@ def template(name, subject, html, text, fields):
         "markdown_body": "",
         "category": "transactional",
         "required_context": [{"name": field} for field in fields],
-        "example_context": {
+        "example_context": {key: value for key, value in {
             "name": "Test Applicant",
             "applicant_email": "alexey.s.grigoriev@gmail.com",
             "course_title": "Example Course",
@@ -28,12 +28,10 @@ def template(name, subject, html, text, fields):
             "unconfirmed_count": 1,
             "course_count": 1,
             "summary": "Example Course — 2 new (1 confirmed, 1 unconfirmed)\n"
-            "Review pending: https://courses.datatalks.club/cadmin/campaigns/example/registrations/?status=pending\n"
-            "- Test Applicant <alexey.s.grigoriev@gmail.com> — confirmed",
+            "Review pending: https://courses.datatalks.club/cadmin/campaigns/example/registrations/?status=pending",
             "summary_html": "Example Course — 2 new (1 confirmed, 1 unconfirmed)\n"
-            "Review pending: https://courses.datatalks.club/cadmin/campaigns/example/registrations/?status=pending\n"
-            "- Test Applicant &lt;alexey.s.grigoriev@gmail.com&gt; — confirmed",
-        },
+            "Review pending: https://courses.datatalks.club/cadmin/campaigns/example/registrations/?status=pending",
+        }.items() if key in fields},
         "is_active": True,
     }
 

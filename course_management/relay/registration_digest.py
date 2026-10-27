@@ -113,34 +113,26 @@ def group_digest_registrations(registrations):
             group = {
                 "title": title,
                 "review_url": digest_review_url(registration),
-                "members": [],
+                "total_count": 0,
+                "confirmed_count": 0,
+                "unconfirmed_count": 0,
             }
             by_key[key] = group
             groups.append(group)
-        group["members"].append({
-            "name": (registration.name or "").strip() or "Applicant",
-            "email": registration.email_normalized,
-            "confirmed": bool(registration.email_confirmed),
-        })
+        group["total_count"] += 1
+        group["confirmed_count"] += int(bool(registration.email_confirmed))
+        group["unconfirmed_count"] += int(not registration.email_confirmed)
     return groups
 
 
 def render_digest_summary(groups):
     lines = []
     for group in groups:
-        members = group["members"]
-        confirmed = sum(1 for member in members if member["confirmed"])
-        unconfirmed = len(members) - confirmed
         lines.append(
-            f"{group['title']} — {len(members)} new "
-            f"({confirmed} confirmed, {unconfirmed} unconfirmed)"
+            f"{group['title']} — {group['total_count']} new "
+            f"({group['confirmed_count']} confirmed, {group['unconfirmed_count']} unconfirmed)"
         )
         lines.append(f"Review pending: {group['review_url']}")
-        for member in group["members"]:
-            state = "confirmed" if member["confirmed"] else "unconfirmed"
-            lines.append(
-                f"- {member['name']} <{member['email']}> — {state}"
-            )
         lines.append("")
     return "\n".join(lines).rstrip("\n")
 

@@ -1,4 +1,9 @@
+import json
+from io import StringIO
 from datetime import datetime, timedelta, timezone as dt_timezone
+
+from django.core.management import call_command
+from django.template import Context, Template
 from unittest.mock import patch
 
 from django.test import override_settings
@@ -120,8 +125,8 @@ class RegistrationDigestTests(RegistrationCampaignBase):
         summary = context["summary"]
         self.assertIn("LLM Zoomcamp 2026", summary)
         self.assertIn("Other Course", summary)
-        self.assertIn("Jane Doe <jane@example.com> — confirmed", summary)
-        self.assertIn("John Smith <john@example.com> — unconfirmed", summary)
+        self.assertIn("2 new (1 confirmed, 1 unconfirmed)", summary)
+        self.assertIn("1 new (1 confirmed, 0 unconfirmed)", summary)
         self.assertIn("status=pending", summary)
         row = RegistrationDigestSend.objects.get(date=DUE_NOW.date())
         self.assertEqual(row.status, DigestModel.Status.SENT)
@@ -130,6 +135,30 @@ class RegistrationDigestTests(RegistrationCampaignBase):
         self.assertEqual(row.unconfirmed_count, 1)
         self.assertEqual(row.course_count, 2)
         self.assertEqual(row.recipients, ["alexey@datatalks.club"])
+
+    def test_digest_bodies_context_examples_and_dry_run_exclude_registrant_data(self):
+        from course_management.relay.application_templates import APPLICATION_TEMPLATES
+        from course_management.relay.registration_digest import send_registration_digest
+
+        self.make_registration("private@example.com", name="Private Applicant", now=DUE_NOW)
+        with patch(self.request_path(), side_effect=relay_ok) as request:
+            send_registration_digest(now=DUE_NOW)
+        context = request.call_args.kwargs["json"]["context"]
+        draft = APPLICATION_TEMPLATES["registration-digest-operator"]
+        output = StringIO()
+        with patch("courses.management.commands.send_registration_digest.digest_moment", return_value=DUE_NOW):
+            call_command("send_registration_digest", "--dry-run", stdout=output)
+        surfaces = [json.dumps(context), json.dumps(draft["example_context"]), output.getvalue()]
+        for values in (context, draft["example_context"]):
+            for body in ("text_body", "html_body"):
+                surfaces.append(Template(draft[body]).render(Context(values, autoescape=False)))
+        for surface in surfaces:
+            self.assertNotIn("@", surface)
+            self.assertNotIn("Private Applicant", surface)
+            self.assertNotIn("Test Applicant", surface)
+            self.assertNotIn("private@example.com", surface)
+        self.assertIn("1 new (0 confirmed, 1 unconfirmed)", context["summary"])
+        self.assertIn("Review pending:", context["summary"])
 
     def test_digest_window_excludes_older_registrations(self):
         from course_management.relay.registration_digest import send_registration_digest
@@ -147,8 +176,7 @@ class RegistrationDigestTests(RegistrationCampaignBase):
         self.assertTrue(result.sent)
         self.assertEqual(result.total_count, 2)
         summary = request.call_args.kwargs["json"]["context"]["summary"]
-        self.assertIn("recent@example.com", summary)
-        self.assertIn("edge@example.com", summary)
+        self.assertIn("2 new (0 confirmed, 2 unconfirmed)", summary)
         self.assertNotIn("old@example.com", summary)
 
     def test_digest_zero_registrations_sends_nothing(self):
