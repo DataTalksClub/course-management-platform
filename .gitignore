@@ -184,3 +184,6 @@ cython_debug/
 
 # Temporary test files
 .tmp/
+
+# Agent scratch: load-test rigs, local reports, hub run evidence (never commit)
+.local/
