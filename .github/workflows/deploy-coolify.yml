@@ -10,6 +10,12 @@ name: Deploy CMP Coolify (Contabo)
 
 on:
   workflow_dispatch:
+    inputs:
+      test_only:
+        type: boolean
+        description: "Run checks without building, publishing or deploying an image"
+        required: false
+        default: false
   push:
     branches: [main]
     paths-ignore:
@@ -64,6 +70,8 @@ jobs:
         run: uv run pytest
 
   build-and-push:
+    # Test-only runs must not publish a tag: the production poller watches GHCR.
+    if: ${{ !inputs.test_only }}
     needs: test
     runs-on: ubuntu-24.04
     outputs:
