@@ -42,16 +42,23 @@ class GunicornAccessLogTests(SimpleTestCase):
         return stream.getvalue()
 
     def test_duration_and_generated_request_id_without_private_data(self):
-        line = self.render('/api/health/')
-        self.assertIn('"GET /api/health/ HTTP/1.1" 200 2 1234 ', line)
+        # AC4: /api/health/ is excluded from the access log (1/s probe).
+        self.assertEqual(self.render("/api/health/"), "")
+        line = self.render("/")
+        self.assertIn('"GET / HTTP/1.1" 200 2 1234 ', line)
         self.assertRegex(line, r'request_id="[0-9a-f]{32}"')
         for value in ('?', 'person', 'secret', '192.0.2.1', 'Bearer'):
             self.assertNotIn(value, line)
 
     def test_untrusted_request_id_cannot_leak_pii(self):
-        line = self.render('/api/health/', 'person@example.test-secret')
+        line = self.render('/', 'person@example.test-secret')
         self.assertNotIn('person', line)
         self.assertRegex(line, r'request_id="[0-9a-f]{32}"')
+
+    def test_health_path_excluded_from_access_log(self):
+        self.assertEqual(self.render("/api/health/"), "")
+        self.assertNotEqual(self.render("/"), "")
+        self.assertNotEqual(self.render("/ping"), "")
 
     def test_dynamic_and_unknown_paths_do_not_leak_tokens_or_emails(self):
         for path in ('/register/confirm/secret-token/',

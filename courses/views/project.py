@@ -1,5 +1,7 @@
 import logging
 
+from django.conf import settings
+from django.core.cache import cache
 from django.http import HttpRequest
 
 from django.contrib import messages
@@ -186,6 +188,27 @@ def project_view(request, course_slug, project_slug):
             course,
             project,
         )
+
+    if (
+        request.method == "GET"
+        and not request.user.is_authenticated
+        and getattr(settings, "PUBLIC_PAGE_CACHE_ENABLED", True)
+    ):
+        cache_key = f"project:anon:{course_slug}:{project_slug}:v1"
+        context = cache.get(cache_key)
+        if context is None:
+            context = project_build_context(request, course, project)
+            cache.set(
+                cache_key,
+                context,
+                getattr(settings, "PROJECT_ANON_CACHE_TTL", 60),
+            )
+        response = render(request, "projects/project.html", context)
+        response["Cache-Control"] = (
+            "public, max-age="
+            f"{getattr(settings, 'PROJECT_ANON_CACHE_TTL', 60)}"
+        )
+        return response
 
     context = project_build_context(request, course, project)
 

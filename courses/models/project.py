@@ -82,6 +82,12 @@ class Project(StartTimeModel):
 
     class Meta:
         unique_together = ("course", "slug")
+        indexes = [
+            models.Index(
+                fields=["course"],
+                name="project_course_idx",
+            ),
+        ]
 
 
 class ProjectSubmission(models.Model):
@@ -117,6 +123,18 @@ class ProjectSubmission(models.Model):
     reviewed_enough_peers = models.BooleanField(default=False)
     passed = models.BooleanField(default=False)
     volunteer_review_only = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["project", "student", "volunteer_review_only"],
+                name="psub_proj_stu_vol_idx",
+            ),
+            models.Index(
+                fields=["enrollment", "volunteer_review_only"],
+                name="psub_enroll_vol_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"project submission for enrollment {self.enrollment.id}"

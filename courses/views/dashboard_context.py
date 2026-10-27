@@ -22,10 +22,19 @@ def dashboard_context(course):
         homework_submissions,
         total_enrollments,
     )
-    raw_avg_total_score = dashboard_avg_total_score(course)
+    # Single fetch for both the average and the distribution (was two
+    # full table scans of all enrollment scores).
+    total_scores = list(
+        Enrollment.objects.filter(
+            course=course, total_score__isnull=False
+        ).values_list("total_score", flat=True)
+    )
+    raw_avg_total_score = (
+        statistics.mean(total_scores) if total_scores else 0
+    )
     avg_total_score = round(raw_avg_total_score, 1)
     overall_completion_rate = dashboard_overall_completion_rate(homework_stats)
-    total_score_distribution = dashboard_total_score_distribution(course)
+    total_score_distribution = quartile_fields("total_score", total_scores)
     question_difficulty = dashboard_question_difficulty(course)
     submission_timing = dashboard_submission_timing(course)
     engagement_trend = dashboard_engagement_trend(course)

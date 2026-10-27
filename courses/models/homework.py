@@ -75,6 +75,12 @@ class Homework(StartTimeModel):
 
     class Meta:
         unique_together = ("course", "slug")
+        indexes = [
+            models.Index(
+                fields=["course", "state"],
+                name="hw_course_state_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.course.title} - {self.title}"
@@ -127,6 +133,14 @@ class Question(models.Model):
     correct_answer = models.TextField(blank=True, null=True)
 
     scores_for_correct_answer = models.IntegerField(default=1)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["homework"],
+                name="question_hw_idx",
+            ),
+        ]
 
     def get_possible_answers(self):
         if not self.possible_answers:
@@ -235,6 +249,18 @@ class Submission(models.Model):
     learning_in_public_score = models.IntegerField(default=0)
     total_score = models.IntegerField(default=0)
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["homework", "student"],
+                name="sub_hw_student_idx",
+            ),
+            models.Index(
+                fields=["enrollment"],
+                name="sub_enrollment_idx",
+            ),
+        ]
+
     def __str__(self):
         return f"{self.student}'s submission for {self.homework.title}"
 
@@ -245,6 +271,14 @@ class Answer(models.Model):
     answer_text = models.TextField(blank=True, null=True)
 
     is_correct = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["submission", "question"],
+                name="ans_sub_question_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"Answer id={self.id} for {self.question}"

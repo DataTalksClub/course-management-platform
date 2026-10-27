@@ -147,6 +147,12 @@ class RegistrationCampaign(models.Model):
 
     class Meta:
         ordering = ["title", "slug"]
+        indexes = [
+            models.Index(
+                fields=["current_course", "is_active"],
+                name="camp_course_active_idx",
+            ),
+        ]
 
     def __str__(self):
         return self.title
@@ -355,6 +361,16 @@ class CourseRegistration(models.Model):
     class Meta:
         unique_together = ["campaign", "email_normalized"]
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["campaign", "email_normalized"],
+                name="reg_camp_email_idx",
+            ),
+            models.Index(
+                fields=["course", "email_normalized", "status"],
+                name="reg_course_email_st_idx",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         raw_email = self.email or ""
@@ -392,6 +408,21 @@ class CourseRegistration(models.Model):
 class Enrollment(models.Model):
     class Meta:
         unique_together = ["student", "course"]
+        indexes = [
+            models.Index(
+                fields=[
+                    "course",
+                    "display_on_leaderboard",
+                    "position_on_leaderboard",
+                    "id",
+                ],
+                name="enroll_lb_list_idx",
+            ),
+            models.Index(
+                fields=["course", "total_score"],
+                name="enroll_course_score_idx",
+            ),
+        ]
 
     student = models.ForeignKey(User, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)

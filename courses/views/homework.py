@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
+from django.conf import settings
 from django.contrib import messages
+from django.core.cache import cache
 from django.http import HttpRequest
 
 from django.shortcuts import redirect, render
@@ -88,6 +90,26 @@ def homework_view(
     user = request.user
 
     if not user.is_authenticated:
+        if request.method == "GET" and getattr(
+            settings, "PUBLIC_PAGE_CACHE_ENABLED", True
+        ):
+            cache_key = f"homework:anon:{course_slug}:{homework_slug}:v1"
+            context = cache.get(cache_key)
+            if context is None:
+                context = homework_detail_build_context_not_authenticated(
+                    course=course, homework=homework, questions=questions
+                )
+                cache.set(
+                    cache_key,
+                    context,
+                    getattr(settings, "HOMEWORK_ANON_CACHE_TTL", 60),
+                )
+            response = render(request, "homework/homework.html", context)
+            response["Cache-Control"] = (
+                "public, max-age="
+                f"{getattr(settings, 'HOMEWORK_ANON_CACHE_TTL', 60)}"
+            )
+            return response
         context = homework_detail_build_context_not_authenticated(
             course=course, homework=homework, questions=questions
         )

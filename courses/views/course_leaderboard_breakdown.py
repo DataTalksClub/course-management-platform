@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.core.cache import cache
 from django.db.models import Case, IntegerField, Value, When
 
 from courses.models.homework import (
@@ -17,12 +19,9 @@ def leaderboard_score_breakdown_context(enrollment, user):
     show_public_profile_settings_link = (
         is_own_record and public_profile is None
     )
-    submissions = leaderboard_homework_submissions(enrollment)
-    project_submissions = ProjectSubmission.objects.filter(
-        enrollment=enrollment,
-        volunteer_review_only=False,
-    ).select_related("project")
-    project_submissions = project_submissions.order_by("project__id")
+    submissions, project_submissions = cached_breakdown_submissions(
+        enrollment
+    )
 
     return {
         "enrollment": enrollment,
@@ -31,6 +30,44 @@ def leaderboard_score_breakdown_context(enrollment, user):
         "submissions": submissions,
         "project_submissions": project_submissions,
     }
+
+
+def cached_breakdown_submissions(enrollment):
+    """Cache the per-enrollment submission lists (same for every viewer).
+
+    User-specific flags (is_own_record, settings link) are still computed
+    per request. TTL keeps leaderboard crawls cheap without stale scores
+    for long.
+    """
+    if not getattr(settings, "PUBLIC_PAGE_CACHE_ENABLED", True):
+        return (
+            list(leaderboard_homework_submissions(enrollment)),
+            list(cached_breakdown_project_submissions(enrollment)),
+        )
+    cache_key = f"leaderboard:breakdown:{enrollment.id}:v1"
+    cached = cache.get(cache_key)
+    if cached is None:
+        cached = (
+            list(leaderboard_homework_submissions(enrollment)),
+            list(cached_breakdown_project_submissions(enrollment)),
+        )
+        cache.set(
+            cache_key,
+            cached,
+            getattr(
+                settings, "LEADERBOARD_BREAKDOWN_CACHE_TTL", 300
+            ),
+        )
+        return cached
+    return cached
+
+
+def cached_breakdown_project_submissions(enrollment):
+    project_submissions = ProjectSubmission.objects.filter(
+        enrollment=enrollment,
+        volunteer_review_only=False,
+    ).select_related("project")
+    return project_submissions.order_by("project__id")
 
 
 def leaderboard_homework_submissions(enrollment):

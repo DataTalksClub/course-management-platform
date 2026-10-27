@@ -85,9 +85,18 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-STATICFILES_STORAGE = (
-    "whitenoise.storage.CompressedManifestStaticFilesStorage"
-)
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+# Kept for tooling that still reads the legacy setting; STORAGES above is
+# authoritative on Django 4.2+.
+STATICFILES_STORAGE = STORAGES["staticfiles"]["BACKEND"]
 
 
 ROOT_URLCONF = "course_management.urls"
@@ -156,7 +165,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_ROOT = BASE_DIR / "static"
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 
 # STATICFILES_DIRS = [
 #     STATIC_ROOT,
@@ -172,9 +181,10 @@ is_test = (
 )
 
 if is_test:
-    STATICFILES_STORAGE = (
-        "django.contrib.staticfiles.storage.StaticFilesStorage"
-    )
+    STORAGES["staticfiles"] = {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    }
+    STATICFILES_STORAGE = STORAGES["staticfiles"]["BACKEND"]
 
 
 # Per-IP rate limiting (Traefik-style average + burst). Disabled in the
@@ -195,6 +205,20 @@ HOMEPAGE_ANON_CACHE_ENABLED = (
     os.getenv("HOMEPAGE_ANON_CACHE_ENABLED", "1") == "1"
 ) and not _RUNNING_TESTS
 HOMEPAGE_ANON_CACHE_TTL = int(os.getenv("HOMEPAGE_ANON_CACHE_TTL", "60"))
+
+# Public-page caches (AC7/AC8): anonymous course/homework/project pages and
+# the course dashboard (same for every viewer) are cached with short TTLs.
+# Authenticated personalized pages are never cached. Disabled in tests.
+PUBLIC_PAGE_CACHE_ENABLED = (
+    os.getenv("PUBLIC_PAGE_CACHE_ENABLED", "1") == "1"
+) and not _RUNNING_TESTS
+COURSE_ANON_CACHE_TTL = int(os.getenv("COURSE_ANON_CACHE_TTL", "60"))
+HOMEWORK_ANON_CACHE_TTL = int(os.getenv("HOMEWORK_ANON_CACHE_TTL", "60"))
+PROJECT_ANON_CACHE_TTL = int(os.getenv("PROJECT_ANON_CACHE_TTL", "60"))
+DASHBOARD_CACHE_TTL = int(os.getenv("DASHBOARD_CACHE_TTL", "300"))
+LEADERBOARD_BREAKDOWN_CACHE_TTL = int(
+    os.getenv("LEADERBOARD_BREAKDOWN_CACHE_TTL", "300")
+)
 
 
 # Default primary key field type
