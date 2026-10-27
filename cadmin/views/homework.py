@@ -14,7 +14,12 @@ from courses.homework_correct_answers import (
     clear_correct_answers,
     fill_correct_answers,
 )
-from courses.scoring import HomeworkScoringStatus, score_homework_submissions
+from courses.scoring_queue import (
+    enqueue_homework_scoring,
+    homework_score_precheck,
+    latest_homework_job,
+    scoring_banner,
+)
 from cadmin.deadline_extension import extend_deadlines
 from cadmin.views.homework_submission_edit import (
     homework_submission_edit_response,
@@ -33,7 +38,7 @@ from .helpers import (
 
 @staff_required
 def homework_score(request, course_slug, homework_slug):
-    """Score a homework"""
+    """Queue homework scoring in the background worker."""
     if request.method != "POST":
         response = redirect("cadmin_course", course_slug=course_slug)
         return response
@@ -42,12 +47,26 @@ def homework_score(request, course_slug, homework_slug):
         Homework, course=course, slug=homework_slug
     )
 
-    status, message = score_homework_submissions(homework.id)
-
-    if status == HomeworkScoringStatus.OK:
-        messages.success(request, message)
+    error = homework_score_precheck(homework)
+    if error:
+        messages.warning(request, error)
     else:
-        messages.warning(request, message)
+        requested_by = getattr(request.user, "username", "") or ""
+        job, created = enqueue_homework_scoring(
+            homework, requested_by=requested_by
+        )
+        if created:
+            messages.success(
+                request,
+                f"Scoring queued for {homework.title} (job #{job.id}). "
+                "Refresh to see progress.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Scoring already in progress for {homework.title} "
+                f"(job #{job.id}).",
+            )
 
     return redirect_after_action(
         request, "cadmin_course", course_slug=course_slug
@@ -84,7 +103,7 @@ def homework_extend_deadline(request, course_slug, homework_slug):
 
 @staff_required
 def homework_rescore(request, course_slug, homework_slug):
-    """Re-score an already scored homework.
+    """Re-score an already scored homework via the background worker.
 
     Resets the homework to OPEN so the normal scoring logic applies.
     """
@@ -108,12 +127,31 @@ def homework_rescore(request, course_slug, homework_slug):
     homework.state = HomeworkState.OPEN.value
     homework.save(update_fields=["state"])
 
-    status, message = score_homework_submissions(homework.id)
+    error = homework_score_precheck(homework, force=True)
+    if error:
+        homework.state = HomeworkState.SCORED.value
+        homework.save(update_fields=["state"])
+        messages.warning(request, error)
+        return redirect_after_action(
+            request, "cadmin_course", course_slug=course_slug
+        )
 
-    if status == HomeworkScoringStatus.OK:
-        messages.success(request, message)
+    requested_by = getattr(request.user, "username", "") or ""
+    job, created = enqueue_homework_scoring(
+        homework, requested_by=requested_by, force=True
+    )
+    if created:
+        messages.success(
+            request,
+            f"Rescoring queued for {homework.title} (job #{job.id}). "
+            "Refresh to see progress.",
+        )
     else:
-        messages.warning(request, message)
+        messages.success(
+            request,
+            f"Rescoring already in progress for {homework.title} "
+            f"(job #{job.id}).",
+        )
 
     return redirect_after_action(
         request, "cadmin_course", course_slug=course_slug
@@ -234,6 +272,7 @@ def homework_submissions(request, course_slug, homework_slug):
     context["score_notification_status"] = (
         get_homework_score_notification_status(homework)
     )
+    context["scoring_job"] = scoring_banner(latest_homework_job(homework))
     response = render(request, "cadmin/homework_submissions.html", context)
     return response
 

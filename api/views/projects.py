@@ -19,11 +19,8 @@ from api.utils import (
 )
 from api.views.project_action_routes import (
     ProjectActionRouteData,
-    project_action_route_response,
-)
-from api.views.project_actions import (
-    project_assign_reviews_response,
-    project_score_response,
+    project_assign_reviews_route_response,
+    project_score_route_response,
 )
 from api.views.project_create import (
     projects_create_response,
@@ -130,77 +127,77 @@ def project_detail_by_slug_view(request, course_slug, project_slug):
 
 @token_required
 @csrf_exempt
-@require_methods("POST")
+@require_methods("GET", "POST")
 def project_assign_reviews_view(request, course_slug, project_id):
     """
-    POST /api/courses/<slug>/projects/<id>/assign-reviews/ - Assign reviews.
+    POST /api/courses/<slug>/projects/<id>/assign-reviews/ - Queue review assignment.
+    GET /api/courses/<slug>/projects/<id>/assign-reviews/ - Assignment job status.
     """
     route_data = ProjectActionRouteData(
         request=request,
         course_slug=course_slug,
         project_id=project_id,
     )
-    response = project_action_route_response(
+    response = project_assign_reviews_route_response(
         route_data,
-        project_assign_reviews_response,
     )
     return response
 
 
 @token_required
 @csrf_exempt
-@require_methods("POST")
+@require_methods("GET", "POST")
 def project_assign_reviews_by_slug_view(
     request, course_slug, project_slug
 ):
     """
-    POST /api/courses/<slug>/projects/by-slug/<slug>/assign-reviews/ - Assign reviews.
+    POST /api/courses/<slug>/projects/by-slug/<slug>/assign-reviews/ - Queue assignment.
+    GET /api/courses/<slug>/projects/by-slug/<slug>/assign-reviews/ - Job status.
     """
     route_data = ProjectActionRouteData(
         request=request,
         course_slug=course_slug,
         project_slug=project_slug,
     )
-    response = project_action_route_response(
+    response = project_assign_reviews_route_response(
         route_data,
-        project_assign_reviews_response,
     )
     return response
 
 
 @token_required
 @csrf_exempt
-@require_methods("POST")
+@require_methods("GET", "POST")
 def project_score_view(request, course_slug, project_id):
     """
-    POST /api/courses/<slug>/projects/<id>/score/ - Score project.
+    POST /api/courses/<slug>/projects/<id>/score/ - Queue project scoring.
+    GET /api/courses/<slug>/projects/<id>/score/ - Scoring job status.
     """
     route_data = ProjectActionRouteData(
         request=request,
         course_slug=course_slug,
         project_id=project_id,
     )
-    response = project_action_route_response(
+    response = project_score_route_response(
         route_data,
-        project_score_response,
     )
     return response
 
 
 @token_required
 @csrf_exempt
-@require_methods("POST")
+@require_methods("GET", "POST")
 def project_score_by_slug_view(request, course_slug, project_slug):
     """
-    POST /api/courses/<slug>/projects/by-slug/<slug>/score/ - Score project.
+    POST /api/courses/<slug>/projects/by-slug/<slug>/score/ - Queue scoring.
+    GET /api/courses/<slug>/projects/by-slug/<slug>/score/ - Job status.
     """
     route_data = ProjectActionRouteData(
         request=request,
         course_slug=course_slug,
         project_slug=project_slug,
     )
-    response = project_action_route_response(
+    response = project_score_route_response(
         route_data,
-        project_score_response,
     )
     return response

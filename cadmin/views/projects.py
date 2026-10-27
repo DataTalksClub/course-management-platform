@@ -13,12 +13,13 @@ from course_management.datamailer.sync.score_notifications import (
 )
 from courses.models.course import Course
 from courses.models.project import Project, ProjectState
-from courses.project_assignment import (
-    ProjectActionStatus,
-    assign_peer_reviews_for_project,
-)
-from courses.project_scoring import (
-    score_project,
+from courses.scoring_queue import (
+    enqueue_project_assign_reviews,
+    enqueue_project_scoring,
+    latest_project_job,
+    project_assign_reviews_precheck,
+    project_score_precheck,
+    scoring_banner,
 )
 from cadmin.deadline_extension import (
     extend_deadlines,
@@ -76,7 +77,7 @@ def project_extend_deadline(request, course_slug, project_slug):
 
 @staff_required
 def project_assign_reviews(request, course_slug, project_slug):
-    """Assign peer reviews for a project"""
+    """Queue peer review assignment in the background worker"""
     if request.method != "POST":
         response = redirect("cadmin_course", course_slug=course_slug)
         return response
@@ -85,12 +86,26 @@ def project_assign_reviews(request, course_slug, project_slug):
         Project, course=course, slug=project_slug
     )
 
-    status, message = assign_peer_reviews_for_project(project)
-
-    if status == ProjectActionStatus.OK:
-        messages.success(request, message)
+    error = project_assign_reviews_precheck(project)
+    if error:
+        messages.warning(request, error)
     else:
-        messages.warning(request, message)
+        requested_by = getattr(request.user, "username", "") or ""
+        job, created = enqueue_project_assign_reviews(
+            project, requested_by=requested_by
+        )
+        if created:
+            messages.success(
+                request,
+                f"Peer review assignment queued for {project.title} "
+                f"(job #{job.id}). Refresh to see progress.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Peer review assignment already in progress for "
+                f"{project.title} (job #{job.id}).",
+            )
 
     return redirect_after_action(
         request, "cadmin_course", course_slug=course_slug
@@ -99,7 +114,7 @@ def project_assign_reviews(request, course_slug, project_slug):
 
 @staff_required
 def project_score(request, course_slug, project_slug):
-    """Score a project"""
+    """Queue project scoring in the background worker"""
     if request.method != "POST":
         response = redirect("cadmin_course", course_slug=course_slug)
         return response
@@ -108,12 +123,26 @@ def project_score(request, course_slug, project_slug):
         Project, course=course, slug=project_slug
     )
 
-    status, message = score_project(project)
-
-    if status == ProjectActionStatus.OK:
-        messages.success(request, message)
+    error = project_score_precheck(project)
+    if error:
+        messages.warning(request, error)
     else:
-        messages.warning(request, message)
+        requested_by = getattr(request.user, "username", "") or ""
+        job, created = enqueue_project_scoring(
+            project, requested_by=requested_by
+        )
+        if created:
+            messages.success(
+                request,
+                f"Scoring queued for {project.title} (job #{job.id}). "
+                "Refresh to see progress.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Scoring already in progress for {project.title} "
+                f"(job #{job.id}).",
+            )
 
     return redirect_after_action(
         request, "cadmin_course", course_slug=course_slug
@@ -197,6 +226,7 @@ def project_submissions(request, course_slug, project_slug):
     context["score_notification_status"] = (
         get_project_score_notification_status(project)
     )
+    context["scoring_job"] = scoring_banner(latest_project_job(project))
     response = render(request, "cadmin/project_submissions.html", context)
     return response
 

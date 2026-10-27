@@ -8,7 +8,13 @@ from courses.models.homework import Homework
 from courses.models.homework import HomeworkState
 from courses.scoring import (
     HomeworkScoringStatus,
-    score_homework_submissions,
+)
+from courses.scoring_queue import (
+    enqueue_homework_scoring,
+    homework_score_precheck,
+    job_poll_path_homework,
+    job_to_dict,
+    latest_homework_job,
 )
 
 from api.crud import (
@@ -33,31 +39,79 @@ from api.views.homework_upsert import (
 )
 
 
-def _homework_score_response(homework):
-    status, message = score_homework_submissions(homework.id)
+def _homework_score_blocked_response(homework, message):
     homework.refresh_from_db()
-    submissions_count = homework.submission_set.count()
-    if status == HomeworkScoringStatus.OK:
-        response_status = 200
-    else:
-        response_status = 400
-
-    if status == HomeworkScoringStatus.OK:
-        rescored_submissions_count = submissions_count
-    else:
-        rescored_submissions_count = 0
-
     payload = {
-        "status": status.name,
+        "status": HomeworkScoringStatus.FAIL.name,
         "message": message,
         "homework_id": homework.id,
         "homework_slug": homework.slug,
         "state": homework.state,
-        "submissions_count": submissions_count,
-        "rescored_submissions_count": rescored_submissions_count,
+        "submissions_count": homework.submission_set.count(),
+        "rescored_submissions_count": 0,
     }
-    response = JsonResponse(payload, status=response_status)
-    return response
+    return JsonResponse(payload, status=400)
+
+
+def _homework_score_enqueued_response(request, homework, force=False):
+    requested_by = getattr(request.user, "username", "") or ""
+    job, created = enqueue_homework_scoring(
+        homework, requested_by=requested_by, force=force
+    )
+    homework.refresh_from_db()
+    if created:
+        message = (
+            f"Scoring queued for homework {homework.id} "
+            f"(job #{job.id}). Poll for status."
+        )
+    else:
+        message = (
+            f"Scoring already in progress for homework {homework.id} "
+            f"(job #{job.id})."
+        )
+    by_slug = "by_slug" in request.path
+    poll_url = job_poll_path_homework(
+        homework.course.slug,
+        homework_slug=homework.slug if by_slug else None,
+        homework_id=None if by_slug else homework.id,
+    )
+    payload = {
+        "status": job.status.upper(),
+        "message": message,
+        "homework_id": homework.id,
+        "homework_slug": homework.slug,
+        "state": homework.state,
+        "submissions_count": homework.submission_set.count(),
+        "rescored_submissions_count": 0,
+        "job_id": job.id,
+        "job_status": job.status,
+        "poll_url": poll_url,
+    }
+    payload.update(job_to_dict(job))
+    payload["job_id"] = job.id
+    payload["job_status"] = job.status
+    return JsonResponse(payload, status=202)
+
+
+def _homework_score_status_response(homework):
+    job = latest_homework_job(homework)
+    if job is None:
+        return JsonResponse({"error": "No scoring job for this homework"}, status=404)
+    homework.refresh_from_db()
+    payload = {
+        "homework_id": homework.id,
+        "homework_slug": homework.slug,
+        "state": homework.state,
+        "submissions_count": homework.submission_set.count(),
+    }
+    payload.update(job_to_dict(job))
+    payload["status"] = job.status.upper()
+    payload["message"] = job.result_message or job.last_error
+    if job.status == "succeeded":
+        payload["rescored_submissions_count"] = payload["submissions_count"]
+    else:
+        payload["rescored_submissions_count"] = 0
+    return JsonResponse(payload)
 
 
 @token_required
@@ -149,10 +203,11 @@ def homework_detail_by_slug_view(request, course_slug, homework_slug):
 
 @token_required
 @csrf_exempt
-@require_methods("POST")
+@require_methods("GET", "POST")
 def homework_score_view(request, course_slug, homework_id):
     """
-    POST /api/courses/<slug>/homeworks/<id>/score/ - Score homework.
+    POST /api/courses/<slug>/homeworks/<id>/score/ - Queue homework scoring.
+    GET /api/courses/<slug>/homeworks/<id>/score/ - Scoring job status.
     """
     staff_error = require_staff_token(request)
     if staff_error:
@@ -164,15 +219,21 @@ def homework_score_view(request, course_slug, homework_id):
         course,
         object_id=homework_id,
     )
-    return _homework_score_response(homework)
+    if request.method == "GET":
+        return _homework_score_status_response(homework)
+    error = homework_score_precheck(homework)
+    if error:
+        return _homework_score_blocked_response(homework, error)
+    return _homework_score_enqueued_response(request, homework)
 
 
 @token_required
 @csrf_exempt
-@require_methods("POST")
+@require_methods("GET", "POST")
 def homework_score_by_slug_view(request, course_slug, homework_slug):
     """
-    POST /api/courses/<slug>/homeworks/by-slug/<slug>/score/ - Score homework.
+    POST /api/courses/<slug>/homeworks/by-slug/<slug>/score/ - Queue scoring.
+    GET /api/courses/<slug>/homeworks/by-slug/<slug>/score/ - Job status.
     """
     staff_error = require_staff_token(request)
     if staff_error:
@@ -184,4 +245,9 @@ def homework_score_by_slug_view(request, course_slug, homework_slug):
         course,
         slug=homework_slug,
     )
-    return _homework_score_response(homework)
+    if request.method == "GET":
+        return _homework_score_status_response(homework)
+    error = homework_score_precheck(homework)
+    if error:
+        return _homework_score_blocked_response(homework, error)
+    return _homework_score_enqueued_response(request, homework)

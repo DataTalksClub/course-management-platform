@@ -87,6 +87,8 @@
         </div>
     </section>
 
+    {% include 'cadmin/scoring_job_banner.html' %}
+
     {% if score_notification_status and score_notification_status.state != 'not_queued' %}
       {% if score_notification_status.is_failed_or_retrying %}
         <div class="mt-5 rounded-md border app-alert-warning px-4 py-3 text-sm" role="alert">

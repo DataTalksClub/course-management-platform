@@ -10,6 +10,7 @@ JOBS = {
     'outbox': 'process_datamailer_outbox',
     'health': 'monitoring_datamailer_health',
     'reminders': 'send_deadline_reminders',
+    'scoring': 'process_scoring_queue',
 }
 
 

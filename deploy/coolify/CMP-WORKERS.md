@@ -14,6 +14,7 @@ or additional host scheduler executes these jobs.
 | outbox | 1uyereuryah2gkppequp4vjn | python manage.py run_cmp_job outbox | every minute |
 | health | hhxzn2v587ml3a0tw87xbx79 | python manage.py run_cmp_job health | every five minutes |
 | reminders | qj3p3gksnxr74mvtqofqdm0k | python manage.py run_cmp_job reminders | daily 09:00 UTC |
+| scoring | — (always-on `worker` service) | python manage.py run_cmp_job scoring | continuous loop, 5s interval |
 | digest | — (piggybacked on outbox) | maybe_send_scheduled_digest() inside process_datamailer_outbox | once per Europe/Berlin day after 09:00 Berlin |
 
 The digest needs no Coolify task: the minutely outbox tick in the stable
@@ -68,8 +69,9 @@ against the promoted database. Do not activate AWS schedules for failover.
 The independent host watchdog `check-workers.sh` runs from `cmp-workers.cron`
 every minute, outside Coolify's scheduler. It resolves the stable service runner container, runs `check_cmp_workers`, and alerts through the existing host MTA.
 Payload-free alarms cover missing/stale success (outbox 300s, health 900s,
-reminders 26h, digest 26h), failed last attempts, due backlog older than 300s, and processing
-older than 540s. State under `/var/lib/cmp-worker-monitor` enforces hysteresis
+reminders 26h, digest 26h, scoring 600s), failed last attempts, due backlog older than 300s, processing
+older than 540s (scoring backlog older than 600s, stuck scoring processing
+older than 1800s), and application-notification failures. State under `/var/lib/cmp-worker-monitor` enforces hysteresis
 via `CMP_FAIL_THRESHOLD` (default 2 consecutive failing evaluations 60s apart)
 to avoid false alarms during container replacement or rolling restarts.
 Two minute-spaced evaluations add up to 120s after a breach, plus check time
@@ -82,3 +84,32 @@ in root-only `/etc/cmp-worker-monitor.env` if the service runner or thresholds c
 Recovery: restore the runner/image/configuration, inspect alarm output locally,
 verify new success timestamps and oldest-due age, and require monitor recovery.
 Do not mute alerts, truncate queues, or reset old reminder windows.
+
+## Scoring worker
+
+Homework/project scoring and peer-review assignment never run inside the web
+request: the API (`.../score/`, `.../assign-reviews/`) and cadmin actions
+enqueue a `ScoringJob` row and return immediately (API: HTTP 202 with
+`job_id` and `poll_url`; cadmin: "queued" message). The same paths serve GET
+for job status (`queued`/`processing`/`succeeded`/`failed`).
+
+Execution owns the `worker` service in `docker-compose.dev.yml`,
+`docker-compose.staging.yml`, and local `docker-compose.yml`:
+`python manage.py run_scoring_worker` drains the queue every 5 seconds,
+`restart: unless-stopped`, healthcheck on the `/tmp/scoring-worker-heartbeat`
+file (stale after 90s). The image pins (`web.image`, `worker.image`,
+`VERSION`) must move together; the GHA pin step and `hetzner-rollout.sh`
+replace the image in every service, and the deploy verify selects the `web`
+application by name.
+
+Fallback: `python manage.py run_cmp_job scoring` processes up to 25 pending
+jobs (Coolify scheduled-task compatible, singleton via `worker_lock`).
+`check_cmp_workers` alarms on stale scoring success (600s), scoring backlog
+older than 600s, and stuck scoring processing older than 1800s.
+
+Idempotency: duplicate POSTs while a job is active return the existing job
+instead of a new row; the worker claims jobs with row locking and a 10-minute
+stale reclaim, serializes per target with `worker_lock`, and re-checks the
+terminal state (SC/CO, existing peer reviews) before running, so a retry
+after a crash marks "already scored (idempotent skip)" instead of
+double-scoring. Scoring itself runs in one atomic transaction.

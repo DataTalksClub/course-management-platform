@@ -63,3 +63,48 @@ services:
       start_period: 60s
     expose:
       - "80"
+  worker:
+    image: ghcr.io/datatalksclub/course-management-platform:20261021-094333-f922dc4
+    pull_policy: always
+    restart: unless-stopped
+    command: ["python", "manage.py", "run_scoring_worker", "--interval", "5"]
+    environment:
+      DEBUG: "0"
+      IS_LOCAL: "0"
+      SITE_ID: "2"
+      VERSION: 20261021-094333-f922dc4
+      PUBLIC_BASE_URL: ""
+      EXTRA_ALLOWED_HOSTS: ""
+      OBSERVABILITY_ENVIRONMENT: staging
+      OBSERVABILITY_EVENT_BACKENDS: log
+      CLOUDWATCH_APP_METRIC_NAMESPACE: CourseManagement/App
+      RELAY_URL: https://relay.datatalks.club
+      RELAY_CLIENT: dtc-courses
+      RELAY_AUDIENCE: dtc-courses
+      RELAY_FROM_EMAIL: courses
+      RELAY_STRICT: "0"
+      RELAY_TIMEOUT_SECONDS: "60"
+      # Production worker: real transactional mail enabled 2026-10-24 (Hub
+      # 027d1ed2, Alexey-approved). Dev stays dry-run (docker-compose.dev.yml).
+      # The native public Application mirrors this env via the rolling follower.
+      RELAY_TRANSACTIONAL_DRY_RUN: "0"
+      RELAY_SYNC_ON_USER_CREATE: "0"
+      RELAY_OUTBOX_DISPATCH_IMMEDIATELY: "0"
+      # Secrets — populate in Coolify UI/API before first deploy.
+      # Names only; no values committed anywhere.
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      RELAY_API_KEY: ${RELAY_API_KEY}
+      RELAY_WEBHOOK_TOKEN: ${RELAY_WEBHOOK_TOKEN}
+      AUTH_TOKEN: ${AUTH_TOKEN}
+      DEV_AUTH_TOKEN: ${DEV_AUTH_TOKEN}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import time,os; assert time.time()-os.path.getmtime('/tmp/scoring-worker-heartbeat')<90\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

@@ -1,4 +1,5 @@
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.urls import reverse
@@ -10,16 +11,15 @@ from cadmin.tests.project_view_base import ProjectCadminViewTestBase
 
 class ProjectActionViewTests(ProjectCadminViewTestBase):
     @patch("cadmin.views.projects.queue_project_score_notification")
-    @patch("cadmin.views.projects.score_project")
-    def test_project_score_shows_message_without_notifying(
+    @patch("cadmin.views.projects.enqueue_project_scoring")
+    @patch("cadmin.views.projects.project_score_precheck", return_value=None)
+    def test_project_score_queues_without_notifying(
         self,
-        score_project_mock,
+        precheck_mock,
+        enqueue_mock,
         send_score_notification,
     ):
-        score_project_mock.return_value = (
-            ProjectActionStatus.OK,
-            "Project scored",
-        )
+        enqueue_mock.return_value = (SimpleNamespace(id=7), True)
         url = self.cadmin_project_score_url()
         course_admin_url = self.cadmin_course_url()
 
@@ -30,19 +30,20 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
         messages = list(response.context["messages"])
         message_count = len(messages)
         self.assertEqual(message_count, 1)
+        self.assertIn("queued", messages[0].message.lower())
+        enqueue_mock.assert_called_once()
         send_score_notification.assert_not_called()
 
     @patch("cadmin.views.projects.queue_project_score_notification")
-    @patch("cadmin.views.projects.score_project")
+    @patch("cadmin.views.projects.enqueue_project_scoring")
+    @patch("cadmin.views.projects.project_score_precheck", return_value=None)
     def test_project_score_can_redirect_back_to_project_submissions(
         self,
-        score_project_mock,
+        precheck_mock,
+        enqueue_mock,
         send_score_notification,
     ):
-        score_project_mock.return_value = (
-            ProjectActionStatus.OK,
-            "Project scored",
-        )
+        enqueue_mock.return_value = (SimpleNamespace(id=7), True)
         next_url = self.cadmin_project_submissions_url()
         url = self.cadmin_project_score_url()
 
@@ -93,16 +94,18 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
     @patch(
         "cadmin.views.projects.send_peer_review_assignment_notification"
     )
-    @patch("cadmin.views.projects.assign_peer_reviews_for_project")
-    def test_project_assign_reviews_shows_message_without_notifying(
+    @patch("cadmin.views.projects.enqueue_project_assign_reviews")
+    @patch(
+        "cadmin.views.projects.project_assign_reviews_precheck",
+        return_value=None,
+    )
+    def test_project_assign_reviews_queues_without_notifying(
         self,
-        assign_reviews,
+        precheck_mock,
+        enqueue_mock,
         send_assignment_notification,
     ):
-        assign_reviews.return_value = (
-            ProjectActionStatus.OK,
-            "Peer reviews assigned",
-        )
+        enqueue_mock.return_value = (SimpleNamespace(id=9), True)
         url = self.cadmin_project_assign_reviews_url()
         course_admin_url = self.cadmin_course_url()
 
@@ -113,6 +116,8 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
         messages = list(response.context["messages"])
         message_count = len(messages)
         self.assertEqual(message_count, 1)
+        self.assertIn("queued", messages[0].message.lower())
+        enqueue_mock.assert_called_once()
         send_assignment_notification.assert_not_called()
 
     @patch(

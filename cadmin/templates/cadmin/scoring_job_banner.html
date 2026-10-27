@@ -1,0 +1,27 @@
+{% if scoring_job %}
+  {% if scoring_job.is_active %}
+    <div class="mt-5 rounded-md border app-alert-info px-4 py-3 text-sm" role="status">
+      <div class="flex items-center">
+        <i class="fas fa-clock mr-2" aria-hidden="true"></i>
+        <span>Scoring {{ scoring_job.status }} (job #{{ scoring_job.id }}). Refresh to see progress.</span>
+      </div>
+    </div>
+  {% elif scoring_job.is_failed %}
+    <div class="mt-5 rounded-md border app-alert-warning px-4 py-3 text-sm" role="alert">
+      <div class="flex items-start">
+        <i class="fas fa-exclamation-triangle mt-0.5 mr-2" aria-hidden="true"></i>
+        <div>
+          <p class="font-semibold app-heading">Background scoring failed (job #{{ scoring_job.id }})</p>
+          <p class="mt-1">{{ scoring_job.last_error }}</p>
+        </div>
+      </div>
+    </div>
+  {% elif scoring_job.is_succeeded %}
+    <div class="mt-5 rounded-md border app-alert-success px-4 py-3 text-sm" role="status">
+      <div class="flex items-center">
+        <i class="fas fa-check-circle mr-2" aria-hidden="true"></i>
+        <span>Scoring finished (job #{{ scoring_job.id }}): {{ scoring_job.result_message }}</span>
+      </div>
+    </div>
+  {% endif %}
+{% endif %}

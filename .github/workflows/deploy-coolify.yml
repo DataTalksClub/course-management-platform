@@ -185,13 +185,13 @@ jobs:
           def main():
               _st, svc = call("GET", f"/api/v1/services/{uuid}")
               raw = svc["docker_compose_raw"]
+              # Pin every service running our image (web + scoring worker).
               new, n = re.subn(
                   re.escape(prefix) + r"[^\s'\"]+",
                   prefix + image_tag,
                   raw,
-                  count=1,
               )
-              if n != 1:
+              if n < 1:
                   raise SystemExit(f"Could not pin image {prefix}* in Coolify compose (matches={n})")
               # Keep VERSION in lockstep with the image tag: the health
               # endpoint (and the public rolling follower) read this env.
@@ -283,7 +283,9 @@ jobs:
           while time.time() < deadline:
               try:
                   svc = fetch()
-                  app = (svc.get("applications") or [{}])[0]
+                  apps = svc.get("applications") or [{}]
+                  web_apps = [a for a in apps if a.get("name") == "web"] or apps[:1]
+                  app = web_apps[0]
                   last = f"image={app.get('image')} status={app.get('status')}"
                   print(f"verify: {last}", flush=True)
                   if app.get("image") == want and str(app.get("status", "")).startswith("running"):

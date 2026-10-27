@@ -41,6 +41,28 @@ services:
     entrypoint: ["/code/docker-entrypoint.sh"]
     command: ["gunicorn", "course_management.wsgi", "--bind", "0.0.0.0:80"]
 
+  worker:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://course_user:course_password@db:5432/course_management
+      DEBUG: "1"
+      IS_LOCAL: "1"
+      SECRET_KEY: "dev-secret-key-change-in-production"
+    volumes:
+      - init_flag:/code/.docker
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/code/docker-entrypoint.sh"]
+    command: ["python", "manage.py", "run_scoring_worker", "--interval", "5"]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import time,os; assert time.time()-os.path.getmtime('/tmp/scoring-worker-heartbeat')<90\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
 volumes:
   postgres_data:
   init_flag:

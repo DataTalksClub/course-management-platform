@@ -153,6 +153,8 @@ still run. Never enable delivery to make a smoke test pass.
 
 DEV image updates are explicit: pin both `web.image` and `web.environment.VERSION`
 to the same tested release in its Coolify compose, then deploy **cmp-dev**.
+Pin `worker.image`/`worker.environment.VERSION` to the same release: the
+worker drains the background scoring queue on DEV.
 The production poller's "converged" result only compares its own service's
 image metadata; it says nothing about DEV's hostname or backend health.
 

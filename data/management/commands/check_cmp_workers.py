@@ -3,8 +3,9 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from data.models import CmpJobState, DatamailerOutboxEvent
 from courses.models import ApplicationNotification
+from courses.models.scoring_job import ScoringJob
 
-LIMITS = {'outbox': 300, 'health': 900, 'reminders': 26*3600, 'digest': 26*3600}
+LIMITS = {'outbox': 300, 'health': 900, 'reminders': 26*3600, 'digest': 26*3600, 'scoring': 600}
 
 
 def worker_alarms(now=None):
@@ -33,6 +34,16 @@ def worker_alarms(now=None):
         created_at__lt=now-timezone.timedelta(seconds=600),
     ).exists():
         alarms.append('application_notifications:backlog_age')
+    if ScoringJob.objects.filter(
+        status__in=['queued', 'processing'],
+        created_at__lt=now-timezone.timedelta(seconds=600),
+    ).exists():
+        alarms.append('scoring:backlog_age')
+    if ScoringJob.objects.filter(
+        status='processing',
+        started_at__lt=now-timezone.timedelta(seconds=1800),
+    ).exists():
+        alarms.append('scoring:stuck')
     return alarms
 
 

@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.core.management import call_command
 from django.utils import timezone
 
 from api.tests.project_api_base import ProjectAPITestBase
@@ -39,24 +40,37 @@ class ProjectScoringAPITestCase(ProjectAPITestBase):
             state=PeerReviewState.SUBMITTED.value,
         )
 
-    def assert_project_scored_response(self, response):
+    def drain_scoring_queue(self):
+        call_command("process_scoring_queue")
+
+    def assert_project_scored_status(self, response):
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["status"], "OK")
+        self.assertEqual(data["job_status"], "succeeded")
         self.assertEqual(data["project_slug"], "proj1")
         self.assertEqual(data["state"], ProjectState.COMPLETED.value)
         self.assertEqual(data["submissions_count"], 2)
         self.assertEqual(data["scored_submissions_count"], 2)
 
-    def test_score_project(self):
+    def test_score_project_queues_and_worker_scores(self):
         project = self.create_project_ready_for_scoring()
         self.create_submitted_peer_reviews(project)
-
-        response = self.client.post(
+        url = (
             f"/api/courses/{self.course.slug}/projects/{project.id}/score/"
         )
 
-        self.assert_project_scored_response(response)
+        response = self.client.post(url)
+
+        self.assertEqual(response.status_code, 202)
+        data = response.json()
+        self.assertEqual(data["job_status"], "queued")
+        self.assertIn("job_id", data)
+        project.refresh_from_db()
+        self.assertEqual(project.state, ProjectState.PEER_REVIEWING.value)
+
+        self.drain_scoring_queue()
+
+        self.assert_project_scored_status(self.client.get(url))
 
     def test_score_project_by_slug_blocked_without_peer_reviews(self):
         self.course.project_passing_score = 1

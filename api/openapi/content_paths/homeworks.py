@@ -125,25 +125,51 @@ HOMEWORK_DELETE_DATA = OperationData(
 )
 HOMEWORK_DELETE_OPERATION = operation(HOMEWORK_DELETE_DATA)
 
+HOMEWORK_SCORE_QUEUED_RESPONSE = response(
+    "Homework scoring queued",
+    HOMEWORK_SCORE_RESPONSE_REF,
+)
+HOMEWORK_SCORE_STATUS_RESPONSE = response(
+    "Homework scoring job status",
+    HOMEWORK_SCORE_RESPONSE_REF,
+)
 HOMEWORK_SCORE_RESPONSES = {
-    "200": HOMEWORK_SCORE_SUCCESS_RESPONSE,
+    "202": HOMEWORK_SCORE_QUEUED_RESPONSE,
     "400": HOMEWORK_SCORE_BLOCKED_RESPONSE,
     "403": STAFF_TOKEN_REQUIRED_RESPONSE,
     "404": COURSE_OR_HOMEWORK_NOT_FOUND_RESPONSE,
 }
+HOMEWORK_SCORE_STATUS_RESPONSES = {
+    "200": HOMEWORK_SCORE_STATUS_RESPONSE,
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_HOMEWORK_NOT_FOUND_RESPONSE,
+}
 HOMEWORK_SCORE_DESCRIPTION = (
-    "Scores homework submissions with the same safeguards as "
-    "cadmin: due date must be in the past, state must be OP, "
-    "and already scored homeworks are rejected."
+    "Queues homework scoring in a background worker and returns "
+    "immediately with a job id and poll URL. Due date must be in the "
+    "past, state must be OP, and already scored homeworks are rejected "
+    "synchronously. Poll the same path with GET for job status."
 )
 HOMEWORK_SCORE_DATA = OperationData(
     "api_homework_score",
     ["Homeworks"],
-    "Score homework submissions",
+    "Queue homework scoring",
     HOMEWORK_SCORE_RESPONSES,
     description=HOMEWORK_SCORE_DESCRIPTION,
 )
 HOMEWORK_SCORE_OPERATION = operation(HOMEWORK_SCORE_DATA)
+
+HOMEWORK_SCORE_STATUS_DATA = OperationData(
+    "api_homework_score",
+    ["Homeworks"],
+    "Get homework scoring job status",
+    HOMEWORK_SCORE_STATUS_RESPONSES,
+    description=(
+        "Returns the latest background scoring job for a homework: "
+        "queued, processing, succeeded, or failed."
+    ),
+)
+HOMEWORK_SCORE_STATUS_OPERATION = operation(HOMEWORK_SCORE_STATUS_DATA)
 
 HOMEWORK_DETAIL_BY_SLUG_DATA = OperationData(
     "api_homework_detail_by_slug",
@@ -197,11 +223,25 @@ HOMEWORK_DELETE_BY_SLUG_OPERATION = operation(HOMEWORK_DELETE_BY_SLUG_DATA)
 HOMEWORK_SCORE_BY_SLUG_DATA = OperationData(
     "api_homework_score_by_slug",
     ["Homeworks"],
-    "Score homework submissions by slug",
+    "Queue homework scoring by slug",
     HOMEWORK_SCORE_RESPONSES,
     description=HOMEWORK_SCORE_DESCRIPTION,
 )
 HOMEWORK_SCORE_BY_SLUG_OPERATION = operation(HOMEWORK_SCORE_BY_SLUG_DATA)
+
+HOMEWORK_SCORE_BY_SLUG_STATUS_DATA = OperationData(
+    "api_homework_score_by_slug",
+    ["Homeworks"],
+    "Get homework scoring job status by slug",
+    HOMEWORK_SCORE_STATUS_RESPONSES,
+    description=(
+        "Returns the latest background scoring job for a homework: "
+        "queued, processing, succeeded, or failed."
+    ),
+)
+HOMEWORK_SCORE_BY_SLUG_STATUS_OPERATION = operation(
+    HOMEWORK_SCORE_BY_SLUG_STATUS_DATA
+)
 
 HOMEWORK_PATHS_BY_URL_NAME = {
     "api_homeworks": {
@@ -214,6 +254,7 @@ HOMEWORK_PATHS_BY_URL_NAME = {
         "delete": HOMEWORK_DELETE_OPERATION,
     },
     "api_homework_score": {
+        "get": HOMEWORK_SCORE_STATUS_OPERATION,
         "post": HOMEWORK_SCORE_OPERATION,
     },
     "api_homework_detail_by_slug": {
@@ -223,6 +264,7 @@ HOMEWORK_PATHS_BY_URL_NAME = {
         "delete": HOMEWORK_DELETE_BY_SLUG_OPERATION,
     },
     "api_homework_score_by_slug": {
+        "get": HOMEWORK_SCORE_BY_SLUG_STATUS_OPERATION,
         "post": HOMEWORK_SCORE_BY_SLUG_OPERATION,
     }
 

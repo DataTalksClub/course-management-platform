@@ -25,6 +25,10 @@ from course_management.datamailer.score_notification_status import (
 )
 from .campaign_metrics import registration_campaign_metrics
 from .helpers import staff_required
+from courses.scoring_queue import (
+    attach_homework_scoring_status,
+    attach_project_scoring_status,
+)
 
 
 @staff_required
@@ -61,6 +65,7 @@ def course_homeworks_for_admin(course):
         homework.score_notification_status = (
             get_homework_score_notification_status(homework)
         )
+    attach_homework_scoring_status(homeworks)
     return homeworks
 
 
@@ -92,6 +97,7 @@ def course_projects_for_admin(course):
         )
         project.can_extend_deadline = extension_fields is not None
         project.extend_deadline_label = extension_label
+    attach_project_scoring_status(projects)
     return projects
 
 

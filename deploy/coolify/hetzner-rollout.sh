@@ -76,30 +76,39 @@ if not latest:
     sys.exit(0)
 print(f"latest GHCR tag: {latest}")
 
-# 2. running image + pinned VERSION in Coolify (both must match latest:
-# /api/health/ reports VERSION, and the public rolling follower mirrors it)
+# 2. running image + pinned VERSIONs in Coolify (all must match latest:
+# /api/health/ reports VERSION, and the public rolling follower mirrors it;
+# the service also runs a worker with the same image/VERSION)
 _st, svc = coolify("GET", f"/api/v1/services/{uuid}")
-running = (svc["applications"][0]["image"] or "")
+apps = svc.get("applications") or [{}]
+web_apps = [a for a in apps if a.get("name") == "web"] or apps[:1]
+running = (web_apps[0].get("image") or "")
 print(f"coolify running image: {running}")
 raw = svc["docker_compose_raw"]
-_version_match = re.search(r"(?m)^\s*VERSION\s*:\s*(.+?)\s*$", raw)
-compose_version = (_version_match.group(1).strip().strip("'\"") if _version_match else None)
-print(f"coolify compose VERSION: {compose_version}")
-if running == f"{image_ref}:{latest}" and compose_version == latest:
+compose_versions = [
+    match.group(1).strip().strip("'\"")
+    for match in re.finditer(r"(?m)^\s*VERSION\s*:\s*(.+?)\s*$", raw)
+]
+print(f"coolify compose VERSIONs: {compose_versions}")
+if (
+    running == f"{image_ref}:{latest}"
+    and compose_versions
+    and all(v == latest for v in compose_versions)
+):
     print("converged: nothing to do")
     sys.exit(0)
 
-# 3. pin compose image + VERSION env, then force deploy (same as GHA deploy job)
-new, n = re.subn(re.escape(f"{image_ref}:") + r"[^\s'\"]+", f"{image_ref}:{latest}", raw, count=1)
-if n != 1:
+# 3. pin compose images + VERSION envs, then force deploy (same as GHA
+# deploy job; pins web + worker services, all VERSION occurrences)
+new, n = re.subn(re.escape(f"{image_ref}:") + r"[^\s'\"]+", f"{image_ref}:{latest}", raw)
+if n < 1:
     raise SystemExit(f"could not pin image in compose (matches={n})")
 new, m = re.subn(
     r"(?m)^(\s*VERSION\s*:\s*)([^\s'\"]+|'[^']*'|\"[^\"]*\")\s*$",
     r"\g<1>" + latest,
     new,
-    count=1,
 )
-if m != 1:
+if m < 1:
     raise SystemExit(f"could not pin VERSION in compose (matches={m})")
 coolify("PATCH", f"/api/v1/services/{uuid}",
         {"docker_compose_raw": base64.b64encode(new.encode()).decode()})

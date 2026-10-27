@@ -141,16 +141,30 @@ PROJECT_DELETE_DATA = OperationData(
 )
 PROJECT_DELETE_OPERATION = operation(PROJECT_DELETE_DATA)
 
+PROJECT_ASSIGN_REVIEWS_QUEUED_RESPONSE = response(
+    "Peer review assignment queued",
+    PROJECT_ASSIGN_REVIEWS_RESPONSE_REF,
+)
+PROJECT_ASSIGN_REVIEWS_STATUS_RESPONSE = response(
+    "Peer review assignment job status",
+    PROJECT_ASSIGN_REVIEWS_RESPONSE_REF,
+)
 PROJECT_ASSIGN_REVIEWS_RESPONSES = {
-    "200": PROJECT_ASSIGN_REVIEWS_SUCCESS_RESPONSE,
+    "202": PROJECT_ASSIGN_REVIEWS_QUEUED_RESPONSE,
     "400": PROJECT_ASSIGN_REVIEWS_BLOCKED_RESPONSE,
     "403": STAFF_TOKEN_REQUIRED_RESPONSE,
     "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
 }
+PROJECT_ASSIGN_REVIEWS_STATUS_RESPONSES = {
+    "200": PROJECT_ASSIGN_REVIEWS_STATUS_RESPONSE,
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
+}
 PROJECT_ASSIGN_REVIEWS_DESCRIPTION = (
-    "Assigns peer reviews with the same safeguards as cadmin: "
+    "Queues peer review assignment in a background worker and returns "
+    "immediately with a job id and poll URL. Safeguards match cadmin: "
     "project state must be CS, submission due date must be in "
-    "the past, and enough submissions must exist."
+    "the past, and enough submissions must exist. Poll with GET."
 )
 PROJECT_ASSIGN_REVIEWS_DATA = OperationData(
     "api_project_assign_reviews",
@@ -161,25 +175,65 @@ PROJECT_ASSIGN_REVIEWS_DATA = OperationData(
 )
 PROJECT_ASSIGN_REVIEWS_OPERATION = operation(PROJECT_ASSIGN_REVIEWS_DATA)
 
+PROJECT_ASSIGN_REVIEWS_STATUS_DATA = OperationData(
+    "api_project_assign_reviews",
+    ["Projects"],
+    "Get peer review assignment job status",
+    PROJECT_ASSIGN_REVIEWS_STATUS_RESPONSES,
+    description=(
+        "Returns the latest background assignment job for a project: "
+        "queued, processing, succeeded, or failed."
+    ),
+)
+PROJECT_ASSIGN_REVIEWS_STATUS_OPERATION = operation(
+    PROJECT_ASSIGN_REVIEWS_STATUS_DATA
+)
+
+PROJECT_SCORE_QUEUED_RESPONSE = response(
+    "Project scoring queued",
+    PROJECT_SCORE_RESPONSE_REF,
+)
+PROJECT_SCORE_STATUS_RESPONSE = response(
+    "Project scoring job status",
+    PROJECT_SCORE_RESPONSE_REF,
+)
 PROJECT_SCORE_RESPONSES = {
-    "200": PROJECT_SCORE_SUCCESS_RESPONSE,
+    "202": PROJECT_SCORE_QUEUED_RESPONSE,
     "400": PROJECT_SCORE_BLOCKED_RESPONSE,
     "403": STAFF_TOKEN_REQUIRED_RESPONSE,
     "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
 }
+PROJECT_SCORE_STATUS_RESPONSES = {
+    "200": PROJECT_SCORE_STATUS_RESPONSE,
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
+}
 PROJECT_SCORE_DESCRIPTION = (
-    "Scores project submissions with the same safeguards as "
-    "cadmin: project state must be PR, peer review due date "
-    "must be in the past, and peer reviews must exist."
+    "Queues project scoring in a background worker and returns "
+    "immediately with a job id and poll URL. Safeguards match cadmin: "
+    "project state must be PR, peer review due date "
+    "must be in the past, and peer reviews must exist. Poll with GET."
 )
 PROJECT_SCORE_DATA = OperationData(
     "api_project_score",
     ["Projects"],
-    "Score project",
+    "Queue project scoring",
     PROJECT_SCORE_RESPONSES,
     description=PROJECT_SCORE_DESCRIPTION,
 )
 PROJECT_SCORE_OPERATION = operation(PROJECT_SCORE_DATA)
+
+PROJECT_SCORE_STATUS_DATA = OperationData(
+    "api_project_score",
+    ["Projects"],
+    "Get project scoring job status",
+    PROJECT_SCORE_STATUS_RESPONSES,
+    description=(
+        "Returns the latest background scoring job for a project: "
+        "queued, processing, succeeded, or failed."
+    ),
+)
+PROJECT_SCORE_STATUS_OPERATION = operation(PROJECT_SCORE_STATUS_DATA)
 
 PROJECT_DETAIL_BY_SLUG_DATA = OperationData(
     "api_project_detail_by_slug",
@@ -231,7 +285,7 @@ PROJECT_DELETE_BY_SLUG_OPERATION = operation(PROJECT_DELETE_BY_SLUG_DATA)
 PROJECT_ASSIGN_REVIEWS_BY_SLUG_DATA = OperationData(
     "api_project_assign_reviews_by_slug",
     ["Projects"],
-    "Assign project peer reviews by slug",
+    "Queue peer review assignment by slug",
     PROJECT_ASSIGN_REVIEWS_RESPONSES,
     description=PROJECT_ASSIGN_REVIEWS_DESCRIPTION,
 )
@@ -239,10 +293,38 @@ PROJECT_ASSIGN_REVIEWS_BY_SLUG_OPERATION = operation(
     PROJECT_ASSIGN_REVIEWS_BY_SLUG_DATA
 )
 
+PROJECT_ASSIGN_REVIEWS_BY_SLUG_STATUS_DATA = OperationData(
+    "api_project_assign_reviews_by_slug",
+    ["Projects"],
+    "Get peer review assignment job status by slug",
+    PROJECT_ASSIGN_REVIEWS_STATUS_RESPONSES,
+    description=(
+        "Returns the latest background assignment job for a project: "
+        "queued, processing, succeeded, or failed."
+    ),
+)
+PROJECT_ASSIGN_REVIEWS_BY_SLUG_STATUS_OPERATION = operation(
+    PROJECT_ASSIGN_REVIEWS_BY_SLUG_STATUS_DATA
+)
+
+PROJECT_SCORE_BY_SLUG_STATUS_DATA = OperationData(
+    "api_project_score_by_slug",
+    ["Projects"],
+    "Get project scoring job status by slug",
+    PROJECT_SCORE_STATUS_RESPONSES,
+    description=(
+        "Returns the latest background scoring job for a project: "
+        "queued, processing, succeeded, or failed."
+    ),
+)
+PROJECT_SCORE_BY_SLUG_STATUS_OPERATION = operation(
+    PROJECT_SCORE_BY_SLUG_STATUS_DATA
+)
+
 PROJECT_SCORE_BY_SLUG_DATA = OperationData(
     "api_project_score_by_slug",
     ["Projects"],
-    "Score project by slug",
+    "Queue project scoring by slug",
     PROJECT_SCORE_RESPONSES,
     description=PROJECT_SCORE_DESCRIPTION,
 )
@@ -302,9 +384,11 @@ PROJECT_PATHS_BY_URL_NAME = {
         "delete": PROJECT_DELETE_OPERATION,
     },
     "api_project_assign_reviews": {
+        "get": PROJECT_ASSIGN_REVIEWS_STATUS_OPERATION,
         "post": PROJECT_ASSIGN_REVIEWS_OPERATION,
     },
     "api_project_score": {
+        "get": PROJECT_SCORE_STATUS_OPERATION,
         "post": PROJECT_SCORE_OPERATION,
     },
     "api_project_detail_by_slug": {
@@ -314,9 +398,11 @@ PROJECT_PATHS_BY_URL_NAME = {
         "delete": PROJECT_DELETE_BY_SLUG_OPERATION,
     },
     "api_project_assign_reviews_by_slug": {
+        "get": PROJECT_ASSIGN_REVIEWS_BY_SLUG_STATUS_OPERATION,
         "post": PROJECT_ASSIGN_REVIEWS_BY_SLUG_OPERATION,
     },
     "api_project_score_by_slug": {
+        "get": PROJECT_SCORE_BY_SLUG_STATUS_OPERATION,
         "post": PROJECT_SCORE_BY_SLUG_OPERATION,
     },
     "api_project_system_evaluations": {

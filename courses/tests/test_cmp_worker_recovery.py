@@ -72,7 +72,7 @@ class WorkerRecoveryTests(TestCase):
         from data.management.commands.check_cmp_workers import worker_alarms
         from io import StringIO
         now = timezone.now()
-        for job in ['outbox','health','reminders','digest']:
+        for job in ['outbox','health','reminders','digest','scoring']:
             CmpJobState.objects.update_or_create(
                 job=job, defaults={'last_success_at': now, 'last_failed_at': None},
             )

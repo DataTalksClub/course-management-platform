@@ -250,10 +250,10 @@ class HomeworkCadminSearchTests(HomeworkCadminViewTestBase):
 
 class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
     @patch("cadmin.views.homework.queue_homework_score_notification")
-    def test_homework_score_shows_message_without_notifying(
+    def test_homework_score_queues_without_notifying(
         self, send_score_notification
     ):
-        """Scoring shows a message but does not email students.
+        """Score queues a background job and returns immediately.
 
         Notifications are a separate action so a slow Datamailer send
         cannot take the scoring request down with it.
@@ -276,10 +276,13 @@ class HomeworkCadminScoringActionTests(HomeworkCadminViewTestBase):
         course_url = self.cadmin_course_url()
         self.assertRedirects(response, course_url)
 
-        # Check that a message was added
+        # Check that a queued message was added and nothing scored yet
         messages = list(response.context["messages"])
         messages_count = len(messages)
         self.assertEqual(messages_count, 1)
+        self.assertIn("queued", messages[0].message.lower())
+        self.homework.refresh_from_db()
+        self.assertEqual(self.homework.state, HomeworkState.OPEN.value)
         send_score_notification.assert_not_called()
 
     @override_settings(**RELAY_SETTINGS)
@@ -603,7 +606,9 @@ class HomeworkCadminRescoreTests(HomeworkCadminViewTestBase):
         self.assertContains(response, "Correct answers")
         self.assertContains(response, "Save answers")
 
-    def test_rescore_reruns_scoring(self):
+    def test_rescore_queues_and_worker_rescores(self):
+        from django.core.management import call_command
+
         self.login_admin()
         url = reverse(
             "cadmin_homework_rescore",
@@ -618,7 +623,13 @@ class HomeworkCadminRescoreTests(HomeworkCadminViewTestBase):
         self.assertRedirects(response, course_url)
         messages = list(response.context["messages"])
         self.assertEqual(len(messages), 1)
-        self.assertIn("scored", messages[0].message.lower())
+        self.assertIn("queued", messages[0].message.lower())
+
+        call_command("process_scoring_queue")
+        self.homework.refresh_from_db()
+        self.assertEqual(
+            self.homework.state, HomeworkState.SCORED.value
+        )
 
     def test_rescore_warns_for_unscored_homework(self):
         self.homework.state = HomeworkState.OPEN.value

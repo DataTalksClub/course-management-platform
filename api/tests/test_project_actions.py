@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.core.management import call_command
 from django.utils import timezone
 
 from api.tests.project_api_base import ProjectAPITestBase
@@ -7,7 +8,7 @@ from courses.models.project import ProjectState
 
 
 class ProjectActionsAPITestCase(ProjectAPITestBase):
-    def test_assign_project_peer_reviews(self):
+    def test_assign_project_peer_reviews_queues_and_worker_assigns(self):
         project = self._create_project(
             state=ProjectState.COLLECTING_SUBMISSIONS.value
         )
@@ -18,20 +19,33 @@ class ProjectActionsAPITestCase(ProjectAPITestBase):
         project.save()
         for index in range(4):
             self._create_project_submission(project, f"student-{index}")
-
-        response = self.client.post(
-            f"/api/courses/{self.course.slug}/projects/{project.id}/assign-reviews/"
+        url = (
+            f"/api/courses/{self.course.slug}/projects/{project.id}/"
+            "assign-reviews/"
         )
 
-        self.assertEqual(response.status_code, 200)
+        response = self.client.post(url)
+
+        self.assertEqual(response.status_code, 202)
         data = response.json()
-        self.assertEqual(data["status"], "OK")
-        self.assertEqual(data["project_slug"], "proj1")
+        self.assertEqual(data["job_status"], "queued")
+        self.assertIn("job_id", data)
+        project.refresh_from_db()
         self.assertEqual(
-            data["state"], ProjectState.PEER_REVIEWING.value
+            project.state, ProjectState.COLLECTING_SUBMISSIONS.value
         )
-        self.assertEqual(data["assigned_peer_reviews_count"], 8)
-        self.assertEqual(data["peer_reviews_count"], 8)
+
+        call_command("process_scoring_queue")
+
+        status_response = self.client.get(url)
+        self.assertEqual(status_response.status_code, 200)
+        status_data = status_response.json()
+        self.assertEqual(status_data["job_status"], "succeeded")
+        self.assertEqual(status_data["peer_reviews_count"], 8)
+        project.refresh_from_db()
+        self.assertEqual(
+            project.state, ProjectState.PEER_REVIEWING.value
+        )
 
     def test_assign_project_peer_reviews_by_slug_blocked_when_closed(
         self,

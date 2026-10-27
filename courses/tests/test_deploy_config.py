@@ -61,7 +61,8 @@ class DeployConfigTestCase(SimpleTestCase):
             "DEV needs its own Coolify backend after removing "
             "its production alias.",
         )
-        web = yaml.safe_load(template.read_text())["services"]["web"]
+        services = yaml.safe_load(template.read_text())["services"]
+        web = services["web"]
         env = web["environment"]
         self.assertEqual(
             env["PUBLIC_BASE_URL"], "https://dev.courses.datatalks.club"
@@ -83,14 +84,67 @@ class DeployConfigTestCase(SimpleTestCase):
             Path(__file__).resolve().parents[2]
             / "deploy/coolify/docker-compose.staging.yml"
         )
-        web = yaml.safe_load(template.read_text())["services"]["web"]
-        image_tag = web["image"].rsplit(":", 1)[1]
-        self.assertEqual(
-            str(web["environment"]["VERSION"]),
-            image_tag,
-            "Private release VERSION must equal its image tag; "
-            "/api/health/ and the public rolling follower read this env.",
+        services = yaml.safe_load(template.read_text())["services"]
+        for service_name in ("web", "worker"):
+            service = services[service_name]
+            image_tag = service["image"].rsplit(":", 1)[1]
+            self.assertEqual(
+                str(service["environment"]["VERSION"]),
+                image_tag,
+                f"Private release {service_name} VERSION must equal its "
+                "image tag; /api/health/ and the public rolling follower "
+                "read this env.",
+            )
+
+    def assert_scoring_worker_service(self, template_name, image_env_version):
+        template = (
+            Path(__file__).resolve().parents[2] / template_name
         )
+        services = yaml.safe_load(template.read_text())["services"]
+        self.assertIn(
+            "worker",
+            services,
+            f"{template_name} must run the background scoring worker",
+        )
+        worker = services["worker"]
+        self.assertEqual(worker.get("restart"), "unless-stopped")
+        command = " ".join(str(part) for part in worker.get("command", []))
+        self.assertIn("run_scoring_worker", command)
+        self.assertIn(
+            "scoring-worker-heartbeat",
+            str(worker.get("healthcheck", {}).get("test", "")),
+        )
+        if image_env_version:
+            image_tag = worker["image"].rsplit(":", 1)[1]
+            self.assertEqual(worker["environment"]["VERSION"], image_tag)
+
+    def test_dev_runs_a_scoring_worker(self):
+        self.assert_scoring_worker_service(
+            "deploy/coolify/docker-compose.dev.yml",
+            image_env_version=True,
+        )
+
+    def test_staging_runs_a_scoring_worker(self):
+        self.assert_scoring_worker_service(
+            "deploy/coolify/docker-compose.staging.yml",
+            image_env_version=True,
+        )
+
+    def test_local_compose_runs_a_scoring_worker(self):
+        self.assert_scoring_worker_service(
+            "docker-compose.yml",
+            image_env_version=False,
+        )
+
+    def test_scoring_job_is_registered_with_the_task_runner(self):
+        from data.management.commands.run_cmp_job import JOBS
+
+        self.assertEqual(JOBS.get("scoring"), "process_scoring_queue")
+
+    def test_worker_monitor_covers_scoring(self):
+        from data.management.commands.check_cmp_workers import LIMITS
+
+        self.assertIn("scoring", LIMITS)
 
     def gunicorn_timeout_seconds(self):
         dockerfile = Path(__file__).resolve().parents[2] / "Dockerfile"
