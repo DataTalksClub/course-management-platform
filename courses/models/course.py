@@ -313,6 +313,8 @@ class CourseRegistration(models.Model):
         blank=True,
         help_text="When the email confirmation link was clicked.",
     )
+    confirmation_reminder_1_sent_at = models.DateTimeField(null=True, blank=True)
+    confirmation_reminder_2_sent_at = models.DateTimeField(null=True, blank=True)
     email_confirmation_resend_count = models.PositiveIntegerField(
         default=0,
         help_text="How many confirmation emails were sent "

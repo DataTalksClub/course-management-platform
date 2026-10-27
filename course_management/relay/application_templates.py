@@ -22,6 +22,8 @@ def template(name, subject, html, text, fields):
             "campaign_title": "Example Course",
             "course_url": "https://courses.datatalks.club/example/",
             "review_url": "https://courses.datatalks.club/cadmin/campaigns/example/registrations/?status=pending",
+            "confirmation_url": "https://courses.datatalks.club/register/confirm/example/",
+            "deadline": "2026-11-02 09:00:00 CET (Europe/Berlin)",
             "digest_date": "2026-10-26",
             "total_count": 2,
             "confirmed_count": 1,
@@ -58,6 +60,22 @@ APPLICATION_TEMPLATES = {
         "({{ confirmed_count }} confirmed, {{ unconfirmed_count }} unconfirmed) "
         "across {{ course_count }} course(s), as of {{ digest_date }}.\n\n{{ summary }}",
         ["digest_date", "total_count", "confirmed_count", "unconfirmed_count", "course_count", "summary", "summary_html"],
+    ),
+    "registration-confirmation-reminder-1": template(
+        "Registration confirmation reminder",
+        "Please confirm your registration for {{ course_title }}",
+        "<p>You registered for {{ course_title }} but haven't confirmed your email yet. "
+        '<a href="{{ confirmation_url }}">Confirm here</a></p>',
+        "You registered for {{ course_title }} but haven't confirmed your email yet. Confirm here: {{ confirmation_url }}",
+        ["course_title", "confirmation_url"],
+    ),
+    "registration-confirmation-reminder-2": template(
+        "Final registration confirmation reminder",
+        "Last reminder: confirm your registration for {{ course_title }}",
+        "<p>This is the last reminder. If you don't confirm by {{ deadline }}, "
+        'your registration will be deleted. <a href="{{ confirmation_url }}">Confirm here</a></p>',
+        "This is the last reminder. If you don't confirm by {{ deadline }}, your registration will be deleted. Confirm here: {{ confirmation_url }}",
+        ["course_title", "confirmation_url", "deadline"],
     ),
     "application-approved": template(
         "Course application accepted",

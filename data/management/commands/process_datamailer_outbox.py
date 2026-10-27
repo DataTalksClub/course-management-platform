@@ -31,6 +31,8 @@ class Command(BaseCommand):
         # it sends at most once per Europe/Berlin day around 09:00 and never
         # raises, so digest trouble cannot block outbox processing.
         maybe_send_scheduled_digest()
+        from course_management.relay.confirmation_reminders import process_confirmation_reminders
+        process_confirmation_reminders(limit=options["limit"])
         if DatamailerConfig.from_settings() is None:
             raise CommandError("Relay configuration missing; outbox preserved")
         result = process_due_datamailer_outbox(limit=options["limit"])
