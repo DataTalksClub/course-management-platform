@@ -180,11 +180,8 @@ is_test = (
     or ("test_coverage" in sys.argv)
 )
 
-if is_test:
-    STORAGES["staticfiles"] = {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-    }
-    STATICFILES_STORAGE = STORAGES["staticfiles"]["BACKEND"]
+# (Test staticfiles override lives with _RUNNING_TESTS below so both
+# `manage.py test` and `pytest` use plain storage without a manifest.)
 
 
 # Per-IP rate limiting (Traefik-style average + burst). Disabled in the
@@ -193,6 +190,12 @@ if is_test:
 # override_settings. Note: `is_test` above only triggers for
 # `manage.py test`, so pytest runs are detected via sys.modules.
 _RUNNING_TESTS = is_test or ("pytest" in sys.modules)
+
+if _RUNNING_TESTS:
+    STORAGES["staticfiles"] = {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    }
+    STATICFILES_STORAGE = STORAGES["staticfiles"]["BACKEND"]
 RATELIMIT_ENABLED = (os.getenv("RATELIMIT_ENABLED", "1") == "1") and not _RUNNING_TESTS
 RATELIMIT_AVERAGE = float(os.getenv("RATELIMIT_AVERAGE", "10"))
 RATELIMIT_BURST = int(os.getenv("RATELIMIT_BURST", "30"))
