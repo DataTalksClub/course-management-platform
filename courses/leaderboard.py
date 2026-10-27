@@ -2,7 +2,7 @@ import logging
 from time import time
 
 from django.core.cache import cache
-from django.db.models import Sum
+from django.db import connection
 
 from courses.models.course import Enrollment
 from courses.models.homework import Submission
@@ -14,56 +14,43 @@ from courses.models.project import (
 logger = logging.getLogger(__name__)
 
 
-def _scores_by_enrollment(submissions):
-    total_score_annotation = Sum("total_score")
-    aggregated_scores = submissions.values("enrollment").annotate(
-        total_score=total_score_annotation
-    )
-    scores_by_enrollment = {}
-    for score in aggregated_scores:
-        enrollment_id = score["enrollment"]
-        scores_by_enrollment[enrollment_id] = score["total_score"]
-    return scores_by_enrollment
-
-
-def _enrollment_leaderboard_sort_key(enrollment):
-    total_score = enrollment.total_score or 0
-    return -total_score, enrollment.id
-
-
-def _rank_enrollments(enrollments):
-    enrollments = sorted(
-        enrollments,
-        key=_enrollment_leaderboard_sort_key,
-    )
-    for rank, enrollment in enumerate(enrollments, 1):
-        enrollment.position_on_leaderboard = rank
-    return enrollments
-
-
 def _update_enrollment_totals(course):
-    homework_submissions = Submission.objects.filter(homework__course=course)
-    homework_scores = _scores_by_enrollment(homework_submissions)
-    project_submissions = ProjectSubmission.objects.filter(
-        project__course=course,
-        volunteer_review_only=False,
-    )
-    project_scores = _scores_by_enrollment(project_submissions)
-    enrollment_queryset = Enrollment.objects.filter(course=course)
-    enrollments = list(enrollment_queryset)
-
-    for enrollment in enrollments:
-        enrollment.total_score = (
-            homework_scores.get(enrollment.id, 0)
-            + project_scores.get(enrollment.id, 0)
+    # Aggregate before joining: joining homework and project submissions directly
+    # multiplies their rows. Rank every enrollment, including zero-score students,
+    # using the existing deterministic tie-breaker. PostgreSQL and SQLite support
+    # this CTE/window UPDATE; no model hydration or per-student CASE expressions.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            WITH homework_scores AS (
+                SELECT s.enrollment_id, SUM(s.total_score) AS score
+                FROM courses_submission s
+                JOIN courses_homework h ON h.id = s.homework_id
+                WHERE h.course_id = %s GROUP BY s.enrollment_id
+            ), project_scores AS (
+                SELECT s.enrollment_id, SUM(s.total_score) AS score
+                FROM courses_projectsubmission s
+                JOIN courses_project p ON p.id = s.project_id
+                WHERE p.course_id = %s AND NOT s.volunteer_review_only
+                GROUP BY s.enrollment_id
+            ), totals AS (
+                SELECT e.id, COALESCE(h.score, 0) + COALESCE(p.score, 0) AS score
+                FROM courses_enrollment e
+                LEFT JOIN homework_scores h ON h.enrollment_id = e.id
+                LEFT JOIN project_scores p ON p.enrollment_id = e.id
+                WHERE e.course_id = %s
+            ), ranked AS (
+                SELECT id, score,
+                       ROW_NUMBER() OVER (ORDER BY score DESC, id) AS position
+                FROM totals
+            )
+            UPDATE courses_enrollment AS e
+            SET total_score = ranked.score,
+                position_on_leaderboard = ranked.position
+            FROM ranked WHERE e.id = ranked.id
+            """,
+            [course.pk, course.pk, course.pk],
         )
-
-    enrollments = _rank_enrollments(enrollments)
-
-    Enrollment.objects.bulk_update(
-        enrollments,
-        ["total_score", "position_on_leaderboard"],
-    )
 
 
 def _invalidate_leaderboard_caches(course):

@@ -3,6 +3,7 @@ from typing import Any
 from uuid import uuid4
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 
 from course_management.observability import record_event
@@ -24,6 +25,45 @@ class DatamailerOutboxEventData:
     ordering_key: str
     payload: dict[str, Any]
     dispatch_immediately: bool | None = None
+
+
+def enqueue_datamailer_outbox_events(items):
+    """Batch existing outbox writes; preserve immediate-dispatch semantics."""
+    items = list(items)
+    if any(
+        item.dispatch_immediately
+        if item.dispatch_immediately is not None
+        else getattr(settings, "RELAY_OUTBOX_DISPATCH_IMMEDIATELY", False)
+        for item in items
+    ):
+        return [enqueue_datamailer_outbox_event(item) for item in items]
+
+    now = timezone.now()
+    events = [
+        DatamailerOutboxEvent(
+            idempotency_key=item.idempotency_key,
+            event_id=f"cmp-datamailer-event:{uuid4()}",
+            event_type=item.event_type,
+            ordering_key=item.ordering_key,
+            payload=item.payload,
+            occurred_at=now,
+            next_attempt_at=now,
+        ) for item in items
+    ]
+    with transaction.atomic():
+        DatamailerOutboxEvent.objects.bulk_create(events, batch_size=250)
+    for event in events:
+        record_event(
+            "datamailer.outbox_enqueued",
+            properties={
+                "event_id": event.event_id,
+                "event_type": event.event_type,
+                "outbox_event_id": event.id,
+                "status": event.status,
+                "dispatch_immediately": False,
+            },
+        )
+    return events
 
 
 def enqueue_datamailer_outbox_event(

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
+from collections import defaultdict
 
-from courses.models.project import ReviewCriteria
+from courses.models.project import ReviewCriteria, SystemEvaluationCriteriaResponse
 from courses.project_score_groups import group_peer_reviews
 from courses.project_submission_scoring import (
     ProjectScoringData,
@@ -18,10 +19,18 @@ class ProjectScoringCalculation:
 
 def calculate_project_scoring(project, peer_reviews):
     group_data = group_peer_reviews(peer_reviews)
+    for submission in group_data.submissions.values():
+        # Reuse the already loaded project/course when building outcome events.
+        submission.project = project
+    system_responses = defaultdict(list)
+    for response in SystemEvaluationCriteriaResponse.objects.filter(
+        evaluation__submission__project=project,
+    ).select_related("criteria", "evaluation"):
+        system_responses[response.evaluation.submission_id].append(response)
 
-    criteria = ReviewCriteria.objects.filter(
+    criteria = list(ReviewCriteria.objects.filter(
         course=project.course
-    ).all()
+    ))
 
     scoring_data = ProjectScoringData(
         project=project,
@@ -29,6 +38,7 @@ def calculate_project_scoring(project, peer_reviews):
         reviews_by_submission=group_data.reviews_by_submission,
         reviews_by_reviewer=group_data.reviews_by_reviewer,
         criteria=criteria,
+        system_responses_by_submission=system_responses,
     )
     result = score_project_submissions(scoring_data)
 

@@ -5,6 +5,12 @@ from courses.tests.leaderboard_base import LeaderboardTestBase
 
 
 class LeaderboardScoringTestCase(LeaderboardTestBase):
+    def test_leaderboard_updates_totals_and_ranks_in_one_statement(self):
+        enrollments = self.create_leaderboard_fixture()
+        with self.assertNumQueries(1):
+            update_leaderboard(self.course)
+        self.assert_leaderboard_scores(enrollments)
+
     def test_leaderboard(self):
         enrollments = self.create_leaderboard_fixture()
 

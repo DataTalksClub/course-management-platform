@@ -28,6 +28,12 @@ class RecipientListMembershipRemoveData:
 
 def sync_contact_and_membership(data):
     """Upsert a contact and its recipient-list membership in one event."""
+    event_data = contact_membership_event(data)
+    if event_data is not None:
+        enqueue_datamailer_outbox_event(event_data)
+
+
+def contact_membership_event(data):
     if data.contact_payload is None or data.list_payload is None:
         return
 
@@ -50,10 +56,15 @@ def sync_contact_and_membership(data):
             "object_id": data.obj.pk,
         },
     )
-    enqueue_datamailer_outbox_event(event_data)
+    return event_data
 
 
 def remove_recipient_list_memberships(data) -> None:
+    for event_data in removed_membership_events(data):
+        enqueue_datamailer_outbox_event(event_data)
+
+
+def removed_membership_events(data):
     for list_payload in data.list_payloads:
         if list_payload is None:
             continue
@@ -78,4 +89,4 @@ def remove_recipient_list_memberships(data) -> None:
                 "object_id": data.obj.pk,
             },
         )
-        enqueue_datamailer_outbox_event(event_data)
+        yield event_data

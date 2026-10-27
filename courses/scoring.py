@@ -7,12 +7,13 @@ from collections import defaultdict
 
 from django.utils import timezone
 
-from django.db import transaction
+from django.db import connection, transaction
 
 from course_management.observability import record_event
 
 from . import assignment_statistics, leaderboard
 from .homework_score_calculation import update_score
+from .scoring_updates import update_scoring_rows
 
 from .models.homework import (
     Answer,
@@ -94,7 +95,8 @@ def _score_homework_submission_batch(
 
 def _persist_scored_homework_submissions(homework_id, submissions, answers):
     logger.info(f"Updating the submissions for homework {homework_id}")
-    Submission.objects.bulk_update(
+    update_scoring_rows(
+        Submission,
         submissions,
         [
             "questions_score",
@@ -105,16 +107,24 @@ def _persist_scored_homework_submissions(homework_id, submissions, answers):
     )
 
     logger.info(f"Updating answers for homework {homework_id}")
-    Answer.objects.bulk_update(answers, ["is_correct"])
+    # Boolean results need only two groups, not thousands of CASE branches.
+    batch_size = min(1000, (connection.features.max_query_params or 10001) - 1)
+    for correct in (True, False):
+        ids = [answer.pk for answer in answers if answer.is_correct == correct]
+        for start in range(0, len(ids), batch_size):
+            Answer.objects.filter(pk__in=ids[start:start + batch_size]).update(
+                is_correct=correct,
+            )
 
 
 def _homework_scoring_batch(homework_id):
-    submissions = Submission.objects.filter(
+    submissions = list(Submission.objects.filter(
         homework__id=homework_id
-    ).select_related("enrollment")
-    answers = Answer.objects.filter(
-        submission__in=submissions
-    ).select_related("question", "submission")
+    ).select_related("enrollment"))
+    questions = {q.pk: q for q in Question.objects.filter(homework_id=homework_id)}
+    answers = list(Answer.objects.filter(submission__homework_id=homework_id))
+    for answer in answers:
+        answer.question = questions[answer.question_id]
     answers_by_submission_id = _answers_by_submission(answers)
     return HomeworkScoringBatch(
         submissions=submissions,

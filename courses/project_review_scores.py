@@ -42,11 +42,13 @@ def calculate_project_score(
     submission: ProjectSubmission,
     evaluation_criteria: Iterable[ReviewCriteria],
     reviews: list[PeerReview],
+    system_responses=None,
 ) -> tuple[int, list[ProjectEvaluationScore]]:
     responses_by_criteria = responses_grouped_by_criteria(reviews)
-    system_responses = SystemEvaluationCriteriaResponse.objects.filter(
-        evaluation__submission=submission,
-    ).select_related("criteria")
+    if system_responses is None:
+        system_responses = SystemEvaluationCriteriaResponse.objects.filter(
+            evaluation__submission=submission,
+        ).select_related("criteria")
     for response in system_responses:
         responses_by_criteria[response.criteria_id].append(response)
 

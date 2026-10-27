@@ -7,10 +7,6 @@ from django.db import transaction
 from django.utils import timezone
 
 from course_management.observability import record_event
-from course_management.datamailer.sync.memberships import (
-    sync_project_passed_outcome_to_datamailer,
-    sync_project_submission_to_datamailer,
-)
 
 from courses.models.project import (
     Project,
@@ -22,6 +18,8 @@ from courses.models.project import (
 
 from . import project_assignment
 from .leaderboard import update_leaderboard
+from .scoring_updates import update_scoring_rows
+from .project_scoring_sync import sync_scored_project_submissions
 from .project_score_calculation import (
     calculate_project_scoring,
 )
@@ -44,24 +42,21 @@ def _validate_project_scoreable(project: Project) -> str | None:
     return None
 
 
-def _sync_scored_project_submission_to_datamailer(submission):
-    sync_project_submission_to_datamailer(submission)
-    sync_project_passed_outcome_to_datamailer(submission)
-
-
 def _peer_reviews_for_project(project):
     return PeerReview.objects.filter(
         submission_under_evaluation__project=project,
     ).select_related(
         "submission_under_evaluation",
         "submission_under_evaluation__enrollment",
+        "submission_under_evaluation__student",
         "reviewer",
     )
 
 
 def _bulk_update_project_submissions(submissions_to_update):
     logger.info(f"updating {len(submissions_to_update)} submissions...")
-    ProjectSubmission.objects.bulk_update(
+    update_scoring_rows(
+        ProjectSubmission,
         submissions_to_update,
         [
             "project_score",
@@ -77,12 +72,9 @@ def _bulk_update_project_submissions(submissions_to_update):
 
 
 def _sync_project_submissions_after_commit(submissions_to_update):
-    for submission in submissions_to_update:
-        callback = partial(
-            _sync_scored_project_submission_to_datamailer,
-            submission,
-        )
-        transaction.on_commit(callback)
+    transaction.on_commit(partial(
+        sync_scored_project_submissions, submissions_to_update,
+    ))
 
 
 def _replace_project_evaluation_scores(submission_ids, all_scores):

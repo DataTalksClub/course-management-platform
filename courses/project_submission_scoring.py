@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from courses.models.project import (
     Project,
@@ -15,6 +15,7 @@ class ProjectScoringData:
     reviews_by_submission: dict
     reviews_by_reviewer: dict
     criteria: Iterable
+    system_responses_by_submission: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -37,6 +38,7 @@ class SubmissionScoringData:
     reviews: list
     reviewed: list
     criteria: Iterable
+    system_responses: object = None
 
 
 def project_lip_score(submission, project) -> int:
@@ -105,6 +107,7 @@ def score_submission(data):
         submission=data.submission,
         evaluation_criteria=data.criteria,
         reviews=data.reviews,
+        system_responses=data.system_responses,
     )
     data.submission.project_score = project_score
 
@@ -135,6 +138,7 @@ def project_submission_scoring_data(data, submission_id, submission):
         reviews=reviews,
         reviewed=reviewed,
         criteria=data.criteria,
+        system_responses=data.system_responses_by_submission.get(submission_id, []),
     )
 
 

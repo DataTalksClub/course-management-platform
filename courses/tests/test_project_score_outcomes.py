@@ -53,7 +53,7 @@ class ProjectScoreOutcomeTestCase(ProjectEvaluationTestBase):
             review_count=review_count,
         )
 
-    @patch("courses.project_scoring._sync_scored_project_submission_to_datamailer")
+    @patch("courses.project_scoring.sync_scored_project_submissions")
     def test_project_scoring_syncs_datamailer_after_commit(self, sync):
         other_prs = self.create_reverse_assignments(self.peer_reviews)
         self.submit_peer_review(other_prs[0], "4")
@@ -64,11 +64,10 @@ class ProjectScoreOutcomeTestCase(ProjectEvaluationTestBase):
         with self.captureOnCommitCallbacks(execute=True):
             self.assert_evaluation_score(answers_and_scores, 3)
 
-        self.assertEqual(sync.call_count, 4)
+        self.assertEqual(sync.call_count, 1)
         synced_submission_ids = set()
-        sync_calls = sync.call_args_list
-        for call in sync_calls:
-            submission_id = call.args[0].pk
+        for submission in sync.call_args.args[0]:
+            submission_id = submission.pk
             synced_submission_ids.add(submission_id)
         self.assertIn(self.submission.pk, synced_submission_ids)
 
