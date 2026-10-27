@@ -1,0 +1,60 @@
+name: Inspect DEV scoring workload
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Read DEV homework counts (no student data or writes)
+        env:
+          DEV_API_TOKEN: ${{ secrets.E2E_DEV_API_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, urllib.error, urllib.parse, urllib.request
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  raise RuntimeError("Unexpected redirect from isolated DEV API")
+
+          token = os.environ.get("DEV_API_TOKEN", "")
+          if not token:
+              sys.exit("E2E_DEV_API_TOKEN is unavailable")
+          opener = urllib.request.build_opener(NoRedirect)
+
+          def get(path):
+              request = urllib.request.Request(
+                  "https://dev.courses.datatalks.club" + path,
+                  headers={"Authorization": "Token " + token},
+              )
+              try:
+                  with opener.open(request, timeout=20) as response:
+                      return json.load(response)
+              except urllib.error.HTTPError as error:
+                  sys.exit(f"DEV API returned HTTP {error.code}")
+
+          courses = get("/api/courses/")["courses"]
+          if len(courses) > 100:
+              sys.exit("More than 100 courses; inspection cap reached")
+          homeworks = []
+          for course in courses:
+              slug = urllib.parse.quote(course["slug"], safe="")
+              for homework in get(f"/api/courses/{slug}/homeworks/")["homeworks"]:
+                  homeworks.append({
+                      "course_slug": course["slug"],
+                      "id": homework["id"],
+                      "slug": homework["slug"],
+                      "submissions_count": homework["submissions_count"],
+                  })
+          largest = max(homeworks, key=lambda h: h["submissions_count"], default=None)
+          print(json.dumps({
+              "courses_count": len(courses),
+              "homeworks_count": len(homeworks),
+              "largest_homework": largest,
+          }, indent=2))
+          PY
