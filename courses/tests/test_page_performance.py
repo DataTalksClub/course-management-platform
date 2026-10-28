@@ -175,7 +175,7 @@ class PagePerformanceTestCase(TestCase):
         )
         self.assertIn("public", second.get("Cache-Control", ""))
         self.assertIsNotNone(
-            cache.get(f"course:anon:{self.course.slug}:v1")
+            cache.get(f"course:anon:{self.course.slug}:v2")
         )
 
         # Homework anon.

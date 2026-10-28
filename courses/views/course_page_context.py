@@ -10,6 +10,7 @@ from courses.models.course import (
     RegistrationCampaign,
 )
 from courses.models.project import ProjectState
+from courses.registration_counts import registered_people_count
 from courses.registration_wall import (
     course_has_registration_wall,
     registration_wall_blocks_user,
@@ -145,6 +146,12 @@ def course_page_context(data: CoursePageData) -> dict:
         data.course,
         data.user,
     )
+    context["application_under_review"] = bool(
+        context["registration_wall_blocked"]
+        and context["registration_wall_status"]
+        == CourseRegistration.Status.PENDING.value
+    )
+    context["registered_count"] = registered_people_count(data.course)
     return context
 
 

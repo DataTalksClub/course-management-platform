@@ -27,7 +27,7 @@ def _public_page_cache_allowed(request: HttpRequest) -> bool:
 
 def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
     if _public_page_cache_allowed(request):
-        cache_key = f"course:anon:{course_slug}:v1"
+        cache_key = f"course:anon:{course_slug}:v2"
         context = cache.get(cache_key)
         if context is None:
             data = course_page_data(course_slug, request.user)
