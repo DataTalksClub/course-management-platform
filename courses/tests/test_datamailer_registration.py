@@ -124,13 +124,14 @@ def assert_registration_confirmation_payload(
         payload["context"]["course_start_date"],
         "September 14, 2026",
     )
-    test_case.assertEqual(
-        payload["context"]["next_steps_text"],
-        (
+    # Cross-sell suggestions (docs/cross-sell.md) may follow this sentence.
+    test_case.assertTrue(
+        payload["context"]["next_steps_text"].startswith(
             "Closer to the start, we will send you another email with "
             "more information about the course."
-        ),
+        )
     )
+    test_case.assertIn("suggested_courses", payload["context"])
     test_case.assertEqual(payload["metadata"]["event"], "course_registration")
     test_case.assertEqual(
         payload["metadata"]["preference_key"],
