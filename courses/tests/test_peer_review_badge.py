@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.db import connection
 from django.test import TestCase, Client
 from django.test.utils import CaptureQueriesContext
@@ -147,6 +148,8 @@ class PeerReviewBadgeTests(TestCase):
 
     def _course_page_query_count(self):
         self.client.login(username="test@test.com", password="12345")
+        # The cached registered count must not skew the comparison.
+        cache.clear()
         course_url = reverse(
             "course", kwargs={"course_slug": self.course.slug}
         )
