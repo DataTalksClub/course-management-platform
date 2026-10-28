@@ -1,0 +1,83 @@
+{% if cross_sell_registered %}
+  <div class="mt-4 rounded-md border app-alert-success px-4 py-3" data-cross-sell-registered>
+    <p class="text-sm font-medium app-heading">Also registered for:</p>
+    <ul class="mt-1 list-disc pl-5 text-sm app-text">
+      {% for registered_campaign in cross_sell_registered %}
+        <li>{{ registered_campaign.title }}</li>
+      {% endfor %}
+    </ul>
+    {% if not registration.email_confirmed %}
+      <p class="mt-2 text-sm app-text">
+        These are confirmed together with this registration when you click the link in the email.
+      </p>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% if cross_sell_suggestions %}
+  <section class="mt-6 border-t app-border pt-5" data-cross-sell>
+    <h2 class="text-lg font-semibold app-heading">You might also like</h2>
+    <p class="settings-helper mt-1">
+      Register with the same details in one click, or pick several.
+    </p>
+
+    <form method="post"
+          action="{% url 'registration_cross_sell' campaign.slug %}"
+          class="mt-3"
+          data-cross-sell-form>
+      {% csrf_token %}
+      <ul class="divide-y app-divide">
+        {% for suggestion in cross_sell_suggestions %}
+          <li class="py-3" data-cross-sell-suggestion="{{ suggestion.campaign.slug }}">
+            <div class="flex items-start gap-3">
+              {% if suggestion.one_click %}
+                <input type="checkbox"
+                       name="campaigns"
+                       value="{{ suggestion.campaign.slug }}"
+                       id="cross-sell-{{ suggestion.campaign.slug }}"
+                       class="mt-1 h-4 w-4">
+              {% endif %}
+              <div class="min-w-0">
+                {% if suggestion.one_click %}
+                  <label for="cross-sell-{{ suggestion.campaign.slug }}" class="font-medium app-heading">
+                    {{ suggestion.campaign.title }}
+                  </label>
+                {% else %}
+                  <p class="font-medium app-heading">{{ suggestion.campaign.title }}</p>
+                {% endif %}
+                <p class="text-sm app-muted">
+                  {% if suggestion.campaign.edition_label %}{{ suggestion.campaign.edition_label }}{% endif %}{% if suggestion.campaign.edition_label and suggestion.start_date %} · {% endif %}{% if suggestion.start_date %}Starts {{ suggestion.start_date|date:"F j, Y" }}{% endif %}
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  {% if suggestion.one_click %}
+                    <button type="submit"
+                            name="campaign"
+                            value="{{ suggestion.campaign.slug }}"
+                            class="primer-button primer-button-secondary">
+                      <i class="fas fa-user-plus" aria-hidden="true"></i> Register
+                    </button>
+                  {% else %}
+                    <a href="{{ suggestion.url }}" class="primer-button primer-button-secondary">
+                      Apply
+                    </a>
+                  {% endif %}
+                  <a href="{{ suggestion.url }}" class="inline-flex items-center text-sm app-link">
+                    Details
+                  </a>
+                </div>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+
+      {% if cross_sell_has_one_click %}
+        <div class="flex flex-wrap gap-2 border-t app-border pt-5">
+          <button type="submit" class="primer-button" data-cross-sell-submit-selected>
+            Register for selected
+          </button>
+        </div>
+      {% endif %}
+    </form>
+  </section>
+{% endif %}

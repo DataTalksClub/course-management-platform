@@ -47,6 +47,11 @@ urlpatterns = [
         name="registration_campaign",
     ),
     path(
+        "register/<slug:campaign_slug>/also/",
+        registration.registration_cross_sell_view,
+        name="registration_cross_sell",
+    ),
+    path(
         "courses/<slug:course_slug>/",
         course.legacy_course_redirect,
         name="legacy_course",

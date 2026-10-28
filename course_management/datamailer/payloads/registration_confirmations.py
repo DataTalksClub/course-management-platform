@@ -79,9 +79,61 @@ def registration_confirmation_course_context(course):
     return context
 
 
+def registration_confirmation_suggested_courses(registration, campaign):
+    """Cross-sell block: the same suggestions as the success page."""
+    from courses.cross_sell import (
+        SOURCE_EMAIL,
+        suggestion_link_query,
+        suggestions_for_registration,
+    )
+
+    query = suggestion_link_query(campaign, src=SOURCE_EMAIL)
+    suggested = []
+    for suggestion in suggestions_for_registration(registration):
+        url = public_route_url(
+            "registration_campaign",
+            {"campaign_slug": suggestion.campaign.slug},
+        )
+        start_date = ""
+        if suggestion.start_date:
+            start_date = format_date(suggestion.start_date, "F j, Y")
+        suggested.append(
+            {
+                "title": suggestion.campaign.title,
+                "start_date": start_date,
+                "url": f"{url}?{query}",
+            }
+        )
+    return suggested
+
+
+def suggested_courses_text(suggested_courses):
+    if not suggested_courses:
+        return ""
+    lines = ["You might also like:"]
+    for item in suggested_courses:
+        line = f"- {item['title']}"
+        if item["start_date"]:
+            line += f" (starts {item['start_date']})"
+        lines.append(f"{line}: {item['url']}")
+    return "\n".join(lines)
+
+
 def registration_confirmation_context(registration, campaign, course, urls):
     profile_url = urls["profile_url"]
     course_context = registration_confirmation_course_context(course)
+    suggested_courses = registration_confirmation_suggested_courses(
+        registration, campaign
+    )
+    next_steps_text = (
+        "Closer to the start, we will send you another email with "
+        "more information about the course."
+    )
+    cross_sell_text = suggested_courses_text(suggested_courses)
+    if cross_sell_text:
+        # The Relay template renders next_steps_text already, so the
+        # suggestions show without a template change.
+        next_steps_text = f"{next_steps_text}\n\n{cross_sell_text}"
     context = {
         "email_subject": f"Confirm your registration: {campaign.title}",
         "campaign_title": campaign.title,
@@ -96,10 +148,9 @@ def registration_confirmation_context(registration, campaign, course, urls):
             "Please click the confirmation link to complete "
             "your registration."
         ),
-        "next_steps_text": (
-            "Closer to the start, we will send you another email with "
-            "more information about the course."
-        ),
+        "next_steps_text": next_steps_text,
+        "suggested_courses": suggested_courses,
+        "suggested_courses_text": cross_sell_text,
         "notification_category": "course-related emails",
         "notification_footer": (
             "You are receiving this because course-related emails are "

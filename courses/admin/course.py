@@ -177,6 +177,7 @@ class RegistrationCampaignAdmin(ModelAdmin):
     ]
     search_fields = ["title", "slug"]
     list_filter = ["is_active", "current_course"]
+    filter_horizontal = ["suggested_campaigns"]
     readonly_fields = ["created_at", "updated_at"]
     fieldsets = [
         (
@@ -192,6 +193,15 @@ class RegistrationCampaignAdmin(ModelAdmin):
                     "video_url",
                     "meta_description",
                     "marketing_markdown",
+                ]
+            },
+        ),
+        (
+            "Cross-sell",
+            {
+                "fields": [
+                    "suggested_campaigns",
+                    "exclude_from_suggestions",
                 ]
             },
         ),
@@ -260,7 +270,9 @@ class CourseRegistrationAdmin(ModelAdmin):
         "region",
         "role",
         "status",
+        "source",
     ]
+    raw_id_fields = ["referred_by"]
     readonly_fields = [
         "email_normalized",
         "created_at",
@@ -284,6 +296,8 @@ class CourseRegistrationAdmin(ModelAdmin):
                     "comment",
                     "accepted_newsletter",
                     "accepted_nebius_sharing",
+                    "source",
+                    "referred_by",
                 ]
             },
         ),

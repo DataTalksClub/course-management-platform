@@ -276,6 +276,11 @@ def registration_confirmation_fix_email_view(
             "email_normalized",
         ]
     )
+    # Unconfirmed cross-sell copies were made for the wrong address; drop
+    # them so they do not linger. The success page offers them again.
+    registration.cross_sell_registrations.filter(
+        email_confirmed=False
+    ).delete()
     issue_confirmation_token(registration)
     _queue_confirmation_send(request, registration)
     record_event(

@@ -77,6 +77,9 @@ def mark_registration_confirmed(registration, now=None):
             "email_confirmation_confirmed_at",
         ]
     )
+    from courses.cross_sell import confirm_cross_sell_registrations
+
+    confirm_cross_sell_registrations(registration, now=now)
     return True
 
 

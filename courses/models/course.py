@@ -130,6 +130,20 @@ class RegistrationCampaign(models.Model):
         help_text="Course edition currently promoted by this form.",
     )
     is_active = models.BooleanField(default=True)
+    suggested_campaigns = models.ManyToManyField(
+        "self",
+        symmetrical=False,
+        blank=True,
+        related_name="suggested_by",
+        help_text="Other courses to suggest after someone registers "
+        + "for this one (cross-sell). Shown before the automatic "
+        + "fallback of other open courses.",
+    )
+    exclude_from_suggestions = models.BooleanField(
+        default=False,
+        help_text="Never suggest this form after registration for "
+        + "another course.",
+    )
 
     marketing_markdown = models.TextField(blank=True)
     meta_description = models.TextField(blank=True)
@@ -360,6 +374,24 @@ class CourseRegistration(models.Model):
     prereq_cli = models.BooleanField(
         default=False,
         help_text="Self-check: command line.",
+    )
+
+    source = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="How the registration started: empty for the "
+        + "normal form, xsell* for cross-sell suggestions.",
+    )
+    referred_by = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="cross_sell_registrations",
+        help_text="Registration whose success page or email "
+        + "suggested this one.",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

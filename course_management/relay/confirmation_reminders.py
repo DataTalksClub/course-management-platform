@@ -43,6 +43,10 @@ def reminder_action(row, now):
     deadline = row.created_at + timedelta(days=7)
     if row.email_confirmed:
         return None
+    if row.referred_by_id is not None:
+        # Cross-sell copies confirm with their source registration and
+        # are deleted with it (CASCADE); they never send reminders.
+        return None
     next_attempt_at = getattr(row, "confirmation_reminder_next_attempt_at", None)
     if next_attempt_at is not None and next_attempt_at > now:
         return None

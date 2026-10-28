@@ -134,6 +134,8 @@ class RegistrationCampaignForm(forms.ModelForm):
             "video_url",
             "meta_description",
             "marketing_markdown",
+            "suggested_campaigns",
+            "exclude_from_suggestions",
         ]
         widgets = {
             "title": REGISTRATION_CAMPAIGN_TITLE_WIDGET,
@@ -145,6 +147,10 @@ class RegistrationCampaignForm(forms.ModelForm):
             "video_url": REGISTRATION_CAMPAIGN_VIDEO_URL_WIDGET,
             "meta_description": REGISTRATION_CAMPAIGN_META_DESCRIPTION_WIDGET,
             "marketing_markdown": REGISTRATION_CAMPAIGN_MARKETING_WIDGET,
+            "suggested_campaigns": forms.CheckboxSelectMultiple(),
+            "exclude_from_suggestions": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
         }
         labels = {
             "slug": "URL slug",
@@ -164,6 +170,12 @@ class RegistrationCampaignForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["current_course"].empty_label = "No current course"
+        suggested = self.fields["suggested_campaigns"]
+        suggested.label = "Suggested courses"
+        if self.instance.pk:
+            suggested.queryset = suggested.queryset.exclude(
+                pk=self.instance.pk
+            )
 
     def is_valid(self):
         valid = super().is_valid()

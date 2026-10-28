@@ -223,6 +223,15 @@ LEADERBOARD_BREAKDOWN_CACHE_TTL = int(
     os.getenv("LEADERBOARD_BREAKDOWN_CACHE_TTL", "300")
 )
 
+# Cross-sell after registration (docs/cross-sell.md): how many other
+# courses to suggest, and campaign slugs that are never suggested.
+CROSS_SELL_MAX_SUGGESTIONS = int(os.getenv("CROSS_SELL_MAX_SUGGESTIONS", "3"))
+CROSS_SELL_EXCLUDED_CAMPAIGNS = [
+    slug.strip()
+    for slug in os.getenv("CROSS_SELL_EXCLUDED_CAMPAIGNS", "").split(",")
+    if slug.strip()
+]
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
