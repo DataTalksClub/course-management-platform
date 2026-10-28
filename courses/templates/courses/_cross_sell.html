@@ -18,7 +18,11 @@
   <section class="mt-6 border-t app-border pt-5" data-cross-sell>
     <h2 class="text-lg font-semibold app-heading">You might also like</h2>
     <p class="settings-helper mt-1">
-      Register with the same details in one click, or pick several.
+      {% if cross_sell_has_one_click %}
+        Register with the same details in one click, or pick several.
+      {% else %}
+        These courses take applications with a few extra answers.
+      {% endif %}
     </p>
 
     <form method="post"

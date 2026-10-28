@@ -159,6 +159,17 @@ class SuccessPageTests(CrossSellBase):
         names = [call.args[0] for call in record.call_args_list]
         self.assertIn("cross_sell.impression", names)
 
+    def test_application_only_suggestions_explain_apply(self):
+        Course.objects.filter(
+            registration_campaigns__in=[self.ml, self.de, self.mlops]
+        ).update(requires_registration_approval=True)
+        RegistrationCampaign.objects.filter(pk=self.next_cohort.pk).update(
+            is_active=False
+        )
+        response = self.register()
+        self.assertContains(response, "take applications")
+        self.assertNotContains(response, "Register for selected")
+
     def test_form_page_without_registration_has_no_block(self):
         response = self.client.get(self.campaign_url())
         self.assertNotContains(response, "You might also like")
