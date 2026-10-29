@@ -70,6 +70,56 @@ SYSTEM_EVALUATION_RESPONSE = response(
     SYSTEM_EVALUATION_REF,
 )
 
+PEER_REVIEW_NOTIFICATION_REF = ref("PeerReviewNotificationResponse")
+PEER_REVIEW_NOTIFICATION_STATUS_RESPONSES = {
+    "200": response(
+        "Send-once status (audit is null before any send)",
+        PEER_REVIEW_NOTIFICATION_REF,
+    ),
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
+}
+PEER_REVIEW_NOTIFICATION_SEND_RESPONSES = {
+    "200": response("Sent; returns the send audit", PEER_REVIEW_NOTIFICATION_REF),
+    "400": response("Project is not in peer reviewing state", ERROR_REF),
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
+    "409": response(
+        "Already sent or in progress; returns the existing audit",
+        PEER_REVIEW_NOTIFICATION_REF,
+    ),
+    "502": response(
+        "Send failed; returns the failed audit, retry is allowed",
+        PEER_REVIEW_NOTIFICATION_REF,
+    ),
+}
+PEER_REVIEW_NOTIFICATION_SEND_DATA = OperationData(
+    "api_project_notify_peer_reviews_by_slug",
+    ["Projects"],
+    "Send the peer-review-assigned email once",
+    PEER_REVIEW_NOTIFICATION_SEND_RESPONSES,
+    description=(
+        "Sends the peer-review-assignment email to project submitters, the "
+        "same send as the cadmin 'Notify peer reviews' button, with "
+        "idempotency key peer-review-assignment:<course>:<project>. "
+        "Send-once: refuses with 409 when a succeeded or in-flight send "
+        "audit exists for that key. Resending requires a deliberate reset "
+        "(manage.py reset_peer_review_notification_marker --confirm). "
+        "Requires a staff token and the project in PR state."
+    ),
+)
+PEER_REVIEW_NOTIFICATION_STATUS_DATA = OperationData(
+    "api_project_notify_peer_reviews_by_slug",
+    ["Projects"],
+    "Get the peer-review-assigned email send status",
+    PEER_REVIEW_NOTIFICATION_STATUS_RESPONSES,
+    description=(
+        "Read-only. Returns the send audit for "
+        "peer-review-assignment:<course>:<project>, or audit=null when "
+        "nothing was sent. Requires a staff token."
+    ),
+)
+
 PROJECTS_LIST_RESPONSES = {
     "200": PROJECTS_LIST_SUCCESS_RESPONSE,
 }
@@ -400,6 +450,10 @@ PROJECT_PATHS_BY_URL_NAME = {
     "api_project_assign_reviews_by_slug": {
         "get": PROJECT_ASSIGN_REVIEWS_BY_SLUG_STATUS_OPERATION,
         "post": PROJECT_ASSIGN_REVIEWS_BY_SLUG_OPERATION,
+    },
+    "api_project_notify_peer_reviews_by_slug": {
+        "get": operation(PEER_REVIEW_NOTIFICATION_STATUS_DATA),
+        "post": operation(PEER_REVIEW_NOTIFICATION_SEND_DATA),
     },
     "api_project_score_by_slug": {
         "get": PROJECT_SCORE_BY_SLUG_STATUS_OPERATION,

@@ -217,6 +217,52 @@ PROJECT_SCHEMAS = {
             "assigned_peer_reviews_count": {"type": "integer"},
         },
     },
+    "PeerReviewNotificationSendAudit": {
+        "type": "object",
+        "properties": {
+            "send_type": {"type": "string"},
+            "status": {
+                "type": "string",
+                "enum": ["pending", "succeeded", "failed"],
+            },
+            "idempotency_key": {"type": "string"},
+            "template_key": {"type": "string"},
+            "list_key": {"type": "string"},
+            "intended_count": {"type": "integer"},
+            "created_count": {"type": "integer"},
+            "enqueued_count": {"type": "integer"},
+            "skipped_count": {"type": "integer"},
+            "idempotent_replay_count": {"type": "integer"},
+            "error": {"type": "string"},
+            "occurred_at": {"type": "string", "format": "date-time"},
+            "created_at": {"type": "string", "format": "date-time"},
+            "updated_at": {"type": "string", "format": "date-time"},
+        },
+    },
+    "PeerReviewNotificationResponse": {
+        "type": "object",
+        "required": [
+            "course_slug",
+            "project_slug",
+            "idempotency_key",
+            "sent",
+            "audit",
+        ],
+        "properties": {
+            "course_slug": {"type": "string"},
+            "project_slug": {"type": "string"},
+            "idempotency_key": {"type": "string"},
+            "sent": {"type": "boolean"},
+            "audit": {
+                "oneOf": [
+                    {"$ref": "#/components/schemas/PeerReviewNotificationSendAudit"},
+                    {"type": "null"},
+                ],
+            },
+            "error": {"type": "string"},
+            "code": {"type": "string"},
+        },
+    },
     "ProjectScoreResponse": {
         "type": "object",
         "required": [

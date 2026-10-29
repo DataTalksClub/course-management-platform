@@ -171,6 +171,11 @@ urlpatterns = [
         name="api_project_assign_reviews_by_slug",
     ),
     path(
+        "courses/<slug:course_slug>/projects/by-slug/<slug:project_slug>/notify-peer-reviews/",
+        projects.project_notify_peer_reviews_by_slug_view,
+        name="api_project_notify_peer_reviews_by_slug",
+    ),
+    path(
         "courses/<slug:course_slug>/projects/by-slug/<slug:project_slug>/score/",
         projects.project_score_by_slug_view,
         name="api_project_score_by_slug",

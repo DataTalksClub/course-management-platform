@@ -650,6 +650,10 @@ sequenceDiagram
   snapshot.
 - **Gated by:** `email_submission_confirmations`.
 - **Idempotency:** `peer-review-assignment:{course}:{project}`.
+- **Staff API (send once):** `POST /api/courses/{course}/projects/by-slug/{project}/notify-peer-reviews/`
+  triggers the same send and refuses with `409` when a succeeded or
+  `pending` recipient-list send audit already exists for the key. `GET` on the
+  same path returns that audit read-only. See `endpoints.md`.
 
 **Today (delta):** the code builds a submitter snapshot and sends it with the
 per-send reconcile (the §3 stopgap), to the `project-submitters` key.

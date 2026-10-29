@@ -127,6 +127,8 @@ class DatamailerSendAuditType(models.TextChoices):
 class DatamailerSendAuditStatus(models.TextChoices):
     SUCCEEDED = "succeeded", "Succeeded"
     FAILED = "failed", "Failed"
+    # Send-once claim held while a guarded send is in flight.
+    PENDING = "pending", "Pending"
 
 
 class DatamailerSendAudit(models.Model):

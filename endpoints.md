@@ -302,6 +302,8 @@ Delete rejection examples:
 | `PUT` | `/api/courses/{course_slug}/projects/by-slug/{project_slug}/` | Create or update project by slug |
 | `PATCH` | `/api/courses/{course_slug}/projects/by-slug/{project_slug}/` | Update project by slug |
 | `DELETE` | `/api/courses/{course_slug}/projects/by-slug/{project_slug}/` | Delete project by slug, only when safe |
+| `GET` | `/api/courses/{course_slug}/projects/by-slug/{project_slug}/notify-peer-reviews/` | Read-only: peer-review-assigned email send status (audit or `null`) |
+| `POST` | `/api/courses/{course_slug}/projects/by-slug/{project_slug}/notify-peer-reviews/` | Send the peer-review-assigned email once (staff token) |
 
 Create payload:
 ```json
@@ -331,6 +333,52 @@ Delete rejection examples:
 
 ```json
 {"error": "Cannot delete project with existing submissions"}
+```
+
+#### Peer-review-assigned email (send once)
+
+`POST .../projects/by-slug/{project_slug}/notify-peer-reviews/` performs the
+same send as the cadmin "Notify peer reviews" button
+(`send_peer_review_assignment_notification`, idempotency key
+`peer-review-assignment:{course_slug}:{project_slug}`). It requires a staff
+token and the project in `PR` (peer reviewing) state.
+
+It is send-once. The `recipient_list` send audit for that key is the marker:
+
+| Response | Meaning |
+|----------|---------|
+| `200` | Sent; body has the succeeded audit |
+| `409` `peer_review_notification_already_sent` | A `succeeded` (or in-flight `pending`) audit exists, including one from the cadmin button. Nothing was sent |
+| `502` `peer_review_notification_failed` | The send failed; the audit is `failed` and a retry POST is allowed |
+| `400` `project_not_peer_reviewing` | Assign peer reviews first |
+| `401` / `403` | Missing token / non-staff token |
+
+`GET` on the same path never sends. It returns the current status:
+
+```json
+{
+  "course_slug": "ai-dev-tools-2026",
+  "project_slug": "project1",
+  "idempotency_key": "peer-review-assignment:ai-dev-tools-2026:project1",
+  "sent": true,
+  "audit": {
+    "status": "succeeded",
+    "enqueued_count": 120,
+    "intended_count": 120,
+    "error": "",
+    "occurred_at": "2026-10-29T10:00:00+00:00",
+    "created_at": "2026-10-29T10:00:00+00:00",
+    "updated_at": "2026-10-29T10:00:01+00:00"
+  }
+}
+```
+
+`audit` is `null` (and `sent` is `false`) before any send. To deliberately
+allow one more send, reset the marker on the server:
+
+```console
+$ uv run python manage.py reset_peer_review_notification_marker \
+    <course_slug> <project_slug> --confirm --reason "why"
 ```
 
 ### Questions
