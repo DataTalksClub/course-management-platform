@@ -1,0 +1,108 @@
+name: Inspect DEV send audits
+
+# GET-only check of the notify-peer-reviews status and send-audit skip
+# details on DEV. Never POSTs; prints no emails or tokens.
+on:
+  workflow_dispatch:
+    inputs:
+      course_slug:
+        description: Course slug for the notify-peer-reviews status GET
+        required: false
+        default: ""
+      project_slug:
+        description: Project slug for the notify-peer-reviews status GET
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Read DEV send audits (GET only, no emails printed)
+        env:
+          DEV_API_TOKEN: ${{ secrets.E2E_DEV_API_TOKEN }}
+          COURSE_SLUG: ${{ inputs.course_slug }}
+          PROJECT_SLUG: ${{ inputs.project_slug }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, urllib.error, urllib.parse, urllib.request
+
+          BASE = "https://dev.courses.datatalks.club"
+          token = os.environ.get("DEV_API_TOKEN", "")
+          if not token:
+              sys.exit("E2E_DEV_API_TOKEN is unavailable")
+
+          def get(path, auth=True):
+              headers = {"Authorization": "Token " + token} if auth else {}
+              request = urllib.request.Request(BASE + path, headers=headers)
+              try:
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      return response.status, json.load(response)
+              except urllib.error.HTTPError as error:
+                  return error.code, None
+
+          def summarize_audit(audit):
+              if audit is None:
+                  return None
+              skipped = audit.get("skipped_recipients") or []
+              return {
+                  "id": audit.get("id"),
+                  "send_type": audit.get("send_type"),
+                  "status": audit.get("status"),
+                  "enqueued_count": audit.get("enqueued_count"),
+                  "skipped_count": audit.get("skipped_count"),
+                  "skipped_recipients_source": audit.get(
+                      "skipped_recipients_source"
+                  ),
+                  "skipped_recipients": [
+                      {
+                          "reason": item.get("reason"),
+                          "reason_category": item.get("reason_category"),
+                          "has_user_id": item.get("user_id") is not None,
+                          "has_email": bool(item.get("email")),
+                      }
+                      for item in skipped
+                  ],
+              }
+
+          report = {}
+          course = os.environ.get("COURSE_SLUG", "")
+          project = os.environ.get("PROJECT_SLUG", "")
+          if course and project:
+              path = (
+                  f"/api/courses/{urllib.parse.quote(course)}/projects/"
+                  f"by-slug/{urllib.parse.quote(project)}/notify-peer-reviews/"
+              )
+              status, body = get(path)
+              report["notify_status_get"] = {
+                  "http": status,
+                  "sent": (body or {}).get("sent"),
+                  "idempotency_key": (body or {}).get("idempotency_key"),
+                  "audit": summarize_audit((body or {}).get("audit")),
+              }
+              report["notify_status_no_token_http"] = get(path, auth=False)[0]
+
+          status, body = get("/api/datamailer/send-audits?limit=25")
+          audits = (body or {}).get("audits") or []
+          report["send_audits_list"] = {
+              "http": status,
+              "count": len(audits),
+              "all_have_skip_fields": all(
+                  "skipped_recipients" in a and "id" in a for a in audits
+              ),
+          }
+          skipped = [a for a in audits if a.get("skipped_count")]
+          if skipped:
+              status, detail = get(
+                  f"/api/datamailer/send-audits/{skipped[0]['id']}"
+              )
+              report["send_audit_detail_with_skips"] = {
+                  "http": status,
+                  "audit": summarize_audit(detail),
+              }
+          print(json.dumps(report, indent=2))
+          PY
