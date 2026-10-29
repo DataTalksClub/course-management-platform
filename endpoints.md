@@ -373,13 +373,28 @@ It is send-once. The `recipient_list` send audit for that key is the marker:
 }
 ```
 
-`audit` is `null` (and `sent` is `false`) before any send. To deliberately
+`audit` is `null` (and `sent` is `false`) before any send. The GET audit
+also lists `skipped_recipients` (`user_id`, `email`, machine-readable
+`reason` such as `category_unsubscribe`), resolved read-only from Relay for
+audits sent before Relay returned skip details. See
+`GET /api/datamailer/send-audits/{id}` and `docs/datamailer-integration.md`. To deliberately
 allow one more send, reset the marker on the server:
 
 ```console
 $ uv run python manage.py reset_peer_review_notification_marker \
     <course_slug> <project_slug> --confirm --reason "why"
 ```
+
+### Datamailer Send Audits (staff token)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/datamailer/send-audits` | List send audits (filters: `email`, `template_key`, `idempotency_key`, `status`, `send_type`, `limit`) |
+| `GET` | `/api/datamailer/send-audits/{id}` | One audit with `skipped_recipients` (user id, email, reason) |
+
+Both include `skipped_recipients` and `skipped_recipients_source`. Only the
+detail endpoint does a read-only Relay lookup for audits sent before Relay
+returned skip details; the list reports `not_recorded` for those.
 
 ### Questions
 

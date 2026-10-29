@@ -76,6 +76,11 @@ urlpatterns = [
         datamailer_send_audits.datamailer_send_audits_view,
         name="api_datamailer_send_audits",
     ),
+    path(
+        "datamailer/send-audits/<int:audit_id>",
+        datamailer_send_audits.datamailer_send_audit_detail_view,
+        name="api_datamailer_send_audit_detail",
+    ),
     # Courses
     path(
         "courses/",

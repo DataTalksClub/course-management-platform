@@ -22,6 +22,18 @@ class DatamailerTransactionalClient:
         )
         return self.request(request_data)
 
+    def transactional_messages_since(
+        self,
+        since: str,
+    ) -> dict[str, Any] | None:
+        """Read-only reconciliation page of messages updated since ``since``."""
+        request_data = DatamailerRequestData(
+            method="GET",
+            path="/api/transactional/messages",
+            params={"since": since},
+        )
+        return self.request(request_data)
+
     def transactional_message_status(
         self,
         message_id: int,

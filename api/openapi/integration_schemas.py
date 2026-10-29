@@ -137,9 +137,27 @@ INTEGRATION_SCHEMAS = {
             "preference_updated": {"type": "boolean"},
         },
     },
+    "SkippedRecipient": {
+        "type": "object",
+        "properties": {
+            "user_id": {"type": ["integer", "null"]},
+            "email": {"type": "string"},
+            "reason": {
+                "type": "string",
+                "description": (
+                    "Relay skip reason, e.g. category_unsubscribe, "
+                    "global_unsubscribe, hard_bounce, complaint, suppressed"
+                ),
+            },
+            "source_object_key": {"type": "string"},
+            "relay_message_id": {"type": ["integer", "null"]},
+            "relay_contact_id": {"type": ["integer", "null"]},
+        },
+    },
     "DatamailerSendAudit": {
         "type": "object",
         "properties": {
+            "id": {"type": "integer"},
             "send_type": {"type": "string"},
             "status": {"type": "string"},
             "template_key": {"type": "string"},
@@ -152,6 +170,15 @@ INTEGRATION_SCHEMAS = {
             "rendered": JSON,
             "message": JSON,
             "response_payload": JSON,
+            "skipped_count": {"type": "integer"},
+            "skipped_recipients": array_of(ref("SkippedRecipient")),
+            "skipped_recipients_source": {
+                "type": ["string", "null"],
+                "enum": [
+                    "audit", "relay_lookup", "not_recorded",
+                    "unavailable", None,
+                ],
+            },
         },
     },
     "DatamailerSendAudits": {

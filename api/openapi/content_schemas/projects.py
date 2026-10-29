@@ -237,6 +237,11 @@ PROJECT_SCHEMAS = {
             "occurred_at": {"type": "string", "format": "date-time"},
             "created_at": {"type": "string", "format": "date-time"},
             "updated_at": {"type": "string", "format": "date-time"},
+            "skipped_recipients": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/SkippedRecipient"},
+            },
+            "skipped_recipients_source": {"type": ["string", "null"]},
         },
     },
     "PeerReviewNotificationResponse": {

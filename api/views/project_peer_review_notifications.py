@@ -1,6 +1,9 @@
 from django.http import JsonResponse
 
 from api.safety import error_response
+from course_management.datamailer.send_audit_skips import (
+    send_audit_skipped_recipients,
+)
 from course_management.datamailer.sync.peer_review_send_once import (
     PeerReviewNotificationAlreadySent,
     peer_review_assignment_idempotency_key,
@@ -17,10 +20,10 @@ def _isoformat(value):
     return value.isoformat()
 
 
-def send_audit_to_dict(audit):
+def send_audit_to_dict(audit, *, lookup_skips=False):
     if audit is None:
         return None
-    return {
+    data = {
         "send_type": audit.send_type,
         "status": audit.status,
         "idempotency_key": audit.idempotency_key,
@@ -36,9 +39,13 @@ def send_audit_to_dict(audit):
         "created_at": _isoformat(audit.created_at),
         "updated_at": _isoformat(audit.updated_at),
     }
+    data.update(
+        send_audit_skipped_recipients(audit, lookup=lookup_skips)
+    )
+    return data
 
 
-def _notification_body(project, audit):
+def _notification_body(project, audit, *, lookup_skips=False):
     sent = (
         audit is not None
         and audit.status == DatamailerSendAuditStatus.SUCCEEDED
@@ -48,13 +55,15 @@ def _notification_body(project, audit):
         "project_slug": project.slug,
         "idempotency_key": peer_review_assignment_idempotency_key(project),
         "sent": sent,
-        "audit": send_audit_to_dict(audit),
+        "audit": send_audit_to_dict(audit, lookup_skips=lookup_skips),
     }
 
 
 def peer_review_notification_status_response(project):
     audit = peer_review_assignment_send_audit(project)
-    return JsonResponse(_notification_body(project, audit))
+    return JsonResponse(
+        _notification_body(project, audit, lookup_skips=True)
+    )
 
 
 def peer_review_notification_send_response(request, project):

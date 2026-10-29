@@ -1,8 +1,12 @@
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET
 
 from accounts.auth import token_required
 from api.safety import require_staff_token
+from course_management.datamailer.send_audit_skips import (
+    send_audit_skipped_recipients,
+)
 from data.models import DatamailerOutboxEvent, DatamailerSendAudit
 
 DEFAULT_LIMIT = 25
@@ -55,6 +59,19 @@ def datamailer_send_audits_view(request):
     return JsonResponse(response)
 
 
+@require_GET
+@token_required
+def datamailer_send_audit_detail_view(request, audit_id):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
+    audit = get_object_or_404(DatamailerSendAudit, pk=audit_id)
+    response = _serialize_audit(audit, lookup_skips=True)
+    response["outbox_events"] = _outbox_diagnostics(audit.idempotency_key)
+    return JsonResponse(response)
+
+
 def _outbox_diagnostics(idempotency_key):
     # An exact key is required; never expose member payloads or responses.
     keys = [
@@ -82,7 +99,7 @@ def _parse_limit(raw_value) -> int:
     return min(value, MAX_LIMIT)
 
 
-def _serialize_audit(audit) -> dict:
+def _serialize_audit(audit, *, lookup_skips=False) -> dict:
     payload = audit.response_payload or {}
     message = payload.get("message") or {}
     rendered = payload.get("rendered") or {}
@@ -92,7 +109,8 @@ def _serialize_audit(audit) -> dict:
     if audit.occurred_at:
         occurred_at = audit.occurred_at.isoformat()
 
-    return {
+    data = {
+        "id": audit.pk,
         "send_type": audit.send_type,
         "status": audit.status,
         "template_key": audit.template_key,
@@ -104,8 +122,13 @@ def _serialize_audit(audit) -> dict:
         "error": audit.error,
         "intended_count": audit.intended_count,
         "enqueued_count": audit.enqueued_count,
+        "skipped_count": audit.skipped_count,
         "would_deliver": would_deliver,
         "rendered": rendered,
         "message": message,
         "response_payload": payload,
     }
+    data.update(
+        send_audit_skipped_recipients(audit, lookup=lookup_skips)
+    )
+    return data

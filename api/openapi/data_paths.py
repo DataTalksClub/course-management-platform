@@ -278,6 +278,27 @@ RELAY_SEND_AUDITS_DATA = OperationData(
 )
 RELAY_SEND_AUDITS_OPERATION = operation(RELAY_SEND_AUDITS_DATA)
 
+RELAY_SEND_AUDIT_DETAIL_DATA = OperationData(
+    "api_datamailer_send_audit_detail",
+    ["Datamailer"],
+    "Get one Datamailer send audit with skipped recipients",
+    {
+        "200": schema_response("Datamailer send audit", "DatamailerSendAudit"),
+        "403": schema_response("Staff token required", "Error"),
+        "404": schema_response("Send audit not found", "Error"),
+    },
+    description=(
+        "Returns one send audit (id from the list endpoint) with "
+        "skipped_recipients: user_id, email and machine-readable reason "
+        "for every recipient Relay skipped. Audits recorded before Relay "
+        "returned skip details are resolved with a read-only Relay lookup "
+        "(skipped_recipients_source=relay_lookup); the list endpoint only "
+        "returns persisted details (not_recorded otherwise). "
+        "Requires a staff token."
+    ),
+)
+RELAY_SEND_AUDIT_DETAIL_OPERATION = operation(RELAY_SEND_AUDIT_DETAIL_DATA)
+
 DATA_PATHS_BY_URL_NAME = {
     "api_health": {
         "get": API_HEALTH_OPERATION,
@@ -308,5 +329,8 @@ DATA_PATHS_BY_URL_NAME = {
     },
     "api_datamailer_send_audits": {
         "get": RELAY_SEND_AUDITS_OPERATION,
+    },
+    "api_datamailer_send_audit_detail": {
+        "get": RELAY_SEND_AUDIT_DETAIL_OPERATION,
     },
 }

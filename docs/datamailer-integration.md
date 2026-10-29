@@ -1737,6 +1737,29 @@ curl -s -H "Authorization: Token $TOKEN" \
   "https://courses.datatalks.club/api/datamailer/send-audits?status=failed"
 ```
 
+Recipient-list sends also report who was skipped and why. Relay returns a
+`skipped` array (`message_id`, `contact_id`, `email`, `source_object_key`,
+`reason`) in the list send response, which CMP stores in `response_payload`.
+Every audit item has `id`, `skipped_count`, `skipped_recipients` (`user_id`,
+`email`, `reason`, `source_object_key`, `relay_message_id`,
+`relay_contact_id`) and `skipped_recipients_source`:
+
+- `audit`: details persisted from the Relay response.
+- `relay_lookup`: the audit predates persisted details; CMP read them from
+  Relay (`GET /api/transactional/messages?since=` then
+  `GET /api/transactional/messages/{id}`). Only the detail endpoint
+  `GET /api/datamailer/send-audits/{id}` and the notify-peer-reviews status
+  GET do this lookup; it never writes to the audit or sends anything.
+- `not_recorded`: list endpoint, legacy audit; open the detail endpoint.
+- `unavailable`: the Relay lookup failed or Relay is not configured.
+- `null`: nothing was skipped.
+
+`user_id` comes from a `user:<id>` source object key, otherwise from a CMP
+user with that email. Reasons are Relay's `last_error`, for example
+`category_unsubscribe` (the learner turned the category, e.g.
+`submission-results`, off), `global_unsubscribe`, `hard_bounce`,
+`complaint`, or `suppressed`.
+
 For a local or CI end-to-end run, point CMP at a Datamailer deployment with
 normal settings (`RELAY_URL`, `RELAY_API_KEY`, `RELAY_CLIENT`,
 `RELAY_AUDIENCE`, `RELAY_FROM_EMAIL`) and set
