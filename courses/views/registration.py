@@ -1,6 +1,6 @@
 from functools import partial
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -32,6 +32,7 @@ from courses.registration_confirmation import issue_confirmation_token
 from .registration_form import (
     CourseRegistrationForm,
     normalized_registration_email,
+    registration_email_taken,
 )
 
 
@@ -98,7 +99,19 @@ def _save_registration_if_valid(
     if not form.is_valid():
         return None
 
-    registration = form.save()
+    try:
+        # Duplicate validation can race another request's insert. Roll back
+        # the failed save before querying, keeping the outer transaction usable.
+        with transaction.atomic():
+            registration = form.save()
+    except IntegrityError:
+        if not registration_email_taken(
+            form.campaign,
+            normalized_registration_email(form.cleaned_data["email"]),
+        ):
+            raise
+        form.add_error("email", "You have already registered for this course.")
+        return None
     # New registrations start pending email confirmation: issue the
     # token now so the Relay confirmation email carries the link.
     issue_confirmation_token(registration)
