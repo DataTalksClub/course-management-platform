@@ -82,6 +82,10 @@ jobs:
                   for proj in (projects or {}).get("projects", []):
                       candidates.append((proj.get("state") != "PR",
                                          item["slug"], proj["slug"]))
+              report["discovery"] = {
+                  "courses": len((body or {}).get("courses", [])),
+                  "projects": len(candidates),
+              }
               if candidates:
                   _, course, project = sorted(candidates)[0]
           if course and project:
