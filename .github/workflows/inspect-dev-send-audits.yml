@@ -72,7 +72,20 @@ jobs:
           report = {}
           course = os.environ.get("COURSE_SLUG", "")
           project = os.environ.get("PROJECT_SLUG", "")
+          if not (course and project):
+              # Default to the first DEV project, preferring peer reviewing.
+              _, body = get("/api/courses/")
+              candidates = []
+              for item in (body or {}).get("courses", [])[:100]:
+                  slug = urllib.parse.quote(item["slug"], safe="")
+                  _, projects = get(f"/api/courses/{slug}/projects/")
+                  for proj in (projects or {}).get("projects", []):
+                      candidates.append((proj.get("state") != "PR",
+                                         item["slug"], proj["slug"]))
+              if candidates:
+                  _, course, project = sorted(candidates)[0]
           if course and project:
+              report["project"] = f"{course}/{project}"
               path = (
                   f"/api/courses/{urllib.parse.quote(course)}/projects/"
                   f"by-slug/{urllib.parse.quote(project)}/notify-peer-reviews/"
