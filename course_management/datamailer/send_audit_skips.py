@@ -29,6 +29,17 @@ LOOKUP_WINDOW = timedelta(minutes=15)
 MAX_LOOKUP_PAGES = 5
 MAX_LOOKUP_MESSAGES = 50
 
+# Relay's exact reason stays in "reason"; this is the coarse vocabulary.
+REASON_CATEGORIES = {
+    "category_unsubscribe": "opt_out",
+    "global_unsubscribe": "opt_out",
+    "hard_bounce": "suppressed",
+    "complaint": "suppressed",
+    "suppressed": "suppressed",
+    "invalid_email": "invalid_email",
+    "duplicate": "duplicate",
+}
+
 SOURCE_AUDIT = "audit"
 SOURCE_RELAY_LOOKUP = "relay_lookup"
 SOURCE_NOT_RECORDED = "not_recorded"
@@ -143,11 +154,13 @@ def _with_user_ids(items):
         user_id = _user_id_from_source_key(source_object_key)
         if user_id is None:
             user_id = user_ids_by_email.get(email)
+        reason = item.get("reason") or ""
         result.append(
             {
                 "user_id": user_id,
                 "email": email,
-                "reason": item.get("reason") or "",
+                "reason": reason,
+                "reason_category": REASON_CATEGORIES.get(reason, "other"),
                 "source_object_key": source_object_key,
                 "relay_message_id": item.get("message_id"),
                 "relay_contact_id": item.get("contact_id"),

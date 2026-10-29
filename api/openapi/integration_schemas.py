@@ -149,6 +149,13 @@ INTEGRATION_SCHEMAS = {
                     "global_unsubscribe, hard_bounce, complaint, suppressed"
                 ),
             },
+            "reason_category": {
+                "type": "string",
+                "enum": [
+                    "opt_out", "suppressed", "invalid_email",
+                    "duplicate", "other",
+                ],
+            },
             "source_object_key": {"type": "string"},
             "relay_message_id": {"type": ["integer", "null"]},
             "relay_contact_id": {"type": ["integer", "null"]},

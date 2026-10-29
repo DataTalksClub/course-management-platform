@@ -1758,7 +1758,9 @@ Every audit item has `id`, `skipped_count`, `skipped_recipients` (`user_id`,
 user with that email. Reasons are Relay's `last_error`, for example
 `category_unsubscribe` (the learner turned the category, e.g.
 `submission-results`, off), `global_unsubscribe`, `hard_bounce`,
-`complaint`, or `suppressed`.
+`complaint`, or `suppressed`. `reason_category` groups them: `opt_out`
+(category or global unsubscribe), `suppressed` (bounce, complaint, or
+suppression), `invalid_email`, `duplicate`, or `other`.
 
 For a local or CI end-to-end run, point CMP at a Datamailer deployment with
 normal settings (`RELAY_URL`, `RELAY_API_KEY`, `RELAY_CLIENT`,
