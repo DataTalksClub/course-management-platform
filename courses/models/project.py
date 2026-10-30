@@ -10,7 +10,10 @@ from django.utils import timezone
 from courses.validators.criteria_validators import (
     validate_review_criteria_options,
 )
-from courses.validators.custom_url_validators import validate_url_200
+from courses.validators.custom_url_validators import (
+    validate_github_repository_url,
+    validate_url_200,
+)
 
 from .course import Course, Enrollment
 from .start_time import StartTimeModel
@@ -95,7 +98,17 @@ class ProjectSubmission(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE)
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE)
 
-    github_link = models.URLField(validators=[URLValidator(), validate_url_200])
+    github_link = models.URLField(
+        validators=[
+            URLValidator(),
+            validate_github_repository_url,
+            validate_url_200,
+        ]
+    )
+    invalid_repository_flagged = models.BooleanField(
+        default=False,
+        help_text="Repository link is not a GitHub repository URL.",
+    )
     commit_id = models.CharField(max_length=40)
 
     learning_in_public_links = models.JSONField(blank=True, null=True)

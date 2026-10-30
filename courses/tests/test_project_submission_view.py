@@ -15,7 +15,7 @@ class ProjectSubmissionCreateViewTestCase(ProjectSubmissionViewTestBase):
     ):
         self.mock_url_check_status(mock_get, mock_head, 200)
         data = self.project_confirmation_data()
-        data["github_link"] = "https://httpbin.org/status/200"
+        data["github_link"] = "https://github.com/test/project"
         data["problems_comments"] = "Encountered an issue with..."
 
         response = self.post_project(data)
@@ -119,3 +119,16 @@ class ProjectSubmissionCertificateNameTestCase(
         self.assertEqual(response.status_code, 302)
         self.user.refresh_from_db()
         self.assertEqual(self.user.certificate_name, "John Doe")
+
+
+class ProjectSubmissionNonGithubLinkTestCase(ProjectSubmissionViewTestBase):
+    @mock.patch("requests.head")
+    @mock.patch("requests.get")
+    def test_non_github_link_is_rejected(self, mock_get, mock_head):
+        self.mock_url_check_status(mock_get, mock_head, 200)
+        data = self.project_confirmation_data()
+        data["github_link"] = "https://example.com/some/page"
+
+        self.post_project(data)
+
+        self.assertEqual(self.project_submission_count(), 0)

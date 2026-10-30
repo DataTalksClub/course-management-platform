@@ -72,6 +72,34 @@ def _faq_contribution_url_error(message: str) -> ValidationError:
     return ValidationError({FAQ_CONTRIBUTION_FIELD: message})
 
 
+GITHUB_REPOSITORY_ERROR = (
+    "The project link must be a GitHub repository URL, for example "
+    "https://github.com/owner/repository."
+)
+GITHUB_HOSTS = {"github.com", "www.github.com"}
+
+
+def is_github_repository_url(url: str | None) -> bool:
+    try:
+        parsed = urlparse((url or "").strip())
+        hostname = parsed.hostname
+    except ValueError:
+        return False
+
+    if parsed.scheme not in ("http", "https"):
+        return False
+    if hostname not in GITHUB_HOSTS:
+        return False
+    return len(_url_path_parts(parsed.path)) >= 2
+
+
+def validate_github_repository_url(url):
+    if not is_github_repository_url(url):
+        raise ValidationError(
+            GITHUB_REPOSITORY_ERROR, code="invalid_github_repository"
+        )
+
+
 def get_error_message(status_code, url):
     if status_code != 404:
         return (

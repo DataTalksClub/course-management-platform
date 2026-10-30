@@ -3,6 +3,8 @@ from unittest import TestCase
 from courses.validators.custom_url_validators import (
     URL_VALIDATION_TIMEOUT,
     clean_faq_contribution_url,
+    is_github_repository_url,
+    validate_github_repository_url,
     validate_url_200,
     get_error_message,
 )
@@ -163,3 +165,28 @@ class UrlErrorMessageTestCase(TestCase):
             + "return a 200 status code. Status code: 400."
         )
         self.assertEqual(error, expected_error)
+
+
+class GithubRepositoryUrlValidationTestCase(TestCase):
+    def test_accepts_github_repository_urls(self):
+        for url in [
+            "https://github.com/owner/repo",
+            "https://www.github.com/owner/repo/tree/main",
+            "http://github.com/owner/repo/",
+        ]:
+            self.assertTrue(is_github_repository_url(url), url)
+
+    def test_rejects_non_github_urls(self):
+        for url in [
+            "https://httpbin.org/status/200",
+            "https://gitlab.com/owner/repo",
+            "https://github.com.evil.com/owner/repo",
+            "https://evil.com/github.com/owner/repo",
+            "https://github.com/owner",
+            "https://github.com/",
+            "ftp://github.com/owner/repo",
+            "",
+        ]:
+            self.assertFalse(is_github_repository_url(url), url)
+            with self.assertRaises(ValidationError):
+                validate_github_repository_url(url)
