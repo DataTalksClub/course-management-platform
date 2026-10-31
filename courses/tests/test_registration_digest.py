@@ -158,7 +158,34 @@ class RegistrationDigestTests(RegistrationCampaignBase):
             self.assertNotIn("Test Applicant", surface)
             self.assertNotIn("private@example.com", surface)
         self.assertIn("1 new (0 confirmed, 1 unconfirmed)", context["summary"])
-        self.assertIn("Review pending:", context["summary"])
+        self.assertIn("Review pending (1):", context["summary"])
+
+    def test_review_link_only_for_approval_courses_with_pending(self):
+        from course_management.relay.registration_digest import (
+            build_digest_context,
+        )
+        pending = self.make_registration("a@example.com", now=DUE_NOW)
+        self.make_registration("b@example.com", now=DUE_NOW)
+        summary = build_digest_context([pending], DUE_NOW.date())["summary"]
+        self.assertIn("Review pending (1):", summary)
+
+        self.course.requires_registration_approval = False
+        self.course.save()
+        pending.refresh_from_db()
+        pending.course.refresh_from_db()
+        summary = build_digest_context([pending], DUE_NOW.date())["summary"]
+        self.assertNotIn("Review pending", summary)
+
+        self.course.requires_registration_approval = True
+        self.course.save()
+        CourseRegistration.objects.filter(pk=pending.pk).update(
+            status=CourseRegistration.Status.APPROVED,
+        )
+        pending = CourseRegistration.objects.select_related(
+            "course", "campaign"
+        ).get(pk=pending.pk)
+        summary = build_digest_context([pending], DUE_NOW.date())["summary"]
+        self.assertNotIn("Review pending", summary)
 
     def test_digest_window_excludes_older_registrations(self):
         from course_management.relay.registration_digest import send_registration_digest

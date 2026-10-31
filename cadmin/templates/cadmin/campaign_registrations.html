@@ -35,17 +35,23 @@
 </section>
 
 <section class="mt-5">
-  <div class="cadmin-metrics-grid">
+  <p class="text-sm app-muted">
+    <strong class="app-heading">{{ metrics.total }}</strong> registrations
+    {% if not needs_approval %}(this course has no approval step){% endif %}
+  </p>
+  <details class="mt-2">
+  <summary class="cursor-pointer text-sm app-link">Breakdown by region, country, role</summary>
+  <div class="cadmin-metrics-grid mt-3">
     <div class="cadmin-metric">
       <p class="text-xs font-semibold uppercase app-muted">Total</p>
       <p class="mt-1 text-lg font-semibold app-heading">{{ metrics.total }}</p>
     </div>
-    {% for row in metrics.by_status %}
+    {% if needs_approval %}{% for row in metrics.by_status %}
       <div class="cadmin-metric">
         <p class="text-xs font-semibold uppercase app-muted">{{ row.status|default:"Unset" }}</p>
         <p class="mt-1 text-lg font-semibold app-heading">{{ row.count }}</p>
       </div>
-    {% endfor %}
+    {% endfor %}{% endif %}
   </div>
 
   <div class="mt-5 grid gap-4 md:grid-cols-3">
@@ -89,6 +95,7 @@
       </div>
     </div>
   </div>
+</details>
 </section>
 
 <section class="mt-6 border-t app-border pt-5">
@@ -97,18 +104,25 @@
     <span class="cadmin-count-badge">{{ registrations_page.paginator.count }} records</span>
   </div>
 
-  <form method="get" class="mb-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+  {% if status_tabs %}
+    <nav class="mb-3 flex flex-wrap gap-2" aria-label="Review status">
+      {% for tab in status_tabs %}
+        <a href="?{{ tab.query }}"
+           class="primer-button {% if tab.active %}primer-button-primary{% else %}primer-button-secondary{% endif %}"
+           {% if tab.active %}aria-current="page"{% endif %}>
+          {{ tab.label }} <span class="cadmin-count-badge">{{ tab.count }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+  {% endif %}
+
+  <form method="get" class="mb-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
     <input type="search"
            name="q"
            value="{{ search_query }}"
            class="form-control"
            placeholder="Search email, name, company, experience">
-    <select name="status" class="form-control" aria-label="Filter by review status">
-      <option value="">All statuses</option>
-      {% for value, label in status_choices %}
-        <option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
+    {% if filters.status %}<input type="hidden" name="status" value="{{ filters.status }}">{% endif %}
     <button type="submit" class="primer-button primer-button-secondary">Search</button>
   </form>
 
@@ -119,70 +133,66 @@
     </p>
   {% endif %}
 
-  <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid md:grid-cols-[minmax(0,1fr)_12rem_10rem_8rem_8rem] md:gap-3">
+  <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid {% if needs_approval %}md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_9rem_14rem]{% else %}md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_9rem]{% endif %} md:gap-3">
     <div>Person</div>
-    <div>Country</div>
-    <div>Role</div>
-    <div>Status</div>
-    <div class="text-right">Created</div>
+    <div>Key answers</div>
+    <div>Submitted{% if needs_approval %} / status{% endif %}</div>
+    {% if needs_approval %}<div>Review</div>{% endif %}
   </div>
 
   <div class="divide-y app-divide">
     {% for registration in registrations_page.object_list %}
-      <article class="grid gap-2 py-3 text-sm md:grid-cols-[minmax(0,1fr)_12rem_10rem_8rem_8rem] md:items-center md:gap-3">
+      <article class="grid gap-2 py-3 text-sm {% if needs_approval %}md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_9rem_14rem]{% else %}md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_9rem]{% endif %} md:gap-3">
         <div class="min-w-0">
           <p class="truncate font-medium app-heading">{{ registration.name }}</p>
           <p class="truncate app-muted">{{ registration.email_normalized }}</p>
-          {% if registration.company_name %}
-            <p class="truncate app-muted">{{ registration.company_name }}</p>
-          {% endif %}
-          {% if registration.experience %}
-            <p class="mt-1 line-clamp-2 app-text"><span class="app-muted">Experience:</span> {{ registration.experience }}</p>
-          {% endif %}
-          {% if registration.years_experience %}
-            <p class="mt-1 app-text"><span class="app-muted">Years:</span> {{ registration.get_years_experience_display }}</p>
-          {% endif %}
-          {% if registration.why_join %}
-            <p class="mt-1 line-clamp-2 app-text"><span class="app-muted">Why:</span> {{ registration.why_join }}</p>
-          {% endif %}
+          <p class="truncate text-xs app-muted">
+            {% if registration.company_name %}{{ registration.company_name }} · {% endif %}{{ registration.get_role_display }} ·
+            <a href="?country={{ registration.country|urlencode }}" class="app-link">{{ registration.country }}</a>
+          </p>
           {% if registration.linkedin_url or registration.github_url %}
-            <p class="mt-1 text-xs">
-              {% if registration.linkedin_url %}
-                <a href="{{ registration.linkedin_url }}" target="_blank" rel="noopener noreferrer" class="app-link">LinkedIn</a>
-              {% endif %}
-              {% if registration.github_url %}
-                <a href="{{ registration.github_url }}" target="_blank" rel="noopener noreferrer" class="app-link">GitHub</a>
-              {% endif %}
+            <p class="mt-1 flex gap-3 text-xs">
+              {% if registration.linkedin_url %}<a href="{{ registration.linkedin_url }}" target="_blank" rel="noopener noreferrer" class="app-link">LinkedIn</a>{% endif %}
+              {% if registration.github_url %}<a href="{{ registration.github_url }}" target="_blank" rel="noopener noreferrer" class="app-link">GitHub</a>{% endif %}
             </p>
           {% endif %}
-          {% if registration.comment %}
-            <p class="mt-1 line-clamp-2 app-text">{{ registration.comment }}</p>
+        </div>
+        <div class="min-w-0 space-y-1">
+          {% if registration.years_experience %}
+            <p><span class="app-muted">Years:</span> {{ registration.get_years_experience_display }}</p>
           {% endif %}
-          <form method="post" action="{% url 'cadmin_campaign_registration_decide' campaign.slug %}" class="mt-2 flex flex-wrap gap-2">
-            {% csrf_token %}
-            <input type="hidden" name="registration_id" value="{{ registration.id }}">
-            {% if registration.status != "approved" %}
-              <button type="submit" name="action" value="approve" class="primer-button primer-button-secondary">Approve</button>
-            {% endif %}
-            {% if registration.status != "rejected" %}
-              <button type="submit" name="action" value="reject" class="primer-button primer-button-secondary">Reject</button>
-            {% endif %}
-            {% if registration.status != "pending" %}
-              <button type="submit" name="action" value="reset" class="primer-button primer-button-secondary">To pending</button>
-            {% endif %}
-          </form>
+          {% if registration.experience %}
+            <details><summary class="cursor-pointer"><span class="app-muted">Experience:</span> {{ registration.experience|truncatechars:90 }}</summary>
+              <p class="mt-1 whitespace-pre-line break-words">{{ registration.experience }}</p></details>
+          {% endif %}
+          {% if registration.why_join %}
+            <details><summary class="cursor-pointer"><span class="app-muted">Why:</span> {{ registration.why_join|truncatechars:90 }}</summary>
+              <p class="mt-1 whitespace-pre-line break-words">{{ registration.why_join }}</p></details>
+          {% endif %}
+          {% if registration.comment %}
+            <details><summary class="cursor-pointer"><span class="app-muted">Comment:</span> {{ registration.comment|truncatechars:90 }}</summary>
+              <p class="mt-1 whitespace-pre-line break-words">{{ registration.comment }}</p></details>
+          {% endif %}
         </div>
-        <div>
-          <a href="?country={{ registration.country|urlencode }}" class="app-link">{{ registration.country }}</a>
-          <p class="text-xs app-muted">
-            <a href="?region={{ registration.region|urlencode }}" class="app-link">{{ registration.region }}</a>
-          </p>
+        <div class="text-xs">
+          <p class="app-muted">{{ registration.created_at|date:"M j, Y H:i" }}</p>
+          {% if needs_approval %}<p class="mt-1 font-semibold app-heading">{{ registration.get_status_display }}</p>{% endif %}
         </div>
-        <div>{{ registration.get_role_display }}</div>
-        <div>{{ registration.get_status_display }}</div>
-        <div class="app-muted md:text-right">
-          {{ registration.created_at|date:"M j, Y" }}
-        </div>
+        {% if needs_approval %}
+        <form method="post" action="{% url 'cadmin_campaign_registration_decide' campaign.slug %}" class="flex flex-wrap content-start gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="registration_id" value="{{ registration.id }}">
+          {% if registration.status != "approved" %}
+            <button type="submit" name="action" value="approve" class="primer-button primer-button-primary">Approve</button>
+          {% endif %}
+          {% if registration.status != "rejected" %}
+            <button type="submit" name="action" value="reject" class="primer-button primer-button-secondary">Reject</button>
+          {% endif %}
+          {% if registration.status != "pending" %}
+            <button type="submit" name="action" value="reset" class="primer-button primer-button-secondary">To pending</button>
+          {% endif %}
+        </form>
+        {% endif %}
       </article>
     {% empty %}
       <p class="py-4 text-sm app-muted">No registrations found.</p>

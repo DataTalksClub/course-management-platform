@@ -419,6 +419,35 @@ class RegistrationReviewTests(RegistrationCampaignBase):
         self.assertEqual(filtered.status_code, 200)
         self.assertContains(filtered, "No registrations found.")
 
+    def test_review_list_has_status_tabs_with_counts(self):
+        self.create_pending_registration()
+        self.client.force_login(self.staff)
+        list_url = reverse(
+            "cadmin_campaign_registrations",
+            kwargs={"campaign_slug": self.campaign.slug},
+        )
+        response = self.client.get(list_url + "?status=pending")
+        tabs = {t["label"]: t for t in response.context["status_tabs"]}
+        self.assertEqual(tabs["Pending review"]["count"], 1)
+        self.assertTrue(tabs["Pending review"]["active"])
+        self.assertContains(response, 'name="action" value="approve"')
+
+    def test_no_approval_course_hides_review_ui(self):
+        self.course.requires_registration_approval = False
+        self.course.save(update_fields=["requires_registration_approval"])
+        self.create_pending_registration()
+        self.client.force_login(self.staff)
+        list_url = reverse(
+            "cadmin_campaign_registrations",
+            kwargs={"campaign_slug": self.campaign.slug},
+        )
+        response = self.client.get(list_url + "?status=pending")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "applicant@example.com")
+        self.assertNotContains(response, "Pending review")
+        self.assertNotContains(response, 'value="approve"')
+        self.assertEqual(response.context["status_tabs"], [])
+
     def test_export_csv_contains_application_fields(self):
         self.create_pending_registration()
         self.client.force_login(self.staff)

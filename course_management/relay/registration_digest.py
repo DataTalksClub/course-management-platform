@@ -98,6 +98,8 @@ def digest_review_url(registration):
 
 
 def group_digest_registrations(registrations):
+    from courses.models.course import CourseRegistration
+
     groups = []
     by_key = {}
     for registration in registrations:
@@ -113,6 +115,10 @@ def group_digest_registrations(registrations):
             group = {
                 "title": title,
                 "review_url": digest_review_url(registration),
+                "needs_approval": bool(
+                    course is not None and course.requires_registration_approval
+                ),
+                "pending_count": 0,
                 "total_count": 0,
                 "confirmed_count": 0,
                 "unconfirmed_count": 0,
@@ -120,6 +126,9 @@ def group_digest_registrations(registrations):
             by_key[key] = group
             groups.append(group)
         group["total_count"] += 1
+        group["pending_count"] += int(
+            registration.status == CourseRegistration.Status.PENDING
+        )
         group["confirmed_count"] += int(bool(registration.email_confirmed))
         group["unconfirmed_count"] += int(not registration.email_confirmed)
     return groups
@@ -132,7 +141,10 @@ def render_digest_summary(groups):
             f"{group['title']} — {group['total_count']} new "
             f"({group['confirmed_count']} confirmed, {group['unconfirmed_count']} unconfirmed)"
         )
-        lines.append(f"Review pending: {group['review_url']}")
+        if group["needs_approval"] and group["pending_count"] > 0:
+            lines.append(
+                f"Review pending ({group['pending_count']}): {group['review_url']}"
+            )
         lines.append("")
     return "\n".join(lines).rstrip("\n")
 

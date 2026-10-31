@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
 from django.core.paginator import Page
 from django.db.models import Q
@@ -67,6 +68,10 @@ def campaign_registrations_context(data):
         data.registrations_page.number
     )
     metrics = registration_campaign_metrics(data.campaign)
+    course = data.campaign.current_course
+    needs_approval = bool(
+        course is not None and course.requires_registration_approval
+    )
     querystring = pagination_querystring(data.request)
 
     return {
@@ -79,7 +84,37 @@ def campaign_registrations_context(data):
         "search_query": data.search_query,
         "pagination_querystring": querystring,
         "status_choices": CourseRegistration.Status.choices,
+        "needs_approval": needs_approval,
+        "status_tabs": status_tabs(data, metrics, needs_approval),
     }
+
+
+def status_tabs(data, metrics, needs_approval):
+    """Tabs with counts, keeping the other active filters in each link."""
+    if not needs_approval:
+        return []
+    counts = {row["status"]: row["count"] for row in metrics["by_status"]}
+    base = {
+        key: value
+        for key, value in data.request.GET.items()
+        if key not in ("status", "page") and value
+    }
+    labels = dict(CourseRegistration.Status.choices)
+    tabs = [("", "All", metrics["total"])]
+    for value in ("pending", "approved", "rejected"):
+        tabs.append((value, labels.get(value, value), counts.get(value, 0)))
+    result = []
+    for value, label, count in tabs:
+        params = dict(base)
+        if value:
+            params["status"] = value
+        result.append({
+            "label": label,
+            "count": count,
+            "active": data.filters["status"] == value,
+            "query": urlencode(params),
+        })
+    return result
 
 
 def campaign_registrations_context_data(request, campaign):
