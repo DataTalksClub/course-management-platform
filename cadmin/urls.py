@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .views import campaign_analytics
 from .views import campaigns
 from .views import course_admin
 from .views import datamailer
@@ -25,6 +26,11 @@ urlpatterns = [
         "registrations/<slug:campaign_slug>/",
         campaigns.campaign_registrations,
         name="cadmin_campaign_registrations",
+    ),
+    path(
+        "registrations/<slug:campaign_slug>/analytics/",
+        campaign_analytics.campaign_analytics,
+        name="cadmin_campaign_analytics",
     ),
     path(
         "registrations/<slug:campaign_slug>/decide/",

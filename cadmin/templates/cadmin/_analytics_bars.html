@@ -1,0 +1,13 @@
+<ul class="analytics-bars">
+  {% for row in rows %}
+    <li>
+      <div class="flex justify-between gap-3 text-sm">
+        <span class="truncate">{{ row.label }}</span>
+        <span class="app-muted whitespace-nowrap">{{ row.count }} · {{ row.percent }}%</span>
+      </div>
+      <div class="analytics-track"><div class="analytics-fill" style="width: {{ row.width|default:row.percent }}%"></div></div>
+    </li>
+  {% empty %}
+    <li class="text-sm app-muted">No data.</li>
+  {% endfor %}
+</ul>

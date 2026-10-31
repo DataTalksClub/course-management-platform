@@ -1,0 +1,16 @@
+{% if chart %}
+<svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" class="analytics-line" role="img" aria-label="{{ label }}">
+  <line x1="{{ chart.pad }}" y1="{{ chart.baseline }}" x2="{{ chart.width|add:'-32' }}" y2="{{ chart.baseline }}" class="analytics-axis"/>
+  <text x="4" y="{{ chart.pad }}" class="analytics-tick">{{ chart.peak }}</text>
+  <text x="4" y="{{ chart.baseline }}" class="analytics-tick">0</text>
+  <polygon points="{{ chart.area }}" class="analytics-area"/>
+  <polyline points="{{ chart.points }}" class="analytics-stroke"/>
+  {% for dot in chart.dots %}
+    <circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="3" class="analytics-dot"><title>{{ dot.day|date:"M j, Y" }}: {{ dot.value }}</title></circle>
+  {% endfor %}
+  <text x="{{ chart.pad }}" y="{{ chart.height|add:'-8' }}" class="analytics-tick">{{ chart.first_day|date:"M j, Y" }}</text>
+  <text x="{{ chart.width|add:'-32' }}" y="{{ chart.height|add:'-8' }}" text-anchor="end" class="analytics-tick">{{ chart.last_day|date:"M j, Y" }}</text>
+</svg>
+{% else %}
+<p class="text-sm app-muted">No registrations in this range.</p>
+{% endif %}

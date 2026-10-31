@@ -1,0 +1,80 @@
+{% extends 'cadmin/base.html' %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  {% if course %}
+    <li><a href="{% url 'cadmin_course' course.slug %}">{{ course.title }}</a></li>
+  {% endif %}
+  <li><a href="{% url 'cadmin_campaign_registrations' campaign.slug %}">{{ campaign.title }} registrations</a></li>
+  <li>Analytics</li>
+{% endblock %}
+
+{% block cadmin_content %}
+<style>
+  .analytics-line { width: 100%; height: auto; }
+  .analytics-axis { stroke: var(--border-muted); stroke-width: 1; }
+  .analytics-tick { fill: var(--text-muted, #6b7280); font-size: 11px; }
+  .analytics-stroke { fill: none; stroke: #2f6fed; stroke-width: 2.5; stroke-linejoin: round; }
+  .analytics-area { fill: #2f6fed; opacity: 0.12; }
+  .analytics-dot { fill: #2f6fed; }
+  .analytics-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
+  .analytics-track { background: var(--surface-muted); border-radius: 4px; height: 0.6rem; margin-top: 0.2rem; overflow: hidden; }
+  .analytics-fill { background: #2f6fed; height: 100%; border-radius: 4px; }
+  .analytics-card { border: 1px solid var(--border-muted); border-radius: 8px; padding: 1rem 1.25rem; }
+  .analytics-kpi { font-size: 2rem; font-weight: 600; line-height: 1.1; }
+</style>
+
+<section class="cadmin-page-header border-b app-border pb-5">
+  <div class="min-w-0">
+    <p class="text-xs font-semibold uppercase tracking-wide app-muted">Registration analytics</p>
+    <h1 class="mt-1 text-2xl font-semibold app-heading md:text-3xl">{{ campaign.title }}</h1>
+    <p class="mt-1 text-sm app-muted">Aggregated and anonymous: no names or emails.</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'cadmin_campaign_registrations' campaign.slug %}" class="primer-button primer-button-secondary">
+      <i class="fas fa-list" aria-hidden="true"></i> Registrations
+    </a>
+  </div>
+</section>
+
+<form method="get" class="mt-4 flex flex-wrap items-end gap-3">
+  <label class="text-sm">From <input type="date" name="from" value="{{ range_from }}" class="block rounded border app-border px-2 py-1"></label>
+  <label class="text-sm">To <input type="date" name="to" value="{{ range_to }}" class="block rounded border app-border px-2 py-1"></label>
+  <button type="submit" class="primer-button primer-button-secondary">Apply</button>
+  {% if range_from or range_to %}
+    <a href="{% url 'cadmin_campaign_analytics' campaign.slug %}" class="app-link text-sm">Clear</a>
+  {% endif %}
+</form>
+
+<section class="mt-5 grid gap-4 md:grid-cols-4">
+  <div class="analytics-card"><p class="text-xs font-semibold uppercase app-muted">Registrations</p><p class="analytics-kpi">{{ total }}</p></div>
+  <div class="analytics-card"><p class="text-xs font-semibold uppercase app-muted">Email confirmed</p><p class="analytics-kpi">{{ confirmed_percent }}%</p><p class="text-sm app-muted">{{ confirmed }} of {{ total }}</p></div>
+  <div class="analytics-card"><p class="text-xs font-semibold uppercase app-muted">Opted in to sponsor sharing</p><p class="analytics-kpi">{{ nebius_percent }}%</p><p class="text-sm app-muted">{{ nebius }} of {{ total }}</p></div>
+  <div class="analytics-card"><p class="text-xs font-semibold uppercase app-muted">Subscribed to newsletter</p><p class="analytics-kpi">{{ newsletter_percent }}%</p></div>
+</section>
+
+<section class="mt-4 grid gap-4 md:grid-cols-2">
+  <div class="analytics-card">
+    <h2 class="text-sm font-semibold uppercase app-muted mb-2">Registrations per day</h2>
+    {% include 'cadmin/_analytics_line.html' with chart=daily_chart label="Registrations per day" %}
+  </div>
+  <div class="analytics-card">
+    <h2 class="text-sm font-semibold uppercase app-muted mb-2">Cumulative registrations</h2>
+    {% include 'cadmin/_analytics_line.html' with chart=cumulative_chart label="Cumulative registrations" %}
+  </div>
+  <div class="analytics-card">
+    <h2 class="text-sm font-semibold uppercase app-muted mb-2">Review funnel</h2>
+    {% include 'cadmin/_analytics_bars.html' with rows=funnel %}
+  </div>
+  <div class="analytics-card">
+    <h2 class="text-sm font-semibold uppercase app-muted mb-2">Confirmed vs unconfirmed email</h2>
+    {% include 'cadmin/_analytics_bars.html' with rows=confirmation %}
+  </div>
+  {% for title, rows in breakdowns %}
+    <div class="analytics-card">
+      <h2 class="text-sm font-semibold uppercase app-muted mb-2">{{ title }}</h2>
+      {% include 'cadmin/_analytics_bars.html' with rows=rows %}
+    </div>
+  {% endfor %}
+</section>
+{% endblock %}

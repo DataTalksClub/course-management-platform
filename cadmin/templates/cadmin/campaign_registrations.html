@@ -22,6 +22,9 @@
     <a href="{% url 'cadmin_campaign_edit' campaign.slug %}" class="primer-button primer-button-secondary">
       <i class="fas fa-edit" aria-hidden="true"></i> Edit landing page
     </a>
+    <a href="{% url 'cadmin_campaign_analytics' campaign.slug %}" class="primer-button primer-button-secondary">
+      <i class="fas fa-chart-bar" aria-hidden="true"></i> Analytics
+    </a>
     <a href="{% url 'cadmin_campaign_registrations_export' campaign.slug %}{% if pagination_querystring %}?{{ pagination_querystring }}{% endif %}" class="primer-button primer-button-secondary">
       <i class="fas fa-download" aria-hidden="true"></i> Export CSV
     </a>
