@@ -57,7 +57,7 @@ def breakdown(registrations, field, total, labels=None, top=TOP_N):
         pairs.append((label, row["count"]))
     if len(pairs) > top:
         rest = sum(count for _, count in pairs[top:])
-        pairs = pairs[:top] + [("Other", rest)]
+        pairs = pairs[:top] + [("All others", rest)]
     return with_percent(pairs, total)
 
 
