@@ -43,7 +43,15 @@ WHY_JOIN_WIDGET = forms.Textarea(
         "placeholder": "Why do you want to join this course?",
     }
 )
-URL_WIDGET = forms.URLInput(attrs={"class": "form-control"})
+URL_WIDGET = forms.TextInput(
+    attrs={
+        "class": "form-control",
+        "inputmode": "url",
+        "autocapitalize": "none",
+        "spellcheck": "false",
+        "placeholder": "linkedin.com/in/your-name",
+    }
+)
 PREREQ_WIDGET = forms.CheckboxInput(attrs={"class": "h-4 w-4"})
 COUNTRY_COMBOBOX_WIDGET_ATTRS = {
     "class": "form-control",

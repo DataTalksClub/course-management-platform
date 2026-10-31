@@ -559,3 +559,68 @@ class RegistrationThreeFieldsTests(RegistrationCampaignBase):
         self.assertIn("years_experience", header)
         self.assertIn("accepted_nebius_sharing", header)
         self.assertIn("founder_cto", content)
+
+
+@override_settings(
+    RELAY_URL="",
+    RELAY_API_KEY="",
+    RELAY_CLIENT="",
+    RELAY_AUDIENCE="",
+)
+class RegistrationFormFeedbackTests(RegistrationCampaignBase):
+    def setUp(self):
+        super().setUp()
+        self.course.requires_registration_approval = True
+        self.course.save(update_fields=["requires_registration_approval"])
+
+    def test_form_never_disables_submit_on_invalid(self):
+        response = self.client.get(self.campaign_url())
+        html = response.content.decode()
+
+        self.assertContains(response, "data-registration-form")
+        self.assertIn("novalidate", html)
+        self.assertNotIn("submitButton.disabled", html)
+        self.assertNotIn("checkValidity()", html.split("submit'", 1)[0])
+        self.assertContains(response, "data-registration-error-summary")
+
+    def test_url_fields_are_not_type_url(self):
+        response = self.client.get(self.campaign_url())
+        form = response.context["form"]
+
+        for name in ("linkedin_url", "github_url"):
+            self.assertNotEqual(form.fields[name].widget.input_type, "url")
+
+    def test_schemeless_urls_are_normalized(self):
+        payload = self.registration_payload()
+        payload["experience"] = "3 years"
+        payload["linkedin_url"] = "linkedin.com/in/example"
+        payload["github_url"] = "github.com/example"
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(self.campaign_url(), payload)
+
+        registration = CourseRegistration.objects.get()
+        self.assertEqual(
+            registration.linkedin_url, "https://linkedin.com/in/example"
+        )
+        self.assertEqual(registration.github_url, "https://github.com/example")
+
+    def test_server_errors_render_visibly(self):
+        payload = self.registration_payload()
+        payload.pop("accepted_newsletter")
+        response = self.client.post(self.campaign_url(), payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(CourseRegistration.objects.count(), 0)
+        self.assertContains(response, "This field is required.")
+        self.assertNotContains(
+            response, "data-registration-error-summary\n             role=\"alert\"\n             tabindex=\"-1\"\n             hidden"
+        )
+
+    def test_logged_in_form_renders_without_disable_logic(self):
+        user = self.create_signed_user()
+        self.client.force_login(user)
+        response = self.client.get(self.campaign_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("submitButton.disabled", response.content.decode())
+        self.assertContains(response, "data-registration-submit")

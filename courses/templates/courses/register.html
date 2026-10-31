@@ -163,7 +163,7 @@
         {% endif %}
       </div>
 
-      <form method="post" class="registration-form space-y-4" data-registration-form>
+      <form method="post" class="registration-form space-y-4" data-registration-form novalidate>
         {% csrf_token %}
 
         {% if form.non_field_errors %}
@@ -171,6 +171,14 @@
             {{ form.non_field_errors }}
           </div>
         {% endif %}
+
+        <div class="rounded-md border app-alert-warning px-3 py-2 text-sm"
+             data-registration-error-summary
+             role="alert"
+             tabindex="-1"
+             {% if not form.errors %}hidden{% endif %}>
+          Please fix the highlighted fields below and press Register again.
+        </div>
 
         {% for field in form %}
           {% if field.field.widget.input_type == 'checkbox' %}
@@ -305,21 +313,67 @@
     })();
   </script>
   <script>
+    // The submit button is never disabled. On submit we validate, show an
+    // inline message next to every invalid field plus a summary, and only
+    // block the request while something is invalid.
     document.querySelectorAll('[data-registration-form]').forEach((form) => {
-      const submitButton = form.querySelector('[data-registration-submit]');
+      const summary = form.querySelector('[data-registration-error-summary]');
 
-      if (!submitButton) {
-        return;
-      }
-
-      const syncSubmitState = () => {
-        submitButton.disabled = !form.checkValidity();
+      const messageFor = (control) => {
+        if (control.validity.valueMissing) {
+          return control.type === 'checkbox'
+            ? 'Please tick this box to continue.'
+            : 'This field is required.';
+        }
+        if (control.validity.typeMismatch && control.type === 'email') {
+          return 'Enter a valid email address.';
+        }
+        return control.validationMessage || 'Please check this value.';
       };
 
-      syncSubmitState();
+      const anchorFor = (control) =>
+        control.closest('.checkbox-row') || control.parentElement;
+
+      const clearError = (control) => {
+        const next = anchorFor(control).nextElementSibling;
+        if (next && next.hasAttribute('data-client-error')) next.remove();
+        control.removeAttribute('aria-invalid');
+      };
+
+      const showError = (control) => {
+        clearError(control);
+        const el = document.createElement('div');
+        el.className = 'mt-1 text-sm app-danger-text';
+        el.setAttribute('data-client-error', '');
+        el.textContent = messageFor(control);
+        anchorFor(control).insertAdjacentElement('afterend', el);
+        control.setAttribute('aria-invalid', 'true');
+      };
+
+      form.addEventListener('submit', (event) => {
+        const controls = Array.from(form.querySelectorAll('input, select, textarea'));
+        controls.forEach(clearError);
+        const invalid = controls.filter((c) => !c.disabled && !c.checkValidity());
+        if (!invalid.length) {
+          return;
+        }
+        event.preventDefault();
+        invalid.forEach(showError);
+        if (summary) {
+          summary.hidden = false;
+          summary.scrollIntoView({ block: 'center' });
+        }
+        invalid[0].focus();
+      });
+
       form.querySelectorAll('input, select, textarea').forEach((control) => {
-        control.addEventListener('input', syncSubmitState);
-        control.addEventListener('change', syncSubmitState);
+        const revalidate = () => {
+          if (control.hasAttribute('aria-invalid') && control.checkValidity()) {
+            clearError(control);
+          }
+        };
+        control.addEventListener('input', revalidate);
+        control.addEventListener('change', revalidate);
       });
     });
   </script>
