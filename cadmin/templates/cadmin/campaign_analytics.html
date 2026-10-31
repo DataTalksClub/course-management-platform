@@ -12,15 +12,15 @@
 {% block cadmin_content %}
 <style>
   .analytics-line { width: 100%; height: auto; }
-  .analytics-axis { stroke: var(--border-muted); stroke-width: 1; }
-  .analytics-tick { fill: var(--text-muted, #6b7280); font-size: 11px; }
-  .analytics-stroke { fill: none; stroke: #2f6fed; stroke-width: 2.5; stroke-linejoin: round; }
-  .analytics-area { fill: #2f6fed; opacity: 0.12; }
-  .analytics-dot { fill: #2f6fed; }
+  .analytics-axis { stroke: var(--dk-border-default); stroke-width: 1; }
+  .analytics-tick { fill: var(--dk-text-muted); font-size: var(--dk-text-xs); }
+  .analytics-stroke { fill: none; stroke: var(--dk-accent-default); stroke-width: 2.5; stroke-linejoin: round; }
+  .analytics-area { fill: var(--dk-accent-default); opacity: 0.12; }
+  .analytics-dot { fill: var(--dk-accent-default); }
   .analytics-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.6rem; }
-  .analytics-track { background: var(--surface-muted); border-radius: 4px; height: 0.6rem; margin-top: 0.2rem; overflow: hidden; }
-  .analytics-fill { background: #2f6fed; height: 100%; border-radius: 4px; }
-  .analytics-card { border: 1px solid var(--border-muted); border-radius: 8px; padding: 1rem 1.25rem; }
+  .analytics-track { background: var(--dk-bg-muted); border-radius: 4px; height: 0.6rem; margin-top: 0.2rem; overflow: hidden; }
+  .analytics-fill { background: var(--dk-accent-default); height: 100%; border-radius: 4px; }
+  .analytics-card { border: 1px solid var(--dk-border-default); border-radius: 8px; padding: 1rem 1.25rem; }
   .analytics-kpi { font-size: 2rem; font-weight: 600; line-height: 1.1; }
 </style>
 
