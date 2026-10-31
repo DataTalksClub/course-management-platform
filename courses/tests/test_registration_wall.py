@@ -447,6 +447,7 @@ class RegistrationReviewTests(RegistrationCampaignBase):
         self.assertNotContains(response, "Pending review")
         self.assertNotContains(response, 'value="approve"')
         self.assertEqual(response.context["status_tabs"], [])
+        self.assertEqual(response.context["filters"]["status"], "")
 
     def test_export_csv_contains_application_fields(self):
         self.create_pending_registration()

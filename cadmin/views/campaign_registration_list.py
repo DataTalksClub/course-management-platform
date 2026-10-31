@@ -119,6 +119,11 @@ def status_tabs(data, metrics, needs_approval):
 
 def campaign_registrations_context_data(request, campaign):
     filters = campaign_registration_filters(request)
+    course = campaign.current_course
+    if course is None or not course.requires_registration_approval:
+        # Every registration defaults to "pending"; without an approval step
+        # that status is meaningless, so stale ?status= links list everyone.
+        filters["status"] = ""
     raw_search_query = request.GET.get("q", "")
     search_query = raw_search_query.strip()
 
