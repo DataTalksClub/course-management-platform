@@ -4,17 +4,44 @@ from courses.views.dashboard_metrics import safe_quartiles
 
 def dashboard_project_stats(course, total_enrollments):
     project_submissions = dashboard_project_submission_rows(course)
-    completion_rate = project_completion_rate(
-        project_submissions,
-        total_enrollments,
+    enrollment_ids = set()
+    time_spent = []
+    scores = []
+    pass_count = 0
+    for row in project_submissions:
+        if isinstance(row, tuple):
+            enrollment_id, row_time, row_score, row_passed = row
+        else:
+            enrollment_id = row["enrollment_id"]
+            row_time = row["time_spent"]
+            row_score = row["total_score"]
+            row_passed = row["passed"]
+        enrollment_ids.add(enrollment_id)
+        if row_time is not None:
+            time_spent.append(row_time)
+        if row_score is not None:
+            scores.append(row_score)
+        if row_passed:
+            pass_count += 1
+
+    fail_count = len(project_submissions) - pass_count
+    completion_rate = (
+        len(enrollment_ids) / total_enrollments * 100
+        if total_enrollments > 0
+        else 0
     )
-    quartile_metrics = project_quartile_metrics(project_submissions)
-    pass_count, fail_count = project_pass_fail_counts(project_submissions)
+    time_quartiles = safe_quartiles(time_spent)
+    score_quartiles = safe_quartiles(scores)
     rounded_completion_rate = round(completion_rate, 1)
 
     return {
         "project_completion_rate": rounded_completion_rate,
-        **quartile_metrics,
+        "project_time_q25": time_quartiles.q25,
+        "project_time_median": time_quartiles.median,
+        "project_time_q75": time_quartiles.q75,
+        "project_score_q25": score_quartiles.q25,
+        "project_score_median": score_quartiles.median,
+        "project_score_q75": score_quartiles.q75,
         "project_pass_count": pass_count,
         "project_fail_count": fail_count,
         "project_total_submissions": pass_count + fail_count,
@@ -43,8 +70,7 @@ def project_quartile_metrics(project_submissions):
 def dashboard_project_submission_rows(course):
     submission_rows = (
         ProjectSubmission.objects.filter(project__course=course)
-        .select_related("project", "enrollment")
-        .values("enrollment_id", "time_spent", "total_score", "passed")
+        .values_list("enrollment_id", "time_spent", "total_score", "passed")
     )
     return list(submission_rows)
 

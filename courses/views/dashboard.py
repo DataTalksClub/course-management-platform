@@ -20,7 +20,7 @@ def dashboard_view(request, course_slug: str):
             cache.set(
                 cache_key,
                 context,
-                getattr(settings, "DASHBOARD_CACHE_TTL", 300),
+                getattr(settings, "DASHBOARD_CACHE_TTL", 1800),
             )
         response = render(
             request,
@@ -29,7 +29,7 @@ def dashboard_view(request, course_slug: str):
         )
         response["Cache-Control"] = (
             "public, max-age="
-            f"{getattr(settings, 'DASHBOARD_CACHE_TTL', 300)}"
+            f"{getattr(settings, 'DASHBOARD_CACHE_TTL', 1800)}"
         )
         return response
 

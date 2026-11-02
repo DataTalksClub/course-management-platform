@@ -15,6 +15,7 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from courses.models import (
+    Answer,
     Course,
     Enrollment,
     Homework,
@@ -22,6 +23,7 @@ from courses.models import (
     ProjectState,
     Question,
     QuestionTypes,
+    Submission,
     User,
 )
 from courses.models.project import Project, ProjectSubmission
@@ -120,12 +122,12 @@ class PagePerformanceTestCase(TestCase):
 
     def test_homework_anon_query_count(self):
         self.assertPage(
-            f"/{self.course.slug}/homework/{self.homework.slug}", 8
+            f"/{self.course.slug}/homework/{self.homework.slug}", 4
         )
 
     def test_project_anon_query_count(self):
         self.assertPage(
-            f"/{self.course.slug}/project/{self.project.slug}", 8
+            f"/{self.course.slug}/project/{self.project.slug}", 4
         )
 
     def test_homepage_auth_query_count(self):
@@ -137,14 +139,14 @@ class PagePerformanceTestCase(TestCase):
     def test_homework_auth_query_count(self):
         self.assertPage(
             f"/{self.course.slug}/homework/{self.homework.slug}",
-            15,
+            8,
             user=self.user,
         )
 
     def test_project_auth_query_count(self):
         self.assertPage(
             f"/{self.course.slug}/project/{self.project.slug}",
-            12,
+            6,
             user=self.user,
         )
 
@@ -154,7 +156,7 @@ class PagePerformanceTestCase(TestCase):
         )
         self.course.first_homework_scored = True
         self.course.save(update_fields=["first_homework_scored"])
-        self.assertPage(f"/{self.course.slug}/dashboard", 25)
+        self.assertPage(f"/{self.course.slug}/dashboard", 10)
 
     @override_settings(
         PUBLIC_PAGE_CACHE_ENABLED=True,
@@ -295,6 +297,188 @@ class ColdBuildRegressionTestCase(TestCase):
                 "medal_index": 1,
             }],
         )
+
+    @override_settings(
+        PUBLIC_PAGE_CACHE_ENABLED=True,
+        HOMEWORK_ANON_CACHE_TTL=60,
+    )
+    def test_homework_detail_slim_prefetch_and_anon_cache_queries(self):
+        homework = make_homework(self.course, "hw-perf")
+        questions = list(
+            Question.objects.filter(homework=homework).order_by("id")
+        )
+        submission = Submission.objects.create(
+            homework=homework,
+            student=self.user,
+            enrollment=self.enrollment,
+            questions_score=3,
+            total_score=3,
+        )
+        for question in questions:
+            Answer.objects.create(
+                submission=submission,
+                question=question,
+                answer_text=f"ans-{question.id}",
+                is_correct=True,
+            )
+
+        url = f"/{self.course.slug}/homework/{homework.slug}"
+        with CaptureQueriesContext(connection) as cold_anon_ctx:
+            resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            len(cold_anon_ctx),
+            2,
+            f"homework cold anon used {len(cold_anon_ctx)} queries",
+        )
+
+        with CaptureQueriesContext(connection) as warm_anon_ctx:
+            resp2 = self.client.get(url)
+        self.assertEqual(resp2.status_code, 200)
+        self.assertEqual(
+            len(warm_anon_ctx),
+            0,
+            f"homework warm anon used {len(warm_anon_ctx)} queries",
+        )
+
+        self.client.force_login(self.user)
+        with CaptureQueriesContext(connection) as auth_ctx:
+            auth_resp = self.client.get(url)
+        self.assertEqual(auth_resp.status_code, 200)
+        self.assertLessEqual(
+            len(auth_ctx),
+            6,
+            f"homework auth used {len(auth_ctx)} queries",
+        )
+        answer_queries = [
+            q["sql"]
+            for q in auth_ctx.captured_queries
+            if "courses_answer" in q["sql"]
+        ]
+        self.assertEqual(len(answer_queries), 1)
+        self.assertNotIn(
+            "courses_question", answer_queries[0].lower()
+        )
+        for question in questions:
+            self.assertContains(auth_resp, f"ans-{question.id}")
+
+    @override_settings(
+        PUBLIC_PAGE_CACHE_ENABLED=True,
+        PROJECT_ANON_CACHE_TTL=60,
+    )
+    def test_project_detail_select_related_and_anon_cache_queries(self):
+        project = make_project(self.course, "proj-perf")
+        ProjectSubmission.objects.create(
+            project=project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/DataTalksClub/test",
+            commit_id="abc1234",
+        )
+        url = f"/{self.course.slug}/project/{project.slug}"
+
+        with CaptureQueriesContext(connection) as cold_anon_ctx:
+            resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            len(cold_anon_ctx),
+            1,
+            f"project cold anon used {len(cold_anon_ctx)} queries",
+        )
+
+        with CaptureQueriesContext(connection) as warm_anon_ctx:
+            resp2 = self.client.get(url)
+        self.assertEqual(resp2.status_code, 200)
+        self.assertEqual(
+            len(warm_anon_ctx),
+            0,
+            f"project warm anon used {len(warm_anon_ctx)} queries",
+        )
+
+        self.client.force_login(self.user)
+        with CaptureQueriesContext(connection) as auth_ctx:
+            auth_resp = self.client.get(url)
+        self.assertEqual(auth_resp.status_code, 200)
+        self.assertLessEqual(
+            len(auth_ctx),
+            4,
+            f"project auth used {len(auth_ctx)} queries",
+        )
+        self.assertContains(
+            auth_resp, "https://github.com/DataTalksClub/test"
+        )
+
+    def test_dashboard_cold_build_slim_queries_and_no_duplicate_scans(
+        self,
+    ):
+        hw = make_homework(
+            self.course, "hw-dash", state=HomeworkState.SCORED.value
+        )
+        questions = list(
+            Question.objects.filter(homework=hw).order_by("id")
+        )
+        sub = Submission.objects.create(
+            homework=hw,
+            student=self.user,
+            enrollment=self.enrollment,
+            questions_score=2,
+            total_score=3,
+            time_spent_lectures=1.5,
+            time_spent_homework=2.5,
+        )
+        Answer.objects.create(
+            submission=sub,
+            question=questions[0],
+            answer_text="a0",
+            is_correct=True,
+        )
+        Answer.objects.create(
+            submission=sub,
+            question=questions[1],
+            answer_text="a1",
+            is_correct=False,
+        )
+        project = make_project(self.course, "proj-dash")
+        project.state = ProjectState.COMPLETED.value
+        project.save(update_fields=["state"])
+        ProjectSubmission.objects.create(
+            project=project,
+            student=self.user,
+            enrollment=self.enrollment,
+            passed=True,
+            total_score=10,
+            time_spent=8.0,
+        )
+
+        from courses.views.dashboard_context import dashboard_context
+
+        with CaptureQueriesContext(connection) as ctx:
+            data = dashboard_context(self.course)
+
+        self.assertLessEqual(
+            len(ctx),
+            7,
+            f"dashboard cold build used {len(ctx)} queries",
+        )
+        submission_queries = [
+            q["sql"]
+            for q in ctx.captured_queries
+            if '"courses_submission"' in q["sql"]
+            or "courses_submission" in q["sql"]
+        ]
+        # Exactly 1 scan of courses_submission (no second TruncWeek scan,
+        # and no JOIN onto courses_homework).
+        self.assertEqual(len(submission_queries), 1)
+        self.assertNotIn(
+            "courses_homework", submission_queries[0].lower()
+        )
+        self.assertEqual(data["total_enrollments"], 1)
+        self.assertEqual(len(data["homework_stats"]), 1)
+        self.assertEqual(data["homework_stats"][0]["submissions_count"], 1)
+        self.assertEqual(data["project_pass_count"], 1)
+        self.assertEqual(len(data["question_difficulty"]), 1)
+        self.assertEqual(len(data["question_difficulty"][0]["questions"]), 2)
+        self.assertEqual(len(data["engagement_trend"]), 1)
 
 
 class StaticConfigTestCase(TestCase):

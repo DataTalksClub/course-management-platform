@@ -9,6 +9,7 @@ from courses.models.project import (
 from courses.registration_wall import (
     course_has_registration_wall,
     get_or_create_enrollment_for_content,
+    registration_wall_blocks_user,
 )
 from courses.views.course_page_context import (
     active_registration_campaign_for_course,
@@ -48,8 +49,10 @@ def project_build_context(request, course: Course, project: Project) -> dict:
         "certificate_name": user_details.certificate_name,
         "disable_learning_in_public": disable_learning_in_public,
         "registration_wall_blocked": wall_blocked,
-        "registration_campaign": active_registration_campaign_for_course(
-            course
+        "registration_campaign": (
+            active_registration_campaign_for_course(course)
+            if wall_blocked
+            else None
         ),
     }
 
@@ -64,10 +67,17 @@ def project_context_user_details(
     project: Project,
 ) -> ProjectContextUserDetails:
     project_submission = project_context_submission(user, project)
-    enrollment, wall_blocked = get_or_create_enrollment_for_content(
-        user,
-        course,
-    )
+    if (
+        project_submission is not None
+        and not registration_wall_blocks_user(course, user)
+    ):
+        enrollment = project_submission.enrollment
+        wall_blocked = False
+    else:
+        enrollment, wall_blocked = get_or_create_enrollment_for_content(
+            user,
+            course,
+        )
     certificate_name = project_context_certificate_name(user, enrollment)
     return ProjectContextUserDetails(
         submission=project_submission,
@@ -81,11 +91,15 @@ def project_context_submission(
     user: User,
     project: Project,
 ) -> ProjectSubmission | None:
-    return ProjectSubmission.objects.filter(
-        project=project,
-        student=user,
-        volunteer_review_only=False,
-    ).first()
+    return (
+        ProjectSubmission.objects.filter(
+            project=project,
+            student=user,
+            volunteer_review_only=False,
+        )
+        .select_related("enrollment")
+        .first()
+    )
 
 
 def project_context_certificate_name(

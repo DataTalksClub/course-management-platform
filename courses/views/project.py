@@ -177,10 +177,28 @@ def handle_project_post(request: HttpRequest, course: Course, project: Project):
 
 
 def project_view(request, course_slug, project_slug):
-    course = get_object_or_404(Course, slug=course_slug)
-    project = get_object_or_404(
-        Project, course=course, slug=project_slug
+    use_anon_cache = (
+        request.method == "GET"
+        and not request.user.is_authenticated
+        and getattr(settings, "PUBLIC_PAGE_CACHE_ENABLED", True)
     )
+    cache_key = f"project:anon:{course_slug}:{project_slug}:v1"
+    if use_anon_cache:
+        context = cache.get(cache_key)
+        if context is not None:
+            response = render(request, "projects/project.html", context)
+            response["Cache-Control"] = (
+                "public, max-age="
+                f"{getattr(settings, 'PROJECT_ANON_CACHE_TTL', 60)}"
+            )
+            return response
+
+    project = get_object_or_404(
+        Project.objects.select_related("course"),
+        course__slug=course_slug,
+        slug=project_slug,
+    )
+    course = project.course
 
     if request.method == "POST":
         return handle_project_post(
@@ -189,28 +207,19 @@ def project_view(request, course_slug, project_slug):
             project,
         )
 
-    if (
-        request.method == "GET"
-        and not request.user.is_authenticated
-        and getattr(settings, "PUBLIC_PAGE_CACHE_ENABLED", True)
-    ):
-        cache_key = f"project:anon:{course_slug}:{project_slug}:v1"
-        context = cache.get(cache_key)
-        if context is None:
-            context = project_build_context(request, course, project)
-            cache.set(
-                cache_key,
-                context,
-                getattr(settings, "PROJECT_ANON_CACHE_TTL", 60),
-            )
+    context = project_build_context(request, course, project)
+    if use_anon_cache:
+        cache.set(
+            cache_key,
+            context,
+            getattr(settings, "PROJECT_ANON_CACHE_TTL", 60),
+        )
         response = render(request, "projects/project.html", context)
         response["Cache-Control"] = (
             "public, max-age="
             f"{getattr(settings, 'PROJECT_ANON_CACHE_TTL', 60)}"
         )
         return response
-
-    context = project_build_context(request, course, project)
 
     response = render(request, "projects/project.html", context)
     return response

@@ -80,6 +80,23 @@ def authenticated_homework_post_response(
 def homework_view(
     request: HttpRequest, course_slug: str, homework_slug: str
 ):
+    user = request.user
+    use_anon_cache = (
+        not user.is_authenticated
+        and request.method == "GET"
+        and getattr(settings, "PUBLIC_PAGE_CACHE_ENABLED", True)
+    )
+    cache_key = f"homework:anon:{course_slug}:{homework_slug}:v1"
+    if use_anon_cache:
+        context = cache.get(cache_key)
+        if context is not None:
+            response = render(request, "homework/homework.html", context)
+            response["Cache-Control"] = (
+                "public, max-age="
+                f"{getattr(settings, 'HOMEWORK_ANON_CACHE_TTL', 60)}"
+            )
+            return response
+
     detail_objects = homework_detail_objects(
         course_slug,
         homework_slug,
@@ -87,32 +104,23 @@ def homework_view(
     course = detail_objects.course
     homework = detail_objects.homework
     questions = detail_objects.questions
-    user = request.user
 
     if not user.is_authenticated:
-        if request.method == "GET" and getattr(
-            settings, "PUBLIC_PAGE_CACHE_ENABLED", True
-        ):
-            cache_key = f"homework:anon:{course_slug}:{homework_slug}:v1"
-            context = cache.get(cache_key)
-            if context is None:
-                context = homework_detail_build_context_not_authenticated(
-                    course=course, homework=homework, questions=questions
-                )
-                cache.set(
-                    cache_key,
-                    context,
-                    getattr(settings, "HOMEWORK_ANON_CACHE_TTL", 60),
-                )
+        context = homework_detail_build_context_not_authenticated(
+            course=course, homework=homework, questions=questions
+        )
+        if use_anon_cache:
+            cache.set(
+                cache_key,
+                context,
+                getattr(settings, "HOMEWORK_ANON_CACHE_TTL", 60),
+            )
             response = render(request, "homework/homework.html", context)
             response["Cache-Control"] = (
                 "public, max-age="
                 f"{getattr(settings, 'HOMEWORK_ANON_CACHE_TTL', 60)}"
             )
             return response
-        context = homework_detail_build_context_not_authenticated(
-            course=course, homework=homework, questions=questions
-        )
         response = render(request, "homework/homework.html", context)
         return response
 

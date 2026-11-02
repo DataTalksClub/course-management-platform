@@ -18,6 +18,16 @@ class HomeworkScoreRatio:
     score_ratio: object
 
 
+def dashboard_all_homeworks(course):
+    homeworks = Homework.objects.filter(course=course).order_by("id")
+    max_questions_score = Sum("question__scores_for_correct_answer")
+    return list(
+        homeworks.annotate(
+            max_questions_score=max_questions_score,
+        )
+    )
+
+
 def dashboard_homeworks(course):
     homeworks = Homework.objects.filter(course=course)
     homeworks = homeworks.filter(state=HomeworkState.SCORED.value)
@@ -28,10 +38,10 @@ def dashboard_homeworks(course):
     )
 
 
-def dashboard_homework_submissions(course):
-    # submitted_at and homework__due_date ride along so the submission
-    # timing breakdown can reuse these rows instead of issuing a second
-    # full scan of every submission in the course.
+def dashboard_homework_submissions(course, homework_ids=None):
+    # Slim tuple rows (values_list) covered by sub_hw_dashboard_idx:
+    # avoids joining courses_homework and parsing duplicate due_date
+    # timestamps on every submission row.
     submission_fields = (
         "homework_id",
         "time_spent_lectures",
@@ -39,14 +49,16 @@ def dashboard_homework_submissions(course):
         "questions_score",
         "total_score",
         "submitted_at",
-        "homework__due_date",
     )
-    return (
-        Submission.objects
-        .filter(homework__course=course)
-        .select_related("homework")
-        .values(*submission_fields)
-    )
+    if homework_ids is not None:
+        if not homework_ids:
+            return ()
+        queryset = Submission.objects.filter(
+            homework_id__in=homework_ids
+        )
+    else:
+        queryset = Submission.objects.filter(homework__course=course)
+    return queryset.values_list(*submission_fields)
 
 
 def dashboard_homework_stats(
@@ -67,7 +79,11 @@ def dashboard_homework_stats(
 def dashboard_homework_submissions_by_homework(all_hw_submissions):
     hw_submissions_by_homework = defaultdict(list)
     for submission in all_hw_submissions:
-        homework_id = submission["homework_id"]
+        homework_id = (
+            submission[0]
+            if isinstance(submission, tuple)
+            else submission["homework_id"]
+        )
         hw_submissions_by_homework[homework_id].append(submission)
     return hw_submissions_by_homework
 
@@ -89,9 +105,63 @@ def dashboard_homework_stat_rows(
     return stat_rows
 
 
+def _collect_homework_submission_series(hw_submissions):
+    lecture_times = []
+    homework_times = []
+    total_times = []
+    questions_scores = []
+    total_scores = []
+    for submission in hw_submissions:
+        if isinstance(submission, tuple):
+            _, lectures_time, homework_time, questions_score, total_score, _ = (
+                submission
+            )
+        else:
+            lectures_time = submission["time_spent_lectures"]
+            homework_time = submission["time_spent_homework"]
+            questions_score = submission["questions_score"]
+            total_score = submission["total_score"]
+        if lectures_time is not None:
+            lecture_times.append(lectures_time)
+        if homework_time is not None:
+            homework_times.append(homework_time)
+            if lectures_time is not None:
+                total_times.append(lectures_time + homework_time)
+        if questions_score is not None:
+            questions_scores.append(questions_score)
+        if total_score is not None:
+            total_scores.append(total_score)
+    return (
+        lecture_times,
+        homework_times,
+        total_times,
+        questions_scores,
+        total_scores,
+    )
+
+
 def dashboard_homework_stat(homework, hw_submissions, total_enrollments):
-    time_stats = dashboard_homework_time_stats(hw_submissions)
-    score_stats = dashboard_homework_score_stats(homework, hw_submissions)
+    (
+        lecture_times,
+        homework_times,
+        total_times,
+        questions_scores,
+        total_scores,
+    ) = _collect_homework_submission_series(hw_submissions)
+    time_stats = {
+        **quartile_fields("time_lecture", lecture_times),
+        **quartile_fields("time_homework", homework_times),
+        **quartile_fields("time_total", total_times),
+    }
+    score_quartiles = safe_quartiles(total_scores)
+    questions_score_quartiles = safe_quartiles(questions_scores)
+    max_questions_score = homework.max_questions_score
+    if questions_score_quartiles.median is not None and max_questions_score:
+        score_ratio = questions_score_quartiles.median / max_questions_score
+        score_ratio_pct = round(score_ratio * 100, 1)
+    else:
+        score_ratio = None
+        score_ratio_pct = None
     submissions_count = len(hw_submissions)
     completion_rate = dashboard_completion_rate(
         submissions_count,
@@ -103,7 +173,13 @@ def dashboard_homework_stat(homework, hw_submissions, total_enrollments):
         "submissions_count": submissions_count,
         "completion_rate": completion_rate,
         **time_stats,
-        **score_stats,
+        "score_q25": score_quartiles.q25,
+        "score_median": score_quartiles.median,
+        "score_q75": score_quartiles.q75,
+        "questions_score_median": questions_score_quartiles.median,
+        "max_questions_score": max_questions_score,
+        "score_ratio": score_ratio,
+        "score_ratio_pct": score_ratio_pct,
     }
 
 

@@ -147,6 +147,16 @@ class ProjectSubmission(models.Model):
                 fields=["enrollment", "volunteer_review_only"],
                 name="psub_enroll_vol_idx",
             ),
+            models.Index(
+                fields=[
+                    "project",
+                    "enrollment",
+                    "passed",
+                    "time_spent",
+                    "total_score",
+                ],
+                name="psub_proj_dashboard_idx",
+            ),
         ]
 
     def __str__(self):

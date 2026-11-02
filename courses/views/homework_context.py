@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -14,6 +15,7 @@ from courses.models.homework import (
 from courses.registration_wall import (
     course_has_registration_wall,
     get_or_create_enrollment_for_content,
+    registration_wall_blocks_user,
 )
 from courses.views.course_page_context import (
     active_registration_campaign_for_course,
@@ -68,6 +70,7 @@ def homework_detail_build_context_not_authenticated(
         None,
     )
     accepting_submissions = homework.state == HomeworkState.OPEN.value
+    wall_blocked = course_has_registration_wall(course)
     context = {
         "course": course,
         "homework": homework,
@@ -76,9 +79,11 @@ def homework_detail_build_context_not_authenticated(
         "disabled": True,
         "accepting_submissions": accepting_submissions,
         "deadline_passed": homework_deadline_passed(homework),
-        "registration_wall_blocked": course_has_registration_wall(course),
-        "registration_campaign": active_registration_campaign_for_course(
-            course
+        "registration_wall_blocked": wall_blocked,
+        "registration_campaign": (
+            active_registration_campaign_for_course(course)
+            if wall_blocked
+            else None
         ),
     }
 
@@ -91,12 +96,20 @@ def submission_answer_map(
     if not submission:
         return {}
 
-    answers = Answer.objects.filter(
-        submission=submission
-    ).select_related("question")
+    prefetched = getattr(submission, "prefetched_answers", None)
+    if prefetched is not None:
+        answers = prefetched
+    else:
+        answers = Answer.objects.filter(submission=submission).only(
+            "id",
+            "submission_id",
+            "question_id",
+            "answer_text",
+            "is_correct",
+        )
     answer_map = {}
     for answer in answers:
-        answer_map[answer.question.id] = answer
+        answer_map[answer.question_id] = answer
     return answer_map
 
 
@@ -152,14 +165,14 @@ def homework_detail_build_context_authenticated(data) -> dict:
 
 
 def homework_detail_objects(course_slug: str, homework_slug: str):
-    course = get_object_or_404(Course, slug=course_slug)
     homework = get_object_or_404(
-        Homework,
-        course=course,
+        Homework.objects.select_related("course"),
+        course__slug=course_slug,
         slug=homework_slug,
     )
-    questions = Question.objects.filter(homework=homework).order_by(
-        "id"
+    course = homework.course
+    questions = list(
+        Question.objects.filter(homework=homework).order_by("id")
     )
     return HomeworkDetailObjects(
         course=course,
@@ -174,14 +187,37 @@ def authenticated_homework_context(
     homework: Homework,
     questions: list[Question],
 ):
-    submission = Submission.objects.filter(
-        homework=homework,
-        student=user,
-    ).first()
-    enrollment, wall_blocked = get_or_create_enrollment_for_content(
-        user,
-        course,
+    submission = (
+        Submission.objects.filter(
+            homework=homework,
+            student=user,
+        )
+        .select_related("enrollment")
+        .prefetch_related(
+            Prefetch(
+                "answer_set",
+                queryset=Answer.objects.only(
+                    "id",
+                    "submission_id",
+                    "question_id",
+                    "answer_text",
+                    "is_correct",
+                ),
+                to_attr="prefetched_answers",
+            )
+        )
+        .first()
     )
+    if submission is not None and not registration_wall_blocks_user(
+        course, user
+    ):
+        enrollment = submission.enrollment
+        wall_blocked = False
+    else:
+        enrollment, wall_blocked = get_or_create_enrollment_for_content(
+            user,
+            course,
+        )
     context_data = HomeworkDetailContextData(
         course=course,
         homework=homework,
@@ -191,8 +227,10 @@ def authenticated_homework_context(
     )
     context = homework_detail_build_context_authenticated(context_data)
     context["registration_wall_blocked"] = wall_blocked
-    context["registration_campaign"] = active_registration_campaign_for_course(
-        course
+    context["registration_campaign"] = (
+        active_registration_campaign_for_course(course)
+        if wall_blocked
+        else None
     )
     if wall_blocked:
         context["disabled"] = True

@@ -45,12 +45,8 @@ def project_submission_from_post(
 
 
 def project_submit_post(request: HttpRequest, project: Project) -> None:
-    is_update = ProjectSubmission.objects.filter(
-        project=project,
-        student=request.user,
-        volunteer_review_only=False,
-    ).exists()
     project_submission = project_submission_from_post(request, project)
+    is_update = project_submission.pk is not None
     clean_project_faq_contribution_url(project, project_submission)
     project_submission.full_clean()
     project_submission.invalid_repository_flagged = False

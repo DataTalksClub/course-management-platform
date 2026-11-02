@@ -461,6 +461,10 @@ class Enrollment(models.Model):
                 fields=["course", "total_score"],
                 name="enroll_course_score_idx",
             ),
+            models.Index(
+                fields=["course", "certificate_url"],
+                name="enroll_course_cert_idx",
+            ),
         ]
 
     student = models.ForeignKey(User, on_delete=models.CASCADE)

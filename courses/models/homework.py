@@ -259,6 +259,17 @@ class Submission(models.Model):
                 fields=["enrollment"],
                 name="sub_enrollment_idx",
             ),
+            models.Index(
+                fields=[
+                    "homework",
+                    "submitted_at",
+                    "time_spent_lectures",
+                    "time_spent_homework",
+                    "questions_score",
+                    "total_score",
+                ],
+                name="sub_hw_dashboard_idx",
+            ),
         ]
 
     def __str__(self):
@@ -277,6 +288,10 @@ class Answer(models.Model):
             models.Index(
                 fields=["submission", "question"],
                 name="ans_sub_question_idx",
+            ),
+            models.Index(
+                fields=["question", "is_correct"],
+                name="ans_question_correct_idx",
             ),
         ]
 
