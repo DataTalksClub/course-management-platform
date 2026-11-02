@@ -168,6 +168,9 @@ class RegistrationDigestTests(RegistrationCampaignBase):
         self.make_registration("b@example.com", now=DUE_NOW)
         summary = build_digest_context([pending], DUE_NOW.date())["summary"]
         self.assertIn("Review pending (1):", summary)
+        context = build_digest_context([pending], DUE_NOW.date())
+        self.assertIn("<a href=", context["summary_html"])
+        self.assertIn(">Review pending (1)</a>", context["summary_html"])
 
         self.course.requires_registration_approval = False
         self.course.save()
@@ -175,6 +178,8 @@ class RegistrationDigestTests(RegistrationCampaignBase):
         pending.course.refresh_from_db()
         summary = build_digest_context([pending], DUE_NOW.date())["summary"]
         self.assertNotIn("Review pending", summary)
+        context = build_digest_context([pending], DUE_NOW.date())
+        self.assertNotIn("<a ", context["summary_html"])
 
         self.course.requires_registration_approval = True
         self.course.save()
@@ -186,6 +191,21 @@ class RegistrationDigestTests(RegistrationCampaignBase):
         ).get(pk=pending.pk)
         summary = build_digest_context([pending], DUE_NOW.date())["summary"]
         self.assertNotIn("Review pending", summary)
+
+    def test_digest_html_renders_review_pending_as_a_link(self):
+        from course_management.relay.application_templates import APPLICATION_TEMPLATES
+        from course_management.relay.registration_digest import build_digest_context
+
+        registration = self.make_registration("review@example.com", now=DUE_NOW)
+        context = build_digest_context([registration], DUE_NOW.date())
+        draft = APPLICATION_TEMPLATES["registration-digest-operator"]
+        rendered = Template(draft["html_body"]).render(Context(context))
+
+        self.assertIn(context["summary_html"], rendered)
+        self.assertIn("<a href=", rendered)
+        self.assertNotIn("&lt;a ", rendered)
+        self.assertNotIn("review@example.com", rendered)
+        self.assertNotIn("Applicant", rendered)
 
     def test_digest_window_excludes_older_registrations(self):
         from course_management.relay.registration_digest import send_registration_digest
