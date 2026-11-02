@@ -53,9 +53,10 @@ project-excludes = ["notebooks/**"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "course_management.settings"
-python_files = ["test_*.py"]
+python_files = ["test_*.py", "tests_*.py"]
 
 testpaths = [
+    "accounts",
     "api/tests",
     "courses/tests",
     "data/tests",
