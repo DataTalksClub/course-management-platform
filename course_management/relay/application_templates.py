@@ -31,8 +31,9 @@ def template(name, subject, html, text, fields):
             "course_count": 1,
             "summary": "Example Course — 2 new (1 confirmed, 1 unconfirmed)\n"
             "Review pending: https://courses.datatalks.club/cadmin/campaigns/example/registrations/?status=pending",
-            "summary_html": "Example Course — 2 new (1 confirmed, 1 unconfirmed)\n"
-            "Review pending: https://courses.datatalks.club/cadmin/campaigns/example/registrations/?status=pending",
+            "summary_html": "<p>Example Course — 2 new (1 confirmed, 1 unconfirmed)</p>"
+            '<p><a href="https://courses.datatalks.club/cadmin/campaigns/example/registrations/?status=pending">'
+            "Review pending (1)</a></p>",
         }.items() if key in fields},
         "is_active": True,
     }
@@ -55,7 +56,7 @@ APPLICATION_TEMPLATES = {
         "<p>{{ total_count }} new registration(s) in the last 24 hours "
         "({{ confirmed_count }} confirmed, {{ unconfirmed_count }} unconfirmed) "
         "across {{ course_count }} course(s), as of {{ digest_date }}.</p>"
-        "<pre>{{ summary_html }}</pre>",
+        "<div>{{ summary_html|safe }}</div>",
         "{{ total_count }} new registration(s) in the last 24 hours "
         "({{ confirmed_count }} confirmed, {{ unconfirmed_count }} unconfirmed) "
         "across {{ course_count }} course(s), as of {{ digest_date }}.\n\n{{ summary }}",

@@ -150,7 +150,20 @@ def render_digest_summary(groups):
 
 
 def render_digest_summary_html(groups):
-    return html.escape(render_digest_summary(groups))
+    lines = []
+    for group in groups:
+        lines.append(
+            "<p>"
+            f"{html.escape(group['title'])} — {group['total_count']} new "
+            f"({group['confirmed_count']} confirmed, "
+            f"{group['unconfirmed_count']} unconfirmed)"
+            "</p>"
+        )
+        if group["needs_approval"] and group["pending_count"] > 0:
+            label = html.escape(f"Review pending ({group['pending_count']})")
+            review_url = html.escape(group["review_url"], quote=True)
+            lines.append(f'<p><a href="{review_url}">{label}</a></p>')
+    return "\n".join(lines)
 
 
 def build_digest_context(registrations, day):
