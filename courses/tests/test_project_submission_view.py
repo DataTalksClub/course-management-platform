@@ -84,6 +84,46 @@ class ProjectSubmissionUpdateViewTestCase(ProjectSubmissionViewTestBase):
         submission = fetch_fresh(submission)
         self.assert_project_submission_matches(submission, data)
 
+    def test_non_github_link_is_rejected_when_updating_submission(self):
+        submission = self.create_existing_project_submission()
+        data = self.project_submission_data(
+            github_link="https://pantry-prod.onrender.com",
+            commit_id="changed-commit",
+        )
+
+        response = self.post_project(data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "The project link must be a GitHub repository URL",
+        )
+        submission.refresh_from_db()
+        self.assertEqual(
+            submission.github_link, "https://github.com/existing/repo"
+        )
+        self.assertEqual(submission.commit_id, "123456a")
+
+    @mock.patch("requests.head")
+    @mock.patch("requests.get")
+    def test_valid_repository_update_clears_invalid_repository_flag(
+        self, mock_get, mock_head
+    ):
+        self.mock_url_check_status(mock_get, mock_head, 200)
+        submission = self.create_existing_project_submission(
+            invalid_repository_flagged=True,
+        )
+        data = self.project_submission_data(
+            github_link="https://github.com/new-owner/new-repo",
+            commit_id="newcommit",
+        )
+
+        response = self.post_project(data)
+
+        self.assertEqual(response.status_code, 302)
+        submission.refresh_from_db()
+        self.assertFalse(submission.invalid_repository_flagged)
+
     def test_remove_project_submission(self):
         self.create_existing_project_submission()
         initial_submission_count = self.project_submission_count()
@@ -129,6 +169,11 @@ class ProjectSubmissionNonGithubLinkTestCase(ProjectSubmissionViewTestBase):
         data = self.project_confirmation_data()
         data["github_link"] = "https://example.com/some/page"
 
-        self.post_project(data)
+        response = self.post_project(data)
 
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "The project link must be a GitHub repository URL",
+        )
         self.assertEqual(self.project_submission_count(), 0)

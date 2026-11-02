@@ -23,6 +23,14 @@
             {% endfor %}
         </div>
     {% endif %}
+    {% if has_submission and submission.invalid_repository_flagged %}
+        <div role="status" class="mb-6 rounded-md border app-alert-warning p-4">
+            <p class="font-semibold">Repository link flagged</p>
+            <p class="mt-1 mb-0 text-sm app-text">
+                This submission's repository link is not a GitHub repository URL. Your submission remains saved. Please wait for course staff to advise you about next steps.
+            </p>
+        </div>
+    {% endif %}
     {% if errors %}
         <div class="mb-6 space-y-3">
             {% for error in errors %}

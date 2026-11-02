@@ -25,6 +25,14 @@
         {% endfor %}
       </div>
     {% endif %}
+    {% if submission.invalid_repository_flagged %}
+      <div role="status" class="mb-6 rounded-md border app-alert-warning p-4">
+        <p class="font-semibold">Repository link flagged</p>
+        <p class="mt-1 mb-0 text-sm app-text">
+          This repository field is not a GitHub repository URL. Please take this flag into account when reviewing the project.
+        </p>
+      </div>
+    {% endif %}
     <div class="border-b app-border pb-6">
       <p class="text-sm font-semibold uppercase tracking-wide app-muted">{{ course.title }}</p>
       <div class="mt-4 space-y-1 text-sm app-text">

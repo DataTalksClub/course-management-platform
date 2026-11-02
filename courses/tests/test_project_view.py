@@ -116,6 +116,28 @@ class ProjectViewTestCase(ProjectViewTestBase):
         self.assertContains(response, "Update submission")
         self.assert_save_submission_copy(response)
 
+    def test_project_detail_shows_invalid_repository_flag_to_student(
+        self,
+    ):
+        ProjectSubmission.objects.create(
+            project=self.project,
+            student=self.user,
+            enrollment=self.enrollment,
+            github_link="https://github.com/test/project",
+            commit_id="abc1234",
+            invalid_repository_flagged=True,
+        )
+
+        response = self.authenticated_project_response()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Repository link flagged")
+        self.assertContains(response, "Your submission remains saved")
+        self.assertContains(
+            response,
+            "wait for course staff to advise you",
+        )
+
     def test_project_detail_when_peer_reviewing(self):
         self.project.state = ProjectState.PEER_REVIEWING.value
         self.project.save()

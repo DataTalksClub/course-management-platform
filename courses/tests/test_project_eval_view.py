@@ -38,6 +38,18 @@ class ProjectEvaluationViewTestCase(ProjectEvaluationTestBase):
         eval_url = self.eval_view_url()
         return self.client.get(eval_url)
 
+    def test_assigned_reviewer_sees_invalid_repository_flag(self):
+        self.other_submission.invalid_repository_flagged = True
+        self.other_submission.save(
+            update_fields=["invalid_repository_flagged"]
+        )
+
+        response = self.get_eval_submit_response()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Repository link flagged")
+        self.assertContains(response, "not a GitHub repository URL")
+
     def assert_optional_reviews_visible_without_submission(self, response):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["has_submission"])

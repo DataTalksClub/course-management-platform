@@ -53,6 +53,7 @@ def project_submit_post(request: HttpRequest, project: Project) -> None:
     project_submission = project_submission_from_post(request, project)
     clean_project_faq_contribution_url(project, project_submission)
     project_submission.full_clean()
+    project_submission.invalid_repository_flagged = False
     project_submission.save()
     record_event(
         "project.submitted",
