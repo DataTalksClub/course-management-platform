@@ -178,6 +178,63 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
             excluded.status, CourseRegistration.Status.PENDING
         )
 
+    def test_bulk_reject_excluded_with_location_message(self):
+        from courses.decision_messages import REJECTION_MESSAGE_LOCATION
+        from courses.genmedia_policy import CAMPAIGN_SLUG
+        from courses.models import RegistrationCampaign
+
+        campaign = RegistrationCampaign.objects.get(slug=CAMPAIGN_SLUG)
+        for email, country in (
+            ("eligible@example.com", "Germany"),
+            ("excluded@example.com", "Russia"),
+        ):
+            CourseRegistration.objects.create(
+                campaign=campaign,
+                course=campaign.current_course,
+                email=email,
+                name="Bulk",
+                country=country,
+                region="Europe",
+                role=CourseRegistration.Role.DATA_ENGINEER,
+            )
+        self.client.force_login(self.staff)
+        response = self.client.post(
+            reverse(
+                "cadmin_campaign_registration_decide",
+                kwargs={"campaign_slug": campaign.slug},
+            ),
+            {"action": "reject_excluded"},
+        )
+        self.assertEqual(response.status_code, 302)
+        rejected = ApplicationNotification.objects.filter(
+            template_key="application-rejected"
+        )
+        self.assertEqual(rejected.count(), 1)
+        self.assertEqual(rejected.get().recipient, "excluded@example.com")
+        self.assertEqual(
+            rejected.get().context["custom_message"],
+            REJECTION_MESSAGE_LOCATION,
+        )
+        eligible = CourseRegistration.objects.get(
+            email="eligible@example.com"
+        )
+        self.assertEqual(
+            eligible.status, CourseRegistration.Status.PENDING
+        )
+
+    def test_list_page_prefills_launch_message(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.staff)
+        response = self.client.get(
+            reverse(
+                "cadmin_campaign_registrations",
+                kwargs={"campaign_slug": self.campaign.slug},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "luma.com/tj2nbrl2")
+
     def test_decision_templates_render_custom_message(self):
         from course_management.relay.application_templates import (
             APPLICATION_TEMPLATES,

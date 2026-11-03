@@ -145,15 +145,25 @@
     <textarea
       id="bulk-custom-message"
       name="custom_message"
-      rows="2"
+      rows="4"
       class="form-control mt-1"
       maxlength="2000"
-      placeholder="e.g. Join the workshop today at 18:00 — link is inside the course"></textarea>
+      placeholder="e.g. Join the workshop today at 18:00 — link is inside the course">{{ default_bulk_message }}</textarea>
     <p class="settings-helper mt-1">Approving queues an email to the applicant. The message above is included when present. Leave it empty to approve without a custom message.</p>
     <div class="mt-2 flex flex-wrap gap-2">
       <button type="submit" name="action" value="approve_all_pending" class="primer-button">Approve all pending &amp; queue emails</button>
     </div>
   </form>
+  {% if genmedia %}
+  <form method="post" action="{% url 'cadmin_campaign_registration_decide' campaign.slug %}" class="mb-5">
+    {% csrf_token %}
+    <p class="text-sm font-medium app-heading">Reject excluded applicants (location policy)</p>
+    <p class="settings-helper mt-1">Queues a rejection email with this fixed text: “{{ rejection_message }}”</p>
+    <div class="mt-2 flex flex-wrap gap-2">
+      <button type="submit" name="action" value="reject_excluded" class="primer-button primer-button-secondary">Reject excluded &amp; queue emails</button>
+    </div>
+  </form>
+  {% endif %}
   {% endif %}
 
   <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid {% if needs_approval %}md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_9rem_14rem]{% else %}md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_9rem]{% endif %} md:gap-3">

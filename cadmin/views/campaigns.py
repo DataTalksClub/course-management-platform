@@ -3,6 +3,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
 from courses.genmedia_policy import CAMPAIGN_SLUG
+from courses.decision_messages import REJECTION_MESSAGE_LOCATION
 from courses.genmedia_policy import (
     CAMPAIGN_SLUG as GENMEDIA_CAMPAIGN_SLUG,
 )
@@ -115,6 +116,43 @@ def campaign_registration_decide(request, campaign_slug):
 
     action = (request.POST.get("action") or "").strip()
     custom_message = _clean_decision_message(request)
+    if action == "reject_excluded":
+        if campaign.slug != GENMEDIA_CAMPAIGN_SLUG:
+            messages.error(
+                request, "Bulk location-policy reject is genmedia only."
+            )
+            return redirect(
+                "cadmin_campaign_registrations",
+                campaign_slug=campaign.slug,
+            )
+        pending = CourseRegistration.objects.filter(
+            campaign=campaign,
+            status=CourseRegistration.Status.PENDING,
+        ).order_by("pk")[:BULK_APPROVE_LIMIT]
+        rejected_count = 0
+        for registration in pending:
+            if not registration.genmedia_excluded_reason:
+                continue
+            registration.status = CourseRegistration.Status.REJECTED
+            registration._decision_custom_message = (
+                REJECTION_MESSAGE_LOCATION
+            )
+            registration.save(update_fields=["status", "updated_at"])
+            rejected_count += 1
+        if rejected_count == 0:
+            messages.info(
+                request, "No excluded pending applications to reject."
+            )
+        else:
+            messages.success(
+                request,
+                f"Rejected {rejected_count} excluded applications. "
+                "Update emails are queued for delivery.",
+            )
+        return redirect(
+            "cadmin_campaign_registrations",
+            campaign_slug=campaign.slug,
+        )
     if action == "approve_all_pending":
         pending = CourseRegistration.objects.filter(
             campaign=campaign,
