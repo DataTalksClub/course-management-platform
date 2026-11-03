@@ -134,6 +134,50 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
                 "Workshop today at 18:00!",
             )
 
+    def test_bulk_approve_skips_genmedia_excluded(self):
+        from courses.genmedia_policy import CAMPAIGN_SLUG
+        from courses.models import RegistrationCampaign
+
+        campaign = RegistrationCampaign.objects.get(slug=CAMPAIGN_SLUG)
+        for email, country in (
+            ("eligible@example.com", "Germany"),
+            ("excluded@example.com", "Russia"),
+        ):
+            CourseRegistration.objects.create(
+                campaign=campaign,
+                course=campaign.current_course,
+                email=email,
+                name="Bulk",
+                country=country,
+                region="Europe",
+                role=CourseRegistration.Role.DATA_ENGINEER,
+            )
+        self.client.force_login(self.staff)
+        response = self.client.post(
+            reverse(
+                "cadmin_campaign_registration_decide",
+                kwargs={"campaign_slug": campaign.slug},
+            ),
+            {
+                "action": "approve_all_pending",
+                "custom_message": "Workshop today at 18:00!",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        approved = ApplicationNotification.objects.filter(
+            template_key="application-approved"
+        )
+        self.assertEqual(approved.count(), 1)
+        self.assertEqual(
+            approved.get().recipient, "eligible@example.com"
+        )
+        excluded = CourseRegistration.objects.get(
+            email="excluded@example.com"
+        )
+        self.assertEqual(
+            excluded.status, CourseRegistration.Status.PENDING
+        )
+
     def test_decision_templates_render_custom_message(self):
         from course_management.relay.application_templates import (
             APPLICATION_TEMPLATES,

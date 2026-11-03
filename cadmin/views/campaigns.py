@@ -3,6 +3,9 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
 from courses.genmedia_policy import CAMPAIGN_SLUG
+from courses.genmedia_policy import (
+    CAMPAIGN_SLUG as GENMEDIA_CAMPAIGN_SLUG,
+)
 from courses.models.course import CourseRegistration, RegistrationCampaign
 from courses.registration_wall import approve_registration
 from cadmin.forms import RegistrationCampaignForm
@@ -118,7 +121,14 @@ def campaign_registration_decide(request, campaign_slug):
             status=CourseRegistration.Status.PENDING,
         ).order_by("pk")[:BULK_APPROVE_LIMIT]
         approved_count = 0
+        skipped_excluded = 0
         for registration in pending:
+            if (
+                campaign.slug == GENMEDIA_CAMPAIGN_SLUG
+                and registration.genmedia_excluded_reason
+            ):
+                skipped_excluded += 1
+                continue
             approve_registration(
                 registration, custom_message=custom_message
             )
@@ -126,11 +136,16 @@ def campaign_registration_decide(request, campaign_slug):
         if approved_count == 0:
             messages.info(request, "No pending applications to approve.")
         else:
-            messages.success(
-                request,
+            detail = (
                 f"Approved {approved_count} applications. "
-                "Approval emails are queued for delivery.",
+                "Approval emails are queued for delivery."
             )
+            if skipped_excluded:
+                detail += (
+                    f" Skipped {skipped_excluded} excluded "
+                    "by eligibility policy."
+                )
+            messages.success(request, detail)
         return redirect(
             "cadmin_campaign_registrations",
             campaign_slug=campaign.slug,
