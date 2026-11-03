@@ -43,6 +43,11 @@ urlpatterns = [
         name="cadmin_campaign_registrations_export",
     ),
     path(
+        "registrations/<slug:campaign_slug>/genmedia-preview/",
+        campaigns.campaign_genmedia_preview,
+        name="cadmin_campaign_genmedia_preview",
+    ),
+    path(
         "campaigns/<slug:campaign_slug>/emails/new/",
         email_campaigns.email_campaign_create,
         name="cadmin_email_campaign_create",

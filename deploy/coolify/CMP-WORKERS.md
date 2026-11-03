@@ -17,6 +17,7 @@ service (see "Scoring worker" below), not in a scheduled task.
 | reminders | qj3p3gksnxr74mvtqofqdm0k | python manage.py run_cmp_job reminders | daily 09:00 UTC |
 | scoring | — (always-on `worker` service) | python manage.py run_cmp_job scoring | continuous loop, 5s interval |
 | digest | — (piggybacked on outbox) | maybe_send_scheduled_digest() inside process_datamailer_outbox | once per Europe/Berlin day after 09:00 Berlin |
+| genmedia | — (piggybacked on outbox) | maybe_run_scheduled_approval() inside process_datamailer_outbox | once per Europe/Berlin day inside the 20:00 hour |
 
 The digest needs no Coolify task: the minutely outbox tick in the stable
 container sends at most one digest per Europe/Berlin date (07:00 UTC in
@@ -28,6 +29,22 @@ Zero registrations in the window means no email (a `skipped_empty` row is
 recorded). Digest failures never block the outbox; they retry on the next
 minute tick. Manual trigger: `python manage.py send_registration_digest`
 (`--dry-run` prints without sending; `--force` resends with the same keys).
+
+The genmedia evening bulk approval needs no Coolify task either: the
+minutely outbox tick runs at most one approval per Europe/Berlin day
+inside the 20:00 hour (single run across DST — no dual UTC cron needed),
+covering pending Production AI Agents (`production-ai-agents-generative-media`)
+registrations. One `GenmediaApprovalRun` row per Berlin date plus
+`worker_lock` make it idempotent across restarts and rolling overlap.
+Approval stops once 2000 registrations exist for the campaign course
+(a `stopped_at_limit` row records the decision). Approvals use
+`bulk_update`, never `.save()`, so no `ApplicationNotification` rows are
+queued: the run sends NO emails to registrants, and there is no send path
+to Nebius or anyone. The approved list is visible only on the staff-only
+cadmin preview (`registrations/<slug>/genmedia-preview/`, manual CSV
+download). Approval failures never block the outbox; the next minute tick
+retries until the day has its run row. Manual trigger:
+`python manage.py genmedia_nightly_approval` (no-op outside the hour).
 
 Business timezone is explicitly UTC, including reminder selection; no DST
 shift. Coolify server timezone must remain UTC. A failed or missed reminder

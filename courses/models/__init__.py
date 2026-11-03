@@ -1,5 +1,6 @@
 from . import course, project, homework, wrapped  # noqa: F401
 from .application_notification import ApplicationNotification
+from .genmedia_approval import GenmediaApprovalRun
 from .registration_digest import RegistrationDigestSend
 from .scoring_job import ScoringJob, ScoringJobKind, ScoringJobStatus
 
@@ -45,6 +46,7 @@ User = get_user_model()
 
 __all__ = (
     "ApplicationNotification",
+    "GenmediaApprovalRun",
     "RegistrationDigestSend",
     "ScoringJob",
     "ScoringJobKind",

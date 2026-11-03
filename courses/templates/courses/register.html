@@ -192,7 +192,7 @@
               <div class="mt-1 text-sm app-danger-text">{{ field.errors }}</div>
             {% endif %}
           {% else %}
-            <div{% if field.name == 'country' %} class="country-combobox-field"{% endif %}>
+            <div data-registration-field="{{ field.name }}"{% if field.name == 'country' %} class="country-combobox-field"{% endif %}>
               <label for="{{ field.id_for_label }}" class="registration-field-label">
                 {{ field.label }}
               </label>
@@ -239,6 +239,30 @@
 {% block extra_js %}
   {{ block.super }}
   <script src="{% static 'country_combobox.js' %}"></script>
+  {% if campaign.slug == 'production-ai-agents-generative-media' %}
+  <script>
+    // Ukraine region follow-up: visible and required only when the
+    // country combobox says Ukraine; disabled and cleared otherwise so
+    // it never blocks submit and never persists a stale region.
+    (function () {
+      const country = document.querySelector("[data-country-combobox-input]");
+      const region = document.querySelector("[data-ukraine-region-input]");
+      const regionField = region && region.closest("[data-registration-field]");
+      if (!country || !region || !regionField) return;
+      function updateUkraineRegion() {
+        const isUkraine = country.value.trim().toLowerCase() === "ukraine";
+        regionField.hidden = !isUkraine;
+        region.required = isUkraine;
+        region.disabled = !isUkraine;
+        region.setAttribute("aria-required", isUkraine ? "true" : "false");
+        if (!isUkraine) region.value = "";
+      }
+      country.addEventListener("input", updateUkraineRegion);
+      country.addEventListener("change", updateUkraineRegion);
+      updateUkraineRegion();
+    })();
+  </script>
+  {% endif %}
   <script>
     // Client-side "did you mean ...?" hint for common email domain typos.
     // Non-blocking: the server still validates and rejects unknown domains.

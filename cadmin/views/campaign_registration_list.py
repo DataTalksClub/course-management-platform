@@ -5,6 +5,7 @@ from django.core.paginator import Page
 from django.db.models import Q
 from django.http import HttpRequest
 
+from courses.genmedia_policy import CAMPAIGN_SLUG
 from courses.models.course import CourseRegistration, RegistrationCampaign
 
 from .campaign_metrics import registration_campaign_metrics
@@ -85,6 +86,7 @@ def campaign_registrations_context(data):
         "pagination_querystring": querystring,
         "status_choices": CourseRegistration.Status.choices,
         "needs_approval": needs_approval,
+        "genmedia": data.campaign.slug == CAMPAIGN_SLUG,
         "status_tabs": status_tabs(data, metrics, needs_approval),
     }
 
