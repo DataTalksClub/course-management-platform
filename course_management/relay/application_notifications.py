@@ -64,22 +64,28 @@ def notification_context(registration, custom_message=""):
         "registration_campaign",
         kwargs={"campaign_slug": registration.campaign.slug},
     )
+    course_url = base + (
+        reverse("course", kwargs={"course_slug": course.slug})
+        if course
+        else registration_path
+    )
+    github_url = ""
+    if course is not None:
+        github_url = (course.github_repo_url or "").strip()
     message_text = (custom_message or "").strip()
     return {
         "name": (registration.name or "").strip() or "Applicant",
         "applicant_email": registration.email_normalized,
         "campaign_title": registration.campaign.title,
         "course_title": course.title if course else registration.campaign.title,
-        "course_url": base + (
-            reverse("course", kwargs={"course_slug": course.slug})
-            if course else registration_path
-        ),
+        "course_url": course_url,
         "custom_message": message_text,
         "custom_message_html": custom_message_html(message_text),
         "custom_message_text": custom_message_text(message_text),
         "invite_url": (
             base + registration_path + f"?ref={registration.pk}"
         ),
+        "github_url": github_url,
         "review_url": base + reverse(
             "cadmin_campaign_registrations",
             kwargs={"campaign_slug": registration.campaign.slug},
