@@ -49,26 +49,11 @@ class ReferralBonusTests(RegistrationCampaignBase):
         payload["experience"] = "3 years building ML systems"
         return payload
 
-    def test_ref_link_prefills_invited_by_email(self):
-        url = self.campaign_url() + f"?ref={self.inviter_registration.pk}"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        form = response.context["form"]
-        self.assertEqual(
-            form.fields["invited_by_email"].initial,
-            "inviter@example.com",
+    def test_ref_link_registers_referral_silently(self):
+        self.client.get(
+            self.campaign_url() + f"?ref={self.inviter_registration.pk}"
         )
-
-    def test_unknown_ref_is_ignored(self):
-        url = self.campaign_url() + "?ref=999999"
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        form = response.context["form"]
-        self.assertIsNone(form.fields["invited_by_email"].initial)
-
-    def test_registration_with_inviter_sets_referred_by(self):
         payload = self.invitee_payload()
-        payload["invited_by_email"] = "inviter@example.com"
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(self.campaign_url(), payload)
         self.assertEqual(response.status_code, 200)
@@ -78,10 +63,35 @@ class ReferralBonusTests(RegistrationCampaignBase):
         self.assertEqual(
             registration.referred_by, self.inviter_registration
         )
+        self.assertNotIn("invited_by_email", response.context["form"].fields)
 
-    def test_unknown_inviter_email_is_ignored(self):
+    def test_unknown_ref_is_ignored(self):
+        self.client.get(self.campaign_url() + "?ref=999999")
         payload = self.invitee_payload()
-        payload["invited_by_email"] = "stranger@example.com"
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.campaign_url(), payload)
+        self.assertEqual(response.status_code, 200)
+        registration = CourseRegistration.objects.get(
+            email="invitee@example.com"
+        )
+        self.assertIsNone(registration.referred_by)
+
+    def test_other_campaign_ref_is_ignored(self):
+        other = CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="other-campaign@example.com",
+            name="Other",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+        )
+        session = self.client.session
+        session["invite_referrers"] = {
+            str(self.campaign.pk + 9999): other.pk
+        }
+        session.save()
+        payload = self.invitee_payload()
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(self.campaign_url(), payload)
         self.assertEqual(response.status_code, 200)

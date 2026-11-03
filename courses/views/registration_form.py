@@ -219,24 +219,7 @@ class CourseRegistrationForm(forms.ModelForm):
                 "data-ukraine-region-input": "",
             }
         ),
-        help_text="Required when your country is Ukraine.",
     )
-    invited_by_email = forms.EmailField(
-        label="Who invited you? (optional)",
-        required=False,
-        widget=forms.EmailInput(
-            attrs={
-                "class": "form-control",
-                "placeholder": "friend@example.com",
-                "autocomplete": "email",
-            }
-        ),
-        help_text=(
-            "If a friend invited you, enter their email so they earn "
-            "leaderboard points when you are accepted."
-        ),
-    )
-
     class Meta:
         model = CourseRegistration
         fields = [
@@ -369,32 +352,6 @@ class CourseRegistrationForm(forms.ModelForm):
             raise forms.ValidationError("This field is required.")
         return bool(accepted_nebius_sharing)
 
-    def clean_invited_by_email(self):
-        invited_by_email = self.cleaned_data.get("invited_by_email", "")
-        return normalized_registration_email(invited_by_email)
-
-    def resolve_inviter(self):
-        """Match the typed inviter email to a same-campaign registration.
-
-        Unknown emails, other campaigns and self-invites resolve to None
-        without failing the application.
-        """
-        invited_by_email = self.cleaned_data.get("invited_by_email", "")
-        if not invited_by_email or self.campaign is None:
-            return None
-        if invited_by_email == normalized_registration_email(
-            self.cleaned_data.get("email", "")
-        ):
-            return None
-        return (
-            CourseRegistration.objects.filter(
-                campaign=self.campaign,
-                email_normalized=invited_by_email,
-            )
-            .order_by("pk")
-            .first()
-        )
-
     def save(self, commit=True):
         registration = super().save(commit=False)
         registration.campaign = self.campaign
@@ -403,7 +360,6 @@ class CourseRegistrationForm(forms.ModelForm):
         registration.ukraine_region = self.cleaned_data.get(
             "ukraine_region", ""
         )
-        registration.referred_by = self.resolve_inviter()
         if has_authenticated_registration_user(self.user):
             registration.user = self.user
             registration.email = self.user.email

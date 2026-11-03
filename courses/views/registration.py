@@ -89,31 +89,52 @@ def _registration_form(
             user=request.user,
         )
 
-    form = CourseRegistrationForm(campaign=campaign, user=request.user)
-    inviter_email = _invite_prefill_email(request, campaign)
-    if inviter_email:
-        form.fields["invited_by_email"].initial = inviter_email
-    return form
+    return CourseRegistrationForm(campaign=campaign, user=request.user)
 
 
-def _invite_prefill_email(
-    request: HttpRequest,
-    campaign: RegistrationCampaign,
-) -> str | None:
-    """Prefill "who invited you" from a personal invite link (?ref=<id>).
+def remember_invite_click(request: HttpRequest, campaign) -> None:
+    """Track a visit that came from a personal invite link (?ref=<id>).
 
-    Only same-campaign registrations prefill; unknown ids are ignored.
+    Tracked invites only: there is no visible "who invited you" field.
+    The referrer id waits in the session until the application saves.
     """
     raw_ref = (request.GET.get("ref") or "").strip()
     if not raw_ref.isdigit():
-        return None
+        return
     referrer = CourseRegistration.objects.filter(
         campaign=campaign,
         pk=int(raw_ref),
     ).first()
     if referrer is None:
-        return None
-    return referrer.email_normalized or None
+        return
+    invites = request.session.get("invite_referrers", {})
+    invites[str(campaign.pk)] = referrer.pk
+    request.session["invite_referrers"] = invites
+
+
+def attribute_invite_referrer(
+    request: HttpRequest, registration: CourseRegistration
+) -> None:
+    """Stamp referred_by from a tracked invite-link visit, if any.
+
+    Same-campaign invites only; unknown ids and self-invites are
+    silently ignored and never fail the application.
+    """
+    invites = request.session.get("invite_referrers", {})
+    referrer_id = invites.pop(str(registration.campaign_id), None)
+    request.session["invite_referrers"] = invites
+    if not referrer_id or referrer_id == registration.pk:
+        return
+    referrer = CourseRegistration.objects.filter(
+        campaign=registration.campaign,
+        pk=referrer_id,
+    ).first()
+    if referrer is None or referrer.pk == registration.pk:
+        return
+    if referrer.email_normalized == registration.email_normalized:
+        return
+    registration.referred_by = referrer
+    registration.save(update_fields=["referred_by", "updated_at"])
 
 
 @transaction.atomic
@@ -259,6 +280,7 @@ def registration_campaign_view(
     campaign = _active_registration_campaign(campaign_slug)
     if request.method == "GET":
         cross_sell.remember_link_click(request, campaign)
+        remember_invite_click(request, campaign)
     existing_registration = _existing_user_registration(
         request, campaign
     )
@@ -282,6 +304,7 @@ def registration_campaign_view(
             )
         if saved_fresh:
             cross_sell.attribute_link_registration(request, registration)
+            attribute_invite_referrer(request, registration)
             course_slug = ""
             if registration.course_id:
                 course_slug = registration.course.slug
