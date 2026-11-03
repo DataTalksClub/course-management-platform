@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from course_management.observability import record_event
+from course_management.relay.message_format import custom_message_html
 from course_management.worker_lock import worker_lock
 from courses.models.application_notification import ApplicationNotification
 
@@ -60,6 +61,7 @@ def notification_context(registration, custom_message=""):
         "registration_campaign",
         kwargs={"campaign_slug": registration.campaign.slug},
     )
+    message_text = (custom_message or "").strip()
     return {
         "name": (registration.name or "").strip() or "Applicant",
         "applicant_email": registration.email_normalized,
@@ -69,7 +71,8 @@ def notification_context(registration, custom_message=""):
             reverse("course", kwargs={"course_slug": course.slug})
             if course else registration_path
         ),
-        "custom_message": (custom_message or "").strip(),
+        "custom_message": message_text,
+        "custom_message_html": custom_message_html(message_text),
         "invite_url": (
             base + registration_path + f"?ref={registration.pk}"
         ),

@@ -311,3 +311,66 @@ class DecisionCustomMessageMigrationTests(TransactionTestCase):
         finally:
             executor = MigrationExecutor(connection)
             executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+class CustomMessageFormatTests(RegistrationCampaignBase):
+    def test_empty_message_renders_nothing(self):
+        from course_management.relay.message_format import (
+            custom_message_html,
+        )
+
+        self.assertEqual(custom_message_html(""), "")
+        self.assertEqual(custom_message_html("   \n  "), "")
+
+    def test_paragraphs_bold_and_links(self):
+        from course_management.relay.message_format import (
+            custom_message_html,
+        )
+
+        rendered = custom_message_html(
+            "**Hello!** See https://example.com/a?b=1.\n\nSecond line here."
+        )
+        self.assertIn("<p><strong>Hello!</strong> See ", rendered)
+        self.assertIn(
+            '<a href="https://example.com/a?b=1">'
+            "https://example.com/a?b=1</a>.",
+            rendered,
+        )
+        self.assertIn("<p>Second line here.</p>", rendered)
+
+    def test_html_is_escaped(self):
+        from course_management.relay.message_format import (
+            custom_message_html,
+        )
+
+        rendered = custom_message_html('<script>alert("x")</script>')
+        self.assertNotIn("<script>", rendered)
+        self.assertIn(
+            "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;", rendered
+        )
+
+    def test_context_carries_formatted_html(self):
+        from course_management.relay.application_notifications import (
+            notification_context,
+        )
+
+        registration = CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="format@example.com",
+            name="Format",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+        )
+        context = notification_context(
+            registration, custom_message="**Hi!** See https://example.com."
+        )
+        self.assertEqual(
+            context["custom_message_html"],
+            '<p><strong>Hi!</strong> See '
+            '<a href="https://example.com">https://example.com</a>.</p>',
+        )
+        empty = notification_context(registration)
+        self.assertEqual(empty["custom_message_html"], "")
+        self.assertEqual(empty["custom_message"], "")

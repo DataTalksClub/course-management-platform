@@ -85,7 +85,7 @@ APPLICATION_TEMPLATES = {
         "You're accepted: {{ course_title }}",
         "<p>Hi {{ name }},</p>"
         "<p>Your application for <strong>{{ course_title }}</strong> has been accepted. Welcome!</p>"
-        "{% if custom_message %}<p>{{ custom_message|linebreaksbr }}</p>{% endif %}"
+        "{% if custom_message_html %}{{ custom_message_html|safe }}{% endif %}"
         '<p><a href="{{ course_url }}">Open the course workspace</a> and sign in '
         "with the same email address you used for your application to access the course, homework and projects.</p>"
         "<p>Know someone who would love this course? Invite them with your personal link: "
@@ -113,7 +113,7 @@ APPLICATION_TEMPLATES = {
         "Your application: {{ course_title }}",
         "<p>Hi {{ name }},</p>"
         "<p>Thank you for your interest in <strong>{{ course_title }}</strong> and for taking the time to apply.</p>"
-        "{% if custom_message %}<p>{{ custom_message|linebreaksbr }}</p>{% endif %}"
+        "{% if custom_message_html %}{{ custom_message_html|safe }}{% endif %}"
         "<p>We're sorry that we are unable to offer you a place in this cohort. "
         "We appreciate your interest and hope you will join us for a future opportunity.</p>"
         "<p>Best wishes,<br>DataTalks.Club</p>",
@@ -122,6 +122,7 @@ APPLICATION_TEMPLATES = {
         "We're sorry that we are unable to offer you a place in this cohort. "
         "We appreciate your interest and hope you will join us for a future opportunity.\n\n"
         "Best wishes,\nDataTalks.Club",
-        ["name", "course_title", "custom_message"],
+        # custom_message intentionally not required: see approved above.
+        ["name", "course_title"],
     ),
 }
