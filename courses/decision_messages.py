@@ -26,11 +26,8 @@ APPROVAL_MESSAGE_LAUNCH = (
     "\n"
     "**Invite friends, earn points:** share your personal invite link "
     "below — you'll earn 1 leaderboard point for each invitee who gets "
-    "accepted.\n"
-    "\n"
-    "**Share the news:** post "
-    "'I was accepted to Production AI Agents for Generative Media — "
-    "see you in class!' on LinkedIn or X so others can join too."
+    "accepted. There is a copy-paste invite and an example LinkedIn/X "
+    "post further down in this email."
 )
 
 APPROVAL_MESSAGE_PERIODIC = (
@@ -43,11 +40,8 @@ APPROVAL_MESSAGE_PERIODIC = (
     "\n"
     "**Invite friends, earn points:** share your personal invite link "
     "below — you'll earn 1 leaderboard point for each invitee who gets "
-    "accepted.\n"
-    "\n"
-    "**Share the news:** post "
-    "'I was accepted to Production AI Agents for Generative Media — "
-    "see you in class!' on LinkedIn or X so others can join too."
+    "accepted. There is a copy-paste invite and an example LinkedIn/X "
+    "post further down in this email."
 )
 
 REJECTION_MESSAGE_LOCATION = (

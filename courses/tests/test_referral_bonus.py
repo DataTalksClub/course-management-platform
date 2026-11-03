@@ -191,6 +191,8 @@ class ReferralBonusTests(RegistrationCampaignBase):
         ]
         self.assertIn("invite_url", field_names)
         self.assertIn("invite_url", draft["html_body"])
+        self.assertIn("Posting publicly", draft["html_body"])
+        self.assertIn("Posting publicly", draft["text_body"])
 
     def test_course_page_shows_invite_link_to_approved(self):
         approve_registration(self.inviter_registration)

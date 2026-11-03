@@ -94,6 +94,10 @@ APPLICATION_TEMPLATES = {
         "<p>Copy-paste starter (make it your own voice &mdash; personal invites work best):</p>"
         '<p><i>&ldquo;I got accepted to {{ course_title }}. Join me &mdash; apply here: '
         "{{ invite_url }}&rdquo;</i></p>"
+        "<p>Posting publicly? Here is an example post (make it your own):</p>"
+        '<p><i>&ldquo;Excited to share: I got accepted to {{ course_title }} by DataTalks.Club! '
+        "I will be learning to build and ship production-ready GenAI systems &mdash; containers, GPUs, "
+        'real workloads. Join me: {{ invite_url }} #GenAI #MachineLearning&rdquo;</i></p>'
         "<p>We look forward to learning with you.<br>DataTalks.Club</p>",
         "Hi {{ name }},\n\nYour application for {{ course_title }} has been accepted. Welcome!\n\n"
         "{% if custom_message %}{{ custom_message }}\n\n{% endif %}"
@@ -103,6 +107,10 @@ APPLICATION_TEMPLATES = {
         "you will earn 1 leaderboard point for each invitee who gets accepted.\n\n"
         "Copy-paste starter (make it your own voice — personal invites work best):\n"
         '"I got accepted to {{ course_title }}. Join me — apply here: {{ invite_url }}"\n\n'
+        "Posting publicly? Here is an example post (make it your own):\n"
+        '"Excited to share: I got accepted to {{ course_title }} by DataTalks.Club! '
+        "I will be learning to build and ship production-ready GenAI systems — containers, GPUs, "
+        'real workloads. Join me: {{ invite_url }} #GenAI #MachineLearning"\n\n'
         "We look forward to learning with you.\nDataTalks.Club",
         # custom_message intentionally not required: empty (plain approval
         # emails) must validate. The {% if %} block skips it when empty.
