@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/bin"
-export MAIL_LOG="$TMP/mail" BODY_LOG="$TMP/body" DOCKER_LOG="$TMP/docker"
+export MAIL_LOG="$TMP/mail" BODY_LOG="$TMP/body" DOCKER_LOG="$TMP/docker" LOGGER_LOG="$TMP/logger"
 export PATH="$TMP/bin:$PATH" DATAMAILER_BIN="$TMP/bin/datamailer"
 cat > "$TMP/bin/datamailer" <<'STUB'
 #!/bin/bash
@@ -18,8 +18,33 @@ cat > "$TMP/bin/docker" <<'STUB'
 #!/bin/bash
 printf '%s\n' "$*" >> "$DOCKER_LOG"
 case "$1" in
- ps) if [[ "$*" == *'status=created'* ]]; then echo fake-created; else echo web-avcfd5kwb7cj9r1tx4ygjs6v-test; fi ;;
- exec) exit "${CHECK_FAIL:-1}" ;;
+ ps)
+   if [[ "$*" == *'status=created'* ]]; then echo fake-created
+   elif [[ "${CONTAINER_MODE:-single}" == none ]]; then :
+   elif [[ "${CONTAINER_MODE:-single}" == mixed ]]; then
+     printf '%s\n' web-avcfd5kwb7cj9r1tx4ygjs6v-bad web-avcfd5kwb7cj9r1tx4ygjs6v-good
+   else echo web-avcfd5kwb7cj9r1tx4ygjs6v-test; fi ;;
+ exec)
+   case "${CHECK_MODE:-alarm}:$2" in
+     mixed:web-avcfd5kwb7cj9r1tx4ygjs6v-bad)
+       printf '%s\n' '{"status":"warning","alarms":["outbox:failed"]}'
+       exit 1 ;;
+     mixed:web-avcfd5kwb7cj9r1tx4ygjs6v-good|ok:*)
+       printf '%s\n' '{"status":"ok","alarms":[]}'
+       exit 0 ;;
+     secret:*)
+       printf '%s\n' '{"status":"ok","alarms":["SECRET_PERSONAL_DATA"]}'
+       echo SECRET_STDERR_SENTINEL >&2
+       exit 0 ;;
+     timeout:*) exit 124 ;;
+     *)
+       if [[ "${CHECK_FAIL:-1}" == 0 ]]; then
+         printf '%s\n' '{"status":"ok","alarms":[]}'
+         exit 0
+       fi
+       printf '%s\n' '{"status":"warning","alarms":["outbox:failed"]}'
+       exit 1 ;;
+   esac ;;
  inspect)
    case "$3" in
      '{{.Name}}') echo /fake-created ;;
@@ -29,17 +54,19 @@ case "$1" in
  start) exit 0 ;;
 esac
 STUB
-printf '#!/bin/bash\nexit 0\n' > "$TMP/bin/logger"
+printf '#!/bin/bash\nprintf "%%s\\n" "$*" >> "$LOGGER_LOG"\n' > "$TMP/bin/logger"
 chmod +x "$TMP/bin/"*
 export CMP_MONITOR_STATE="$TMP/workers" CMP_ALERT_TO='ops@example.com,dev@dtcdev.click'
 export DATAMAILER_API_KEY=must-not-override-monitor-client DATAMAILER_URL=https://must-not-override.invalid
 # First failure is suppressed; second triggers exactly the configured recipients.
 bash "$SCRIPT_DIR/check-workers.sh"
 [[ ! -f "$MAIL_LOG" && "$(cat "$CMP_MONITOR_STATE/consecutive-failures")" == 1 ]]
+grep -q 'category=check_failed alarms=outbox:failed' "$LOGGER_LOG"
 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
 [[ "$(wc -l < "$MAIL_LOG")" == 2 ]]
 grep -q -- 'send --from alerts --to ops@example.com --subject CMP workers alarm' "$MAIL_LOG"
 grep -q -- '--to dev@dtcdev.click' "$MAIL_LOG"
+grep -q 'category=check_failed; alarms=outbox:failed' "$BODY_LOG"
 cp "$MAIL_LOG" "$TMP/before"
 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
 cmp "$TMP/before" "$MAIL_LOG"
@@ -52,6 +79,26 @@ rm -rf "$CMP_MONITOR_STATE"; rm "$MAIL_LOG"
 MAIL_FAIL=1 CMP_FAIL_THRESHOLD=1 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
 [[ ! -f "$CMP_MONITOR_STATE/last-alert" ]]
 echo 'PASS: failed Relay requests do not advance alert timestamp'
+# A failed check is diagnosed with fixed categories and validated codes only.
+rm -rf "$CMP_MONITOR_STATE"; rm -f "$MAIL_LOG" "$BODY_LOG" "$LOGGER_LOG"
+CHECK_MODE=secret CMP_FAIL_THRESHOLD=1 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
+grep -q 'category=invalid_response alarms=none' "$LOGGER_LOG"
+! grep -Eq 'SECRET_PERSONAL_DATA|SECRET_STDERR_SENTINEL' "$LOGGER_LOG" "$BODY_LOG" "$MAIL_LOG"
+echo 'PASS: malformed output is redacted from logs and alerts'
+# During a rolling replacement, one valid container remains sufficient.
+rm -rf "$CMP_MONITOR_STATE"; rm -f "$MAIL_LOG" "$LOGGER_LOG"
+CONTAINER_MODE=mixed CHECK_MODE=mixed bash "$SCRIPT_DIR/check-workers.sh"
+[[ "$(cat "$CMP_MONITOR_STATE/status")" == ok && "$(cat "$CMP_MONITOR_STATE/consecutive-failures")" == 0 ]]
+[[ ! -f "$MAIL_LOG" ]]
+echo 'PASS: mixed rolling containers preserve any-success semantics'
+# Fixed categories cover an empty container set and timeout failures.
+rm -rf "$CMP_MONITOR_STATE"; rm -f "$LOGGER_LOG"
+CONTAINER_MODE=none CMP_FAIL_THRESHOLD=1 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
+grep -q 'category=no_container alarms=none' "$LOGGER_LOG"
+rm -rf "$CMP_MONITOR_STATE"; rm -f "$LOGGER_LOG"
+CHECK_MODE=timeout CMP_FAIL_THRESHOLD=1 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
+grep -q 'category=timeout alarms=none' "$LOGGER_LOG"
+echo 'PASS: no-container and timeout failures use fixed categories'
 # Created-container heal sends through Relay and keeps dedupe/dry-run behavior.
 export STATE_DIR="$TMP/created" ALERT_TO=custom@example.com
 rm "$MAIL_LOG"
