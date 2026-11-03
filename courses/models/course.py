@@ -3,6 +3,7 @@ from django.core.validators import URLValidator
 from django.db import models
 
 from accounts.models import CustomUser
+from courses.genmedia_policy import UKRAINE_REGION_CHOICES, excluded_reason
 from courses.random_names import generate_random_name
 
 from .start_time import StartTimeModel
@@ -280,6 +281,14 @@ class CourseRegistration(models.Model):
     company_name = models.CharField(max_length=255, blank=True)
     country = models.CharField(max_length=100)
     region = models.CharField(max_length=100)
+    ukraine_region = models.CharField(
+        max_length=32,
+        choices=UKRAINE_REGION_CHOICES,
+        blank=True,
+        default="",
+        help_text="Region selected when applying from Ukraine "
+        + "for the generative media course.",
+    )
     role = models.CharField(max_length=40, choices=Role.choices)
     comment = models.TextField(blank=True)
     accepted_newsletter = models.BooleanField(default=False)
@@ -396,6 +405,11 @@ class CourseRegistration(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    auto_approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When nightly policy auto-approved this registration.",
+    )
 
     class Meta:
         unique_together = ["campaign", "email_normalized"]
@@ -439,6 +453,15 @@ class CourseRegistration(models.Model):
     def confirmation_management_token(self):
         from courses.registration_confirmation import management_token
         return management_token(self)
+
+    @property
+    def genmedia_excluded_reason(self) -> str:
+        """Eligibility flag for the Production AI Agents campaign.
+
+        "" for eligible applicants, otherwise "country"/"Ukraine region".
+        Callers scope display/enforcement to the genmedia campaign.
+        """
+        return excluded_reason(self)
 
     def __str__(self):
         return f"{self.email_normalized} registered for {self.campaign}"

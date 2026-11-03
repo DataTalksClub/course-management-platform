@@ -258,9 +258,12 @@ class CourseRegistrationAdmin(ModelAdmin):
         "course",
         "company_name",
         "country",
+        "ukraine_region",
+        "automation_exclusion",
         "region",
         "role",
         "status",
+        "auto_approved_at",
         "created_at",
     ]
     search_fields = ["email", "email_normalized", "name", "company_name"]
@@ -268,6 +271,7 @@ class CourseRegistrationAdmin(ModelAdmin):
         "campaign",
         "course",
         "region",
+        "ukraine_region",
         "role",
         "status",
         "source",
@@ -277,6 +281,7 @@ class CourseRegistrationAdmin(ModelAdmin):
         "email_normalized",
         "created_at",
         "updated_at",
+        "auto_approved_at",
     ]
     fieldsets = [
         (
@@ -291,6 +296,7 @@ class CourseRegistrationAdmin(ModelAdmin):
                     "name",
                     "company_name",
                     "country",
+                    "ukraine_region",
                     "region",
                     "role",
                     "comment",
@@ -322,10 +328,20 @@ class CourseRegistrationAdmin(ModelAdmin):
             "Timestamps",
             {
                 "classes": ["collapse"],
-                "fields": ["created_at", "updated_at"],
+                "fields": ["created_at", "updated_at", "auto_approved_at"],
             },
         ),
     ]
+
+    @admin.display(description="Automation exclusion", empty_value="—")
+    def automation_exclusion(self, obj):
+        from courses.genmedia_policy import CAMPAIGN_SLUG, excluded_reason
+
+        campaign = getattr(obj, "campaign", None)
+        if campaign is not None and campaign.slug == CAMPAIGN_SLUG:
+            reason = excluded_reason(obj)
+            return f"excluded: {reason}" if reason else ""
+        return ""
 
 
 @admin.register(LeaderboardComplaint)

@@ -1,6 +1,8 @@
 from django.contrib import messages
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
+from courses.genmedia_policy import CAMPAIGN_SLUG
 from courses.models.course import CourseRegistration, RegistrationCampaign
 from courses.registration_wall import approve_registration
 from cadmin.forms import RegistrationCampaignForm
@@ -142,6 +144,97 @@ def campaign_registration_decide(request, campaign_slug):
 
 
 @staff_required
+def campaign_genmedia_preview(request, campaign_slug):
+    """Staff-only daily approved-list preview for Nebius.
+
+    Shows the latest Europe/Berlin day of nightly auto-approvals with a
+    manual CSV download. There is deliberately no POST action and no
+    auto-send: nothing here emails registrants, Nebius, or anyone.
+    """
+    import csv
+    from datetime import datetime, time, timedelta
+    from zoneinfo import ZoneInfo
+
+    from django.http import HttpResponse
+    from django.utils import timezone
+
+    from courses.genmedia_policy import AUTO_APPROVAL_TIMEZONE
+    from courses.models.genmedia_approval import GenmediaApprovalRun
+
+    campaigns = RegistrationCampaign.objects.select_related("current_course")
+    campaign = get_object_or_404(campaigns, slug=campaign_slug)
+    if campaign.slug != CAMPAIGN_SLUG:
+        raise Http404("No Nebius preview for this campaign.")
+
+    zone = ZoneInfo(AUTO_APPROVAL_TIMEZONE)
+    auto_approved = CourseRegistration.objects.filter(
+        campaign=campaign,
+        course_id=campaign.current_course_id,
+        auto_approved_at__isnull=False,
+    )
+    latest = auto_approved.order_by("-auto_approved_at").first()
+    local_date = None
+    registrations = CourseRegistration.objects.none()
+    if latest is not None:
+        local_date = timezone.localtime(
+            latest.auto_approved_at, zone
+        ).date()
+        local_start = timezone.make_aware(
+            datetime.combine(local_date, time.min), zone
+        )
+        local_end = timezone.make_aware(
+            datetime.combine(local_date + timedelta(days=1), time.min),
+            zone,
+        )
+        registrations = auto_approved.filter(
+            auto_approved_at__gte=local_start,
+            auto_approved_at__lt=local_end,
+        ).order_by("auto_approved_at", "pk")
+
+    if request.GET.get("format") == "csv":
+        filename_date = local_date.isoformat() if local_date else "empty"
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="genmedia-approved-{filename_date}.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow(
+            ("name", "email", "country", "ukraine_region", "approved_at")
+        )
+        for registration in registrations:
+            writer.writerow(
+                (
+                    registration.name,
+                    registration.email_normalized,
+                    registration.country,
+                    registration.get_ukraine_region_display(),
+                    timezone.localtime(
+                        registration.auto_approved_at, zone
+                    ).isoformat(),
+                )
+            )
+        return response
+
+    context = {
+        "campaign": campaign,
+        "registrations": registrations,
+        "local_date": local_date,
+        "runs": GenmediaApprovalRun.objects.order_by("-date")[:14],
+        "approved_total": CourseRegistration.objects.filter(
+            campaign=campaign,
+            course_id=campaign.current_course_id,
+            status=CourseRegistration.Status.APPROVED,
+        ).count(),
+        "pending_total": CourseRegistration.objects.filter(
+            campaign=campaign,
+            course_id=campaign.current_course_id,
+            status=CourseRegistration.Status.PENDING,
+        ).count(),
+    }
+    return render(request, "cadmin/campaign_genmedia_preview.html", context)
+
+
+@staff_required
 def campaign_registrations_export(request, campaign_slug):
     import csv
 
@@ -169,8 +262,11 @@ def campaign_registrations_export(request, campaign_slug):
             "company_name",
             "country",
             "region",
+            "ukraine_region",
+            "excluded_reason",
             "role",
             "status",
+            "auto_approved_at",
             "experience",
             "years_experience",
             "why_join",
@@ -194,8 +290,15 @@ def campaign_registrations_export(request, campaign_slug):
                 registration.company_name,
                 registration.country,
                 registration.region,
+                registration.ukraine_region,
+                registration.genmedia_excluded_reason,
                 registration.role,
                 registration.status,
+                (
+                    registration.auto_approved_at.isoformat()
+                    if registration.auto_approved_at
+                    else ""
+                ),
                 registration.experience,
                 registration.years_experience,
                 registration.why_join,

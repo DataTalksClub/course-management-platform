@@ -28,6 +28,11 @@
     <a href="{% url 'cadmin_campaign_registrations_export' campaign.slug %}{% if pagination_querystring %}?{{ pagination_querystring }}{% endif %}" class="primer-button primer-button-secondary">
       <i class="fas fa-download" aria-hidden="true"></i> Export CSV
     </a>
+    {% if genmedia %}
+    <a href="{% url 'cadmin_campaign_genmedia_preview' campaign.slug %}" class="primer-button primer-button-secondary">
+      <i class="fas fa-eye" aria-hidden="true"></i> Nebius preview
+    </a>
+    {% endif %}
     <a href="/admin/courses/registrationcampaign/{{ campaign.id }}/change/" class="primer-button primer-button-secondary">
       <i class="fas fa-edit" aria-hidden="true"></i> Django
     </a>
@@ -155,6 +160,17 @@
               {% if registration.linkedin_url %}<a href="{{ registration.linkedin_url }}" target="_blank" rel="noopener noreferrer" class="app-link">LinkedIn</a>{% endif %}
               {% if registration.github_url %}<a href="{{ registration.github_url }}" target="_blank" rel="noopener noreferrer" class="app-link">GitHub</a>{% endif %}
             </p>
+          {% endif %}
+          {% if genmedia %}
+            {% if registration.ukraine_region %}
+              <p class="mt-1 text-xs app-muted">Ukraine: {{ registration.get_ukraine_region_display }}</p>
+            {% endif %}
+            {% if registration.genmedia_excluded_reason %}
+              <p class="mt-1 text-xs font-semibold app-danger-text">Excluded: {{ registration.genmedia_excluded_reason }}</p>
+            {% endif %}
+            {% if registration.auto_approved_at %}
+              <p class="mt-1 text-xs app-muted">Auto-approved {{ registration.auto_approved_at|date:"M j, Y H:i" }}</p>
+            {% endif %}
           {% endif %}
         </div>
         <div class="min-w-0 space-y-1">

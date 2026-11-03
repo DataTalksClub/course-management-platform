@@ -4,6 +4,7 @@ from courses.email_validation import (
     email_domain_has_mx,
     suggest_email_correction,
 )
+from courses.genmedia_policy import CAMPAIGN_SLUG, UKRAINE_REGION_CHOICES
 from courses.models.course import CourseRegistration
 from courses.registration import region_for_country
 from courses.views.registration_profile import (
@@ -208,6 +209,18 @@ class CourseRegistrationForm(forms.ModelForm):
         widget=ACCEPTED_NEWSLETTER_WIDGET,
         help_text="Required for application-review courses.",
     )
+    ukraine_region = forms.ChoiceField(
+        label="Which part of Ukraine do you live in?",
+        required=False,
+        choices=UKRAINE_REGION_CHOICES,
+        widget=forms.Select(
+            attrs={
+                "class": "form-control",
+                "data-ukraine-region-input": "",
+            }
+        ),
+        help_text="Required when your country is Ukraine.",
+    )
 
     class Meta:
         model = CourseRegistration
@@ -216,6 +229,7 @@ class CourseRegistrationForm(forms.ModelForm):
             "name",
             "company_name",
             "country",
+            "ukraine_region",
             "role",
             "experience",
             "years_experience",
@@ -245,7 +259,15 @@ class CourseRegistrationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         configure_registration_form_fields(self)
         configure_authenticated_registration_user(self, self.user)
+        if not self.is_genmedia_campaign():
+            self.fields.pop("ukraine_region", None)
         self.apply_registration_wall_requirements()
+
+    def is_genmedia_campaign(self):
+        return (
+            self.campaign is not None
+            and self.campaign.slug == CAMPAIGN_SLUG
+        )
 
     def campaign_has_registration_wall(self):
         campaign = self.campaign
@@ -302,6 +324,18 @@ class CourseRegistrationForm(forms.ModelForm):
             raise forms.ValidationError("Select a valid country.")
         return country
 
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.is_genmedia_campaign():
+            if cleaned_data.get("country", "").strip().casefold() == "ukraine":
+                if not cleaned_data.get("ukraine_region"):
+                    self.add_error(
+                        "ukraine_region", "Select your region or oblast."
+                    )
+            else:
+                cleaned_data["ukraine_region"] = ""
+        return cleaned_data
+
     def clean_accepted_newsletter(self):
         accepted_newsletter = self.cleaned_data["accepted_newsletter"]
         if not accepted_newsletter:
@@ -325,6 +359,9 @@ class CourseRegistrationForm(forms.ModelForm):
         registration.campaign = self.campaign
         registration.course = self.campaign.current_course
         registration.region = region_for_country(registration.country)
+        registration.ukraine_region = self.cleaned_data.get(
+            "ukraine_region", ""
+        )
         if has_authenticated_registration_user(self.user):
             registration.user = self.user
             registration.email = self.user.email

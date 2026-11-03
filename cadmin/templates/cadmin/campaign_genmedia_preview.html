@@ -1,0 +1,65 @@
+{% extends 'cadmin/base.html' %}
+
+{% block breadcrumbs %}
+  <li><a href="{% url 'cadmin_course_list' %}">Course Admin</a></li>
+  <li><a href="{% url 'cadmin_campaign_registrations' campaign.slug %}">{{ campaign.title }} registrations</a></li>
+  <li>Nebius preview</li>
+{% endblock %}
+
+{% block cadmin_content %}
+<section class="cadmin-page-header border-b app-border pb-5">
+  <div class="min-w-0">
+    <p class="text-xs font-semibold uppercase tracking-wide app-muted">Staff only · no auto-send</p>
+    <h1 class="mt-1 text-2xl font-semibold app-heading md:text-3xl">Nebius approved-list preview</h1>
+    <p class="mt-1 text-sm app-muted">
+      {{ campaign.title }} · {{ approved_total }} approved · {{ pending_total }} pending.
+      This page never emails anyone: share the list with Nebius manually.
+    </p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    {% if local_date %}
+    <a href="?format=csv" class="primer-button primer-button-secondary">
+      <i class="fas fa-download" aria-hidden="true"></i> Download CSV
+    </a>
+    {% endif %}
+    <a href="{% url 'cadmin_campaign_registrations' campaign.slug %}" class="primer-button primer-button-secondary">
+      Back to registrations
+    </a>
+  </div>
+</section>
+
+<section class="mt-5">
+  {% if local_date %}
+    <p class="text-sm app-muted">Latest nightly approval date: <strong class="app-heading">{{ local_date }}</strong> (Europe/Berlin)</p>
+    <div class="mt-3 divide-y app-divide border-t app-border">
+      {% for registration in registrations %}
+        <div class="grid gap-2 py-3 text-sm md:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_10rem] md:gap-3">
+          <div class="min-w-0">
+            <p class="truncate font-medium app-heading">{{ registration.name }}</p>
+            <p class="truncate app-muted">{{ registration.email_normalized }}</p>
+          </div>
+          <div class="min-w-0">
+            <p class="truncate">{{ registration.country }}{% if registration.ukraine_region %} · {{ registration.get_ukraine_region_display }}{% endif %}</p>
+          </div>
+          <div class="text-xs app-muted">{{ registration.auto_approved_at|date:"M j, Y H:i" }}</div>
+        </div>
+      {% empty %}
+        <p class="py-4 text-sm app-muted">No registrations were auto-approved on {{ local_date }}.</p>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="py-4 text-sm app-muted">No nightly approval preview has been generated yet.</p>
+  {% endif %}
+</section>
+
+{% if runs %}
+<section class="mt-6 border-t app-border pt-5">
+  <h2 class="text-base font-semibold app-heading">Recent nightly runs</h2>
+  <div class="mt-2 divide-y app-divide">
+    {% for run in runs %}
+      <p class="py-2 text-sm app-muted">{{ run.date }} · {{ run.get_status_display }} · {{ run.approved_count }} approved · {{ run.excluded_count }} excluded</p>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
