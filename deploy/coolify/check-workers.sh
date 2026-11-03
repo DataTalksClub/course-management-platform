@@ -45,8 +45,11 @@ evaluation=alarm
 # allowlisted alarm codes are ever sent to syslog or Relay.
 diagnostic_dir=$(mktemp -d "${TMPDIR:-/tmp}/cmp-worker-check.XXXXXX")
 trap 'rm -rf "$diagnostic_dir"' EXIT
-diagnostic_category=no_container
+diagnostic_categories=()
 diagnostic_alarms=()
+if ((${#containers[@]} == 0)); then
+  diagnostic_categories+=(no_container)
+fi
 # During a normal rolling release two containers may coexist. They share
 # the same durable worker timestamps; a successful check on either is enough.
 for container in "${containers[@]}"; do
@@ -57,11 +60,11 @@ for container in "${containers[@]}"; do
   command_status=${PIPESTATUS[0]}
   set -e
   if (( command_status == 124 )); then
-    diagnostic_category=timeout
+    diagnostic_categories+=(timeout)
     continue
   fi
   if (( command_status != 0 && command_status != 1 )); then
-    diagnostic_category=check_failed
+    diagnostic_categories+=(check_failed)
     continue
   fi
 
@@ -77,6 +80,7 @@ allowed_codes = {
     "outbox:backlog_age",
     "application_notifications:failed",
     "application_notifications:backlog_age",
+    "scoring:backlog_age",
     "scoring:stuck",
 }
 
@@ -115,14 +119,14 @@ PY
     evaluation=ok
     break
   elif [[ "$parsed" == invalid_response ]]; then
-    diagnostic_category=invalid_response
+    diagnostic_categories+=(invalid_response)
   elif [[ "$parsed" == check_failed$'\t'* ]]; then
-    diagnostic_category=check_failed
+    diagnostic_categories+=(check_failed)
     codes=${parsed#*$'\t'}
     IFS=',' read -r -a parsed_codes <<< "$codes"
     diagnostic_alarms+=("${parsed_codes[@]}")
   else
-    diagnostic_category=check_failed
+    diagnostic_categories+=(check_failed)
   fi
 done
 previous=$(cat "$state_dir/status" 2>/dev/null || echo "ok")
@@ -141,7 +145,8 @@ else
   consecutive_fails=$((consecutive_fails + 1))
   echo "$consecutive_fails" > "$state_dir/consecutive-failures"
   alarm_summary=$(printf '%s\n' "${diagnostic_alarms[@]}" | sort -u | head -n 16 | paste -sd, -)
-  logger -t cmp-workers "CMP worker check failed category=${diagnostic_category} alarms=${alarm_summary:-none}"
+  category_summary=$(printf '%s\n' "${diagnostic_categories[@]}" | sort -u | head -n 4 | paste -sd, -)
+  logger -t cmp-workers "CMP worker check failed categories=${category_summary:-check_failed} alarms=${alarm_summary:-none}"
   if [[ "$consecutive_fails" -ge "$fail_threshold" ]]; then
     status=alarm
   else
@@ -153,7 +158,7 @@ if [[ "$status" != "$previous" || ( "$status" == alarm && $((now-last)) -ge 3600
   logger -t cmp-workers "CMP_WORKERS_${status^^}"
   if [[ "$status" == alarm || "$previous" == alarm ]]; then
     if [[ "$status" == alarm ]]; then
-      alert_detail="category=${diagnostic_category}; alarms=${alarm_summary:-none}"
+      alert_detail="categories=${category_summary:-check_failed}; alarms=${alarm_summary:-none}"
       relay_alert "$alert_to" "CMP workers $status" "CMP worker success or backlog age check: $status ($alert_detail)"
     else
       relay_alert "$alert_to" "CMP workers $status" "CMP worker success or backlog age check: $status"

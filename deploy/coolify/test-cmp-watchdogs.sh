@@ -23,9 +23,17 @@ case "$1" in
    elif [[ "${CONTAINER_MODE:-single}" == none ]]; then :
    elif [[ "${CONTAINER_MODE:-single}" == mixed ]]; then
      printf '%s\n' web-avcfd5kwb7cj9r1tx4ygjs6v-bad web-avcfd5kwb7cj9r1tx4ygjs6v-good
+   elif [[ "${CONTAINER_MODE:-single}" == forward ]]; then
+     printf '%s\n' web-avcfd5kwb7cj9r1tx4ygjs6v-bad web-avcfd5kwb7cj9r1tx4ygjs6v-timeout
+   elif [[ "${CONTAINER_MODE:-single}" == reversed ]]; then
+     printf '%s\n' web-avcfd5kwb7cj9r1tx4ygjs6v-timeout web-avcfd5kwb7cj9r1tx4ygjs6v-bad
    else echo web-avcfd5kwb7cj9r1tx4ygjs6v-test; fi ;;
  exec)
    case "${CHECK_MODE:-alarm}:$2" in
+     mixed-failures:*bad)
+       printf '%s\n' '{"status":"warning","alarms":["outbox:failed"]}'
+       exit 1 ;;
+     mixed-failures:*timeout) exit 124 ;;
      mixed:web-avcfd5kwb7cj9r1tx4ygjs6v-bad)
        printf '%s\n' '{"status":"warning","alarms":["outbox:failed"]}'
        exit 1 ;;
@@ -37,6 +45,9 @@ case "$1" in
        echo SECRET_STDERR_SENTINEL >&2
        exit 0 ;;
      timeout:*) exit 124 ;;
+     all-codes:*)
+       printf '%s\n' '{"status":"warning","alarms":["outbox:success_stale","outbox:failed","health:success_stale","health:failed","reminders:success_stale","reminders:failed","digest:success_stale","digest:failed","scoring:success_stale","scoring:failed","outbox:backlog_age","application_notifications:failed","application_notifications:backlog_age","scoring:backlog_age","scoring:stuck"]}'
+       exit 1 ;;
      *)
        if [[ "${CHECK_FAIL:-1}" == 0 ]]; then
          printf '%s\n' '{"status":"ok","alarms":[]}'
@@ -61,12 +72,12 @@ export DATAMAILER_API_KEY=must-not-override-monitor-client DATAMAILER_URL=https:
 # First failure is suppressed; second triggers exactly the configured recipients.
 bash "$SCRIPT_DIR/check-workers.sh"
 [[ ! -f "$MAIL_LOG" && "$(cat "$CMP_MONITOR_STATE/consecutive-failures")" == 1 ]]
-grep -q 'category=check_failed alarms=outbox:failed' "$LOGGER_LOG"
+grep -q 'categories=check_failed alarms=outbox:failed' "$LOGGER_LOG"
 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
 [[ "$(wc -l < "$MAIL_LOG")" == 2 ]]
 grep -q -- 'send --from alerts --to ops@example.com --subject CMP workers alarm' "$MAIL_LOG"
 grep -q -- '--to dev@dtcdev.click' "$MAIL_LOG"
-grep -q 'category=check_failed; alarms=outbox:failed' "$BODY_LOG"
+grep -q 'categories=check_failed; alarms=outbox:failed' "$BODY_LOG"
 cp "$MAIL_LOG" "$TMP/before"
 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
 cmp "$TMP/before" "$MAIL_LOG"
@@ -82,9 +93,15 @@ echo 'PASS: failed Relay requests do not advance alert timestamp'
 # A failed check is diagnosed with fixed categories and validated codes only.
 rm -rf "$CMP_MONITOR_STATE"; rm -f "$MAIL_LOG" "$BODY_LOG" "$LOGGER_LOG"
 CHECK_MODE=secret CMP_FAIL_THRESHOLD=1 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
-grep -q 'category=invalid_response alarms=none' "$LOGGER_LOG"
+grep -q 'categories=invalid_response alarms=none' "$LOGGER_LOG"
 ! grep -Eq 'SECRET_PERSONAL_DATA|SECRET_STDERR_SENTINEL' "$LOGGER_LOG" "$BODY_LOG" "$MAIL_LOG"
 echo 'PASS: malformed output is redacted from logs and alerts'
+# Every code emitted by check_cmp_workers is accepted and retained for diagnosis.
+rm -rf "$CMP_MONITOR_STATE"; rm -f "$MAIL_LOG" "$BODY_LOG" "$LOGGER_LOG"
+CHECK_MODE=all-codes CMP_FAIL_THRESHOLD=1 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
+expected_alarms='application_notifications:backlog_age,application_notifications:failed,digest:failed,digest:success_stale,health:failed,health:success_stale,outbox:backlog_age,outbox:failed,outbox:success_stale,reminders:failed,reminders:success_stale,scoring:backlog_age,scoring:failed,scoring:stuck,scoring:success_stale'
+grep -Fq "categories=check_failed; alarms=$expected_alarms" "$BODY_LOG"
+echo 'PASS: all emitted alarm codes pass validation and appear in diagnostics'
 # During a rolling replacement, one valid container remains sufficient.
 rm -rf "$CMP_MONITOR_STATE"; rm -f "$MAIL_LOG" "$LOGGER_LOG"
 CONTAINER_MODE=mixed CHECK_MODE=mixed bash "$SCRIPT_DIR/check-workers.sh"
@@ -94,11 +111,22 @@ echo 'PASS: mixed rolling containers preserve any-success semantics'
 # Fixed categories cover an empty container set and timeout failures.
 rm -rf "$CMP_MONITOR_STATE"; rm -f "$LOGGER_LOG"
 CONTAINER_MODE=none CMP_FAIL_THRESHOLD=1 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
-grep -q 'category=no_container alarms=none' "$LOGGER_LOG"
+grep -q 'categories=no_container alarms=none' "$LOGGER_LOG"
 rm -rf "$CMP_MONITOR_STATE"; rm -f "$LOGGER_LOG"
 CHECK_MODE=timeout CMP_FAIL_THRESHOLD=1 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
-grep -q 'category=timeout alarms=none' "$LOGGER_LOG"
+grep -q 'categories=timeout alarms=none' "$LOGGER_LOG"
 echo 'PASS: no-container and timeout failures use fixed categories'
+# Failed-container category diagnostics are order independent.
+rm -f "$MAIL_LOG" "$BODY_LOG" "$LOGGER_LOG"
+CONTAINER_MODE=forward CHECK_MODE=mixed-failures CMP_MONITOR_STATE="$TMP/forward" \
+  CMP_FAIL_THRESHOLD=1 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
+cp "$BODY_LOG" "$TMP/forward-body"
+rm -f "$MAIL_LOG" "$BODY_LOG" "$LOGGER_LOG"
+CONTAINER_MODE=reversed CHECK_MODE=mixed-failures CMP_MONITOR_STATE="$TMP/reversed" \
+  CMP_FAIL_THRESHOLD=1 bash "$SCRIPT_DIR/check-workers.sh" && exit 1
+grep -Fq 'categories=check_failed,timeout; alarms=outbox:failed' "$BODY_LOG"
+cmp "$TMP/forward-body" "$BODY_LOG"
+echo 'PASS: mixed failure diagnostics are stable across container order'
 # Created-container heal sends through Relay and keeps dedupe/dry-run behavior.
 export STATE_DIR="$TMP/created" ALERT_TO=custom@example.com
 rm "$MAIL_LOG"
