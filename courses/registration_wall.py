@@ -93,8 +93,12 @@ def get_or_create_enrollment_for_content(user, course):
     return enrollment, False
 
 
-def approve_registration(registration):
+def approve_registration(registration, custom_message=""):
     """Mark a registration approved and enroll the linked/matching user.
+
+    ``custom_message`` is optional free text from the reviewer (e.g. a
+    workshop announcement). It is queued into the applicant decision email
+    in the same transaction; empty means a plain approval email.
 
     Returns the ``Enrollment`` when a user account could be matched,
     otherwise ``None`` (the applicant enrolls on next login-gated
@@ -103,6 +107,7 @@ def approve_registration(registration):
     from accounts.models import CustomUser
 
     registration.status = CourseRegistration.Status.APPROVED
+    registration._decision_custom_message = custom_message or ""
     registration.save(update_fields=["status", "updated_at"])
     user = registration.user
     if user is None and registration.email_normalized:

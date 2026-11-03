@@ -49,7 +49,7 @@ def operator_recipients():
     return sorted(recipients)
 
 
-def notification_context(registration):
+def notification_context(registration, custom_message=""):
     from django.contrib.sites.models import Site
 
     domain = Site.objects.get_current().domain
@@ -67,6 +67,7 @@ def notification_context(registration):
                 "campaign_slug": registration.campaign.slug,
             })
         ),
+        "custom_message": (custom_message or "").strip(),
         "review_url": base + reverse(
             "cadmin_campaign_registrations",
             kwargs={"campaign_slug": registration.campaign.slug},
@@ -74,7 +75,9 @@ def notification_context(registration):
     }
 
 
-def queue_application_notifications(registration, previous_status):
+def queue_application_notifications(
+    registration, previous_status, custom_message=""
+):
     created = previous_status is None
     if created:
         # Per-registration operator emails are disabled: operators receive
@@ -92,7 +95,9 @@ def queue_application_notifications(registration, previous_status):
         sequence = latest + 1
     else:
         return
-    context = notification_context(registration)
+    context = notification_context(
+        registration, custom_message=custom_message
+    )
     for recipient in recipients:
         ApplicationNotification.objects.get_or_create(
             registration=registration,

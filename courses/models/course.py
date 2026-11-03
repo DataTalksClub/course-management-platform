@@ -438,6 +438,10 @@ class CourseRegistration(models.Model):
 
         # Lock the persisted status so concurrent/repeated review requests
         # cannot enqueue the same decision twice. Queue in the same commit.
+        # Reviewers may attach a free-text ``custom_message`` (set as the
+        # transient ``_decision_custom_message`` attribute before saving,
+        # e.g. by approve_registration); it is queued into the applicant
+        # email context in the same transaction.
         with transaction.atomic():
             previous = None
             if self.pk:
@@ -447,7 +451,18 @@ class CourseRegistration(models.Model):
             super().save(*args, **kwargs)
             fields = kwargs.get("update_fields")
             if previous is None or fields is None or "status" in fields:
-                queue_application_notifications(self, previous)
+                custom_message = (
+                    getattr(self, "_decision_custom_message", "") or ""
+                )
+                # Transient transport only: never reuse a stale message
+                # on a later save of the same instance.
+                if "_decision_custom_message" in self.__dict__:
+                    del self._decision_custom_message
+                queue_application_notifications(
+                    self,
+                    previous,
+                    custom_message=custom_message,
+                )
 
     @property
     def confirmation_management_token(self):

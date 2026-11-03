@@ -25,6 +25,10 @@ per-site style, with no new client branding configuration:
 - `application-approved`: acceptance, course workspace link and instruction to
   sign in using the application email address.
 - `application-rejected`: polite cohort rejection, without review internals.
+- Both decision templates render an optional reviewer `custom_message`
+  (e.g. a workshop announcement). It is queued into the notification
+  context by cadmin review (single or approve-all-pending) and defaults
+  to empty; migration `0063` backfills it on older queued rows.
 - `registration-confirmation-reminder-1`: first reminder 24h after an
   unconfirmed registration (confirmation link + course title).
 - `registration-confirmation-reminder-2`: final reminder 72h after an

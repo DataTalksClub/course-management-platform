@@ -138,6 +138,24 @@
     </p>
   {% endif %}
 
+  {% if needs_approval %}
+  <form method="post" action="{% url 'cadmin_campaign_registration_decide' campaign.slug %}" class="mb-5">
+    {% csrf_token %}
+    <label for="bulk-custom-message" class="text-sm font-medium app-heading">Message for approval emails (optional)</label>
+    <textarea
+      id="bulk-custom-message"
+      name="custom_message"
+      rows="2"
+      class="form-control mt-1"
+      maxlength="2000"
+      placeholder="e.g. Join the workshop today at 18:00 — link is inside the course"></textarea>
+    <p class="settings-helper mt-1">Approving queues an email to the applicant. The message above is included when present. Leave it empty to approve without a custom message.</p>
+    <div class="mt-2 flex flex-wrap gap-2">
+      <button type="submit" name="action" value="approve_all_pending" class="primer-button">Approve all pending &amp; queue emails</button>
+    </div>
+  </form>
+  {% endif %}
+
   <div class="hidden border-b app-border pb-2 text-xs font-semibold uppercase app-muted md:grid {% if needs_approval %}md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_9rem_14rem]{% else %}md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_9rem]{% endif %} md:gap-3">
     <div>Person</div>
     <div>Key answers</div>
@@ -198,6 +216,13 @@
         <form method="post" action="{% url 'cadmin_campaign_registration_decide' campaign.slug %}" class="flex flex-wrap content-start gap-2">
           {% csrf_token %}
           <input type="hidden" name="registration_id" value="{{ registration.id }}">
+          <input
+            type="text"
+            name="custom_message"
+            class="form-control"
+            maxlength="2000"
+            placeholder="Optional message (e.g. workshop today at 18:00)"
+            aria-label="Optional message for decision email">
           {% if registration.status != "approved" %}
             <button type="submit" name="action" value="approve" class="primer-button primer-button-primary">Approve</button>
           {% endif %}

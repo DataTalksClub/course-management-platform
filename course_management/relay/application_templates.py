@@ -23,6 +23,7 @@ def template(name, subject, html, text, fields):
             "course_url": "https://courses.datatalks.club/example/",
             "review_url": "https://courses.datatalks.club/cadmin/campaigns/example/registrations/?status=pending",
             "confirmation_url": "https://courses.datatalks.club/register/confirm/example/",
+            "custom_message": "Example update: join the live workshop today at 18:00!",
             "deadline": "2026-11-02 09:00:00 CET (Europe/Berlin)",
             "digest_date": "2026-10-26",
             "total_count": 2,
@@ -83,27 +84,31 @@ APPLICATION_TEMPLATES = {
         "You're accepted: {{ course_title }}",
         "<p>Hi {{ name }},</p>"
         "<p>Your application for <strong>{{ course_title }}</strong> has been accepted. Welcome!</p>"
+        "{% if custom_message %}<p>{{ custom_message }}</p>{% endif %}"
         '<p><a href="{{ course_url }}">Open the course workspace</a> and sign in '
         "with the same email address you used for your application to access the course, homework and projects.</p>"
         "<p>We look forward to learning with you.<br>DataTalks.Club</p>",
         "Hi {{ name }},\n\nYour application for {{ course_title }} has been accepted. Welcome!\n\n"
+        "{% if custom_message %}{{ custom_message }}\n\n{% endif %}"
         "Open the course workspace: {{ course_url }}\n"
         "Sign in with the same email address you used for your application to access the course, homework and projects.\n\n"
         "We look forward to learning with you.\nDataTalks.Club",
-        ["name", "course_title", "course_url"],
+        ["name", "course_title", "course_url", "custom_message"],
     ),
     "application-rejected": template(
         "Course application update",
         "Your application: {{ course_title }}",
         "<p>Hi {{ name }},</p>"
         "<p>Thank you for your interest in <strong>{{ course_title }}</strong> and for taking the time to apply.</p>"
+        "{% if custom_message %}<p>{{ custom_message }}</p>{% endif %}"
         "<p>We're sorry that we are unable to offer you a place in this cohort. "
         "We appreciate your interest and hope you will join us for a future opportunity.</p>"
         "<p>Best wishes,<br>DataTalks.Club</p>",
         "Hi {{ name }},\n\nThank you for your interest in {{ course_title }} and for taking the time to apply.\n\n"
+        "{% if custom_message %}{{ custom_message }}\n\n{% endif %}"
         "We're sorry that we are unable to offer you a place in this cohort. "
         "We appreciate your interest and hope you will join us for a future opportunity.\n\n"
         "Best wishes,\nDataTalks.Club",
-        ["name", "course_title"],
+        ["name", "course_title", "custom_message"],
     ),
 }

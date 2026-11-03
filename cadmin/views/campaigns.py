@@ -88,6 +88,15 @@ def campaign_registrations(request, campaign_slug):
     return response
 
 
+MAX_DECISION_MESSAGE_LENGTH = 2000
+BULK_APPROVE_LIMIT = 500
+
+
+def _clean_decision_message(request) -> str:
+    raw_message = request.POST.get("custom_message") or ""
+    return raw_message.strip()[:MAX_DECISION_MESSAGE_LENGTH]
+
+
 @staff_required
 def campaign_registration_decide(request, campaign_slug):
     campaigns = RegistrationCampaign.objects.select_related("current_course")
@@ -101,32 +110,63 @@ def campaign_registration_decide(request, campaign_slug):
             campaign_slug=campaign.slug,
         )
 
+    action = (request.POST.get("action") or "").strip()
+    custom_message = _clean_decision_message(request)
+    if action == "approve_all_pending":
+        pending = CourseRegistration.objects.filter(
+            campaign=campaign,
+            status=CourseRegistration.Status.PENDING,
+        ).order_by("pk")[:BULK_APPROVE_LIMIT]
+        approved_count = 0
+        for registration in pending:
+            approve_registration(
+                registration, custom_message=custom_message
+            )
+            approved_count += 1
+        if approved_count == 0:
+            messages.info(request, "No pending applications to approve.")
+        else:
+            messages.success(
+                request,
+                f"Approved {approved_count} applications. "
+                "Approval emails are queued for delivery.",
+            )
+        return redirect(
+            "cadmin_campaign_registrations",
+            campaign_slug=campaign.slug,
+        )
+
     registration = get_object_or_404(
         CourseRegistration,
         campaign=campaign,
         pk=request.POST.get("registration_id"),
     )
-    action = (request.POST.get("action") or "").strip()
     if action == "approve":
-        enrollment = approve_registration(registration)
+        enrollment = approve_registration(
+            registration, custom_message=custom_message
+        )
         if enrollment is not None:
             messages.success(
                 request,
                 f"Approved {registration.email_normalized} and enrolled "
-                f"them in {enrollment.course}.",
+                f"them in {enrollment.course}. "
+                "Approval email queued for delivery.",
             )
         else:
             messages.success(
                 request,
                 f"Approved {registration.email_normalized}. No user "
-                f"account matched, so no enrollment was created yet.",
+                f"account matched, so no enrollment was created yet. "
+                "Approval email queued for delivery.",
             )
     elif action == "reject":
         registration.status = CourseRegistration.Status.REJECTED
+        registration._decision_custom_message = custom_message
         registration.save(update_fields=["status", "updated_at"])
         messages.success(
             request,
-            f"Rejected {registration.email_normalized}.",
+            f"Rejected {registration.email_normalized}. "
+            "Update email queued for delivery.",
         )
     elif action == "reset":
         registration.status = CourseRegistration.Status.PENDING
