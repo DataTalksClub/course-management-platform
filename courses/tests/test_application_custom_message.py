@@ -233,7 +233,7 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
             )
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "luma.com/tj2nbrl2")
+        self.assertContains(response, "youtube.com/@DataTalksClub")
 
     def test_decision_templates_render_custom_message(self):
         from course_management.relay.application_templates import (
@@ -394,4 +394,35 @@ class CustomMessageFormatTests(RegistrationCampaignBase):
                 "Come say hi in [#course-ai-mediagen](https://example.com/c)."
             ),
             "Come say hi in #course-ai-mediagen (https://example.com/c).",
+        )
+
+    def test_rejected_template_has_audit_block(self):
+        from course_management.relay.application_templates import (
+            APPLICATION_TEMPLATES,
+        )
+
+        draft = APPLICATION_TEMPLATES["application-rejected"]
+        self.assertIn("Audit the course for free", draft["html_body"])
+        self.assertIn("github_url", draft["html_body"])
+        self.assertIn("audit the course for free", draft["text_body"])
+
+    def test_context_carries_github_url(self):
+        from course_management.relay.application_notifications import (
+            notification_context,
+        )
+
+        self.course.github_repo_url = "https://github.com/example/repo"
+        self.course.save(update_fields=["github_repo_url"])
+        registration = CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="github@example.com",
+            name="Github",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+        )
+        context = notification_context(registration)
+        self.assertEqual(
+            context["github_url"], "https://github.com/example/repo"
         )
