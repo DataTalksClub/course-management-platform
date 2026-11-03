@@ -374,3 +374,24 @@ class CustomMessageFormatTests(RegistrationCampaignBase):
         empty = notification_context(registration)
         self.assertEqual(empty["custom_message_html"], "")
         self.assertEqual(empty["custom_message"], "")
+
+    def test_markdown_named_link(self):
+        from course_management.relay.message_format import (
+            custom_message_html,
+            custom_message_text,
+        )
+
+        rendered = custom_message_html(
+            "Come say hi in [#course-ai-mediagen](https://example.com/c) today."
+        )
+        self.assertIn(
+            '<a href="https://example.com/c">#course-ai-mediagen</a>',
+            rendered,
+        )
+        self.assertNotIn("example.com/c\">https://example.com/c<", rendered)
+        self.assertEqual(
+            custom_message_text(
+                "Come say hi in [#course-ai-mediagen](https://example.com/c)."
+            ),
+            "Come say hi in #course-ai-mediagen (https://example.com/c).",
+        )

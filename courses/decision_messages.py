@@ -15,17 +15,17 @@ WORKSHOP_URL = "https://luma.com/tj2nbrl2"
 
 APPROVAL_MESSAGE_LAUNCH = (
     "Before we start: join today's workshop at "
-    f"{WORKSHOP_URL} — we'd love to see you there.\n"
+    f"{WORKSHOP_URL} - we'd love to see you there.\n"
     "\n"
     "Then star the course repo at "
     f"{GITHUB_REPO_URL} "
     "and join our Slack at "
-    f"{SLACK_JOIN_URL} — come say hi in "
-    f"{SLACK_CHANNEL_NAME} ({SLACK_CHANNEL_URL}) "
+    f"{SLACK_JOIN_URL} - come say hi in "
+    f"[{SLACK_CHANNEL_NAME}]({SLACK_CHANNEL_URL}) "
     "to meet your cohort and get updates.\n"
     "\n"
     "Invite friends, earn points: share your personal invite link "
-    "below — you'll earn 1 leaderboard point for each invitee who gets "
+    "below - you'll earn 1 leaderboard point for each invitee who gets "
     "accepted. There is a copy-paste invite and an example LinkedIn/X "
     "post further down in this email."
 )
@@ -36,10 +36,10 @@ APPROVAL_MESSAGE_PERIODIC = (
     "join our Slack at "
     f"{SLACK_JOIN_URL} "
     "and come say hi in "
-    f"{SLACK_CHANNEL_NAME} ({SLACK_CHANNEL_URL}).\n"
+    f"[{SLACK_CHANNEL_NAME}]({SLACK_CHANNEL_URL}).\n"
     "\n"
     "Invite friends, earn points: share your personal invite link "
-    "below — you'll earn 1 leaderboard point for each invitee who gets "
+    "below - you'll earn 1 leaderboard point for each invitee who gets "
     "accepted. There is a copy-paste invite and an example LinkedIn/X "
     "post further down in this email."
 )
@@ -47,5 +47,5 @@ APPROVAL_MESSAGE_PERIODIC = (
 REJECTION_MESSAGE_LOCATION = (
     "Due to your location, we unfortunately cannot give you access "
     "to the course environment for this cohort. Thank you for your "
-    "interest — we hope to see you in a future opportunity."
+    "interest - we hope to see you in a future opportunity."
 )

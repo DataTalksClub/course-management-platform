@@ -14,7 +14,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from course_management.observability import record_event
-from course_management.relay.message_format import custom_message_html
+from course_management.relay.message_format import (
+    custom_message_html,
+    custom_message_text,
+)
 from course_management.worker_lock import worker_lock
 from courses.models.application_notification import ApplicationNotification
 
@@ -73,6 +76,7 @@ def notification_context(registration, custom_message=""):
         ),
         "custom_message": message_text,
         "custom_message_html": custom_message_html(message_text),
+        "custom_message_text": custom_message_text(message_text),
         "invite_url": (
             base + registration_path + f"?ref={registration.pk}"
         ),
