@@ -15,6 +15,12 @@ changed decision has a new sequence and a new stable Relay idempotency key.
 Direct SQL/QuerySet.update bypasses model lifecycle and must not be used for
 review decisions. Existing registration and wall rules remain unchanged.
 
+Approving a referred registration (``referred_by`` set from the invite link
+or the "who invited you?" form field) also awards the inviter's enrollment
+3 bonus leaderboard points, exactly once per invitee (``ReferralReward``);
+the nightly genmedia bulk approval awards the same way, still without
+sending any email.
+
 Relay client: `dtc-courses`. Templates use HTML and text bodies in CMP's existing
 per-site style, with no new client branding configuration:
 

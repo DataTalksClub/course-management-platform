@@ -34,7 +34,7 @@ def _update_enrollment_totals(course):
                 WHERE p.course_id = %s AND NOT s.volunteer_review_only
                 GROUP BY s.enrollment_id
             ), totals AS (
-                SELECT e.id, COALESCE(h.score, 0) + COALESCE(p.score, 0) AS score
+                SELECT e.id, COALESCE(h.score, 0) + COALESCE(p.score, 0) + COALESCE(e.bonus_points, 0) AS score
                 FROM courses_enrollment e
                 LEFT JOIN homework_scores h ON h.enrollment_id = e.id
                 LEFT JOIN project_scores p ON p.enrollment_id = e.id

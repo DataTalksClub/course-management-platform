@@ -56,6 +56,10 @@ def notification_context(registration, custom_message=""):
     base = getattr(settings, "SITE_URL", "") or f"https://{domain}"
     base = base.rstrip("/")
     course = registration.course
+    registration_path = reverse(
+        "registration_campaign",
+        kwargs={"campaign_slug": registration.campaign.slug},
+    )
     return {
         "name": (registration.name or "").strip() or "Applicant",
         "applicant_email": registration.email_normalized,
@@ -63,11 +67,12 @@ def notification_context(registration, custom_message=""):
         "course_title": course.title if course else registration.campaign.title,
         "course_url": base + (
             reverse("course", kwargs={"course_slug": course.slug})
-            if course else reverse("registration_campaign", kwargs={
-                "campaign_slug": registration.campaign.slug,
-            })
+            if course else registration_path
         ),
         "custom_message": (custom_message or "").strip(),
+        "invite_url": (
+            base + registration_path + f"?ref={registration.pk}"
+        ),
         "review_url": base + reverse(
             "cadmin_campaign_registrations",
             kwargs={"campaign_slug": registration.campaign.slug},

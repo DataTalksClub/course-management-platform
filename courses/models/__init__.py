@@ -1,6 +1,7 @@
 from . import course, project, homework, wrapped  # noqa: F401
 from .application_notification import ApplicationNotification
 from .genmedia_approval import GenmediaApprovalRun
+from .referral import ReferralReward
 from .registration_digest import RegistrationDigestSend
 from .scoring_job import ScoringJob, ScoringJobKind, ScoringJobStatus
 
@@ -73,6 +74,7 @@ __all__ = (
     "QUESTION_ANSWER_DELIMITER",
     "Question",
     "QuestionTypes",
+    "ReferralReward",
     "RegistrationCampaign",
     "ReviewCriteria",
     "ReviewCriteriaTypes",

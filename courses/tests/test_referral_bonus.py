@@ -1,0 +1,205 @@
+"""Referral program: invite link, bonus points on acceptance.
+
+An approved applicant gets a personal invite link
+(``/register/<campaign>/?ref=<registration_id>``). When an invitee who
+registered through that link (or typed the inviter's email) is approved,
+the inviter's enrollment earns bonus leaderboard points — exactly once.
+"""
+
+from django.test import override_settings
+from django.urls import reverse
+
+from accounts.models import CustomUser
+from courses.models import CourseRegistration
+from courses.models.course import Enrollment
+from courses.referrals import REFERRAL_BONUS_POINTS
+from courses.registration_wall import approve_registration
+from courses.tests.registration_campaign_base import RegistrationCampaignBase
+
+
+@override_settings(
+    RELAY_URL="https://relay.example.com",
+    RELAY_API_KEY="test-key",
+    RELAY_CLIENT="dtc-courses",
+    RELAY_AUDIENCE="dtc-courses",
+)
+class ReferralBonusTests(RegistrationCampaignBase):
+    def setUp(self):
+        super().setUp()
+        self.course.requires_registration_approval = True
+        self.course.save(update_fields=["requires_registration_approval"])
+        self.inviter = CustomUser.objects.create_user(
+            username="inviter",
+            email="inviter@example.com",
+            password="test",
+        )
+        self.inviter_registration = CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            user=self.inviter,
+            email=self.inviter.email,
+            name="Inviter",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+        )
+
+    def invitee_payload(self, email="invitee@example.com"):
+        payload = self.registration_payload(email=email)
+        payload["experience"] = "3 years building ML systems"
+        return payload
+
+    def test_ref_link_prefills_invited_by_email(self):
+        url = self.campaign_url() + f"?ref={self.inviter_registration.pk}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        form = response.context["form"]
+        self.assertEqual(
+            form.fields["invited_by_email"].initial,
+            "inviter@example.com",
+        )
+
+    def test_unknown_ref_is_ignored(self):
+        url = self.campaign_url() + "?ref=999999"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        form = response.context["form"]
+        self.assertIsNone(form.fields["invited_by_email"].initial)
+
+    def test_registration_with_inviter_sets_referred_by(self):
+        payload = self.invitee_payload()
+        payload["invited_by_email"] = "inviter@example.com"
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.campaign_url(), payload)
+        self.assertEqual(response.status_code, 200)
+        registration = CourseRegistration.objects.get(
+            email="invitee@example.com"
+        )
+        self.assertEqual(
+            registration.referred_by, self.inviter_registration
+        )
+
+    def test_unknown_inviter_email_is_ignored(self):
+        payload = self.invitee_payload()
+        payload["invited_by_email"] = "stranger@example.com"
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.campaign_url(), payload)
+        self.assertEqual(response.status_code, 200)
+        registration = CourseRegistration.objects.get(
+            email="invitee@example.com"
+        )
+        self.assertIsNone(registration.referred_by)
+
+    def test_approve_awards_bonus_exactly_once(self):
+        invitee = CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="invitee@example.com",
+            name="Invitee",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            referred_by=self.inviter_registration,
+        )
+        approve_registration(invitee)
+        approve_registration(invitee)
+        from courses.models import ReferralReward
+
+        self.assertEqual(
+            ReferralReward.objects.filter(referred=invitee).count(), 1
+        )
+        enrollment = Enrollment.objects.get(
+            student=self.inviter, course=self.course
+        )
+        self.assertEqual(
+            enrollment.bonus_points, REFERRAL_BONUS_POINTS
+        )
+
+    def test_bonus_survives_leaderboard_recompute(self):
+        from courses.leaderboard import update_leaderboard
+
+        enrollment = Enrollment.objects.create(
+            student=self.inviter,
+            course=self.course,
+            bonus_points=REFERRAL_BONUS_POINTS,
+        )
+        update_leaderboard(self.course)
+        enrollment.refresh_from_db()
+        self.assertEqual(enrollment.total_score, REFERRAL_BONUS_POINTS)
+
+    def test_nightly_approval_awards_referral_silently(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        from courses import genmedia_approval
+        from courses.genmedia_policy import (
+            AUTO_APPROVAL_TIMEZONE,
+            CAMPAIGN_SLUG,
+        )
+        from courses.models import ApplicationNotification, RegistrationCampaign
+
+        campaign = RegistrationCampaign.objects.get(slug=CAMPAIGN_SLUG)
+        invitee = CourseRegistration.objects.create(
+            campaign=campaign,
+            course=campaign.current_course,
+            email="invitee@example.com",
+            name="Invitee",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            referred_by=self.inviter_registration,
+        )
+        zone = ZoneInfo(AUTO_APPROVAL_TIMEZONE)
+        now = datetime.now(zone).replace(
+            hour=20, minute=5, second=0, microsecond=0
+        )
+        result = genmedia_approval.approve_pending_registrations(now=now)
+        self.assertTrue(result.ran)
+        self.assertEqual(result.approved, 1)
+        enrollment = Enrollment.objects.get(
+            student=self.inviter, course=campaign.current_course
+        )
+        self.assertEqual(
+            enrollment.bonus_points, REFERRAL_BONUS_POINTS
+        )
+        self.assertFalse(
+            ApplicationNotification.objects.filter(
+                registration=invitee
+            ).exists()
+        )
+
+    def test_decision_context_has_invite_url(self):
+        from course_management.relay.application_notifications import (
+            notification_context,
+        )
+
+        context = notification_context(self.inviter_registration)
+        self.assertIn(
+            f"?ref={self.inviter_registration.pk}",
+            context["invite_url"],
+        )
+        self.assertIn("register", context["invite_url"])
+
+    def test_approved_template_renders_invite_section(self):
+        from course_management.relay.application_templates import (
+            APPLICATION_TEMPLATES,
+        )
+
+        draft = APPLICATION_TEMPLATES["application-approved"]
+        field_names = [
+            field["name"] for field in draft["required_context"]
+        ]
+        self.assertIn("invite_url", field_names)
+        self.assertIn("invite_url", draft["html_body"])
+
+    def test_course_page_shows_invite_link_to_approved(self):
+        approve_registration(self.inviter_registration)
+        self.client.force_login(self.inviter)
+        url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, f"?ref={self.inviter_registration.pk}"
+        )

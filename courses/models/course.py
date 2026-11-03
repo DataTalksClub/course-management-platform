@@ -450,6 +450,10 @@ class CourseRegistration(models.Model):
                 ).values_list("status", flat=True).first()
             super().save(*args, **kwargs)
             fields = kwargs.get("update_fields")
+            status_changed_to_approved = (
+                previous != CourseRegistration.Status.APPROVED
+                and self.status == CourseRegistration.Status.APPROVED
+            )
             if previous is None or fields is None or "status" in fields:
                 custom_message = (
                     getattr(self, "_decision_custom_message", "") or ""
@@ -463,6 +467,10 @@ class CourseRegistration(models.Model):
                     previous,
                     custom_message=custom_message,
                 )
+            if status_changed_to_approved:
+                from courses.referrals import award_referral_bonus
+
+                award_referral_bonus(self)
 
     @property
     def confirmation_management_token(self):
@@ -529,6 +537,12 @@ class Enrollment(models.Model):
     )
 
     total_score = models.IntegerField(default=0)
+
+    bonus_points = models.IntegerField(
+        default=0,
+        help_text="Referral and other bonus points; preserved by the "
+        "leaderboard recompute.",
+    )
 
     certificate_url = models.CharField(
         max_length=255, null=True, blank=True

@@ -85,6 +85,43 @@ def _course_enrollment_progress(user, course: Course) -> dict:
         "certificate_url": enrollment.certificate_url,
     }
 
+def _invite_url_for_user(
+    user,
+    course: Course,
+    registration_campaign: RegistrationCampaign | None,
+    wall_status,
+) -> str:
+    """Personal invite link for approved applicants, else "".
+
+    Relative URL (same host): the registration page plus ?ref=<id> so
+    the invitee's form prefills "who invited you?".
+    """
+    if (
+        not user.is_authenticated
+        or registration_campaign is None
+        or wall_status != CourseRegistration.Status.APPROVED.value
+    ):
+        return ""
+    email = (user.email or "").strip().lower()
+    if not email:
+        return ""
+    registration = CourseRegistration.objects.filter(
+        campaign=registration_campaign,
+        email_normalized=email,
+    ).first()
+    if registration is None or registration.course_id != course.pk:
+        return ""
+    from django.urls import reverse
+
+    return (
+        reverse(
+            "registration_campaign",
+            kwargs={"campaign_slug": registration_campaign.slug},
+        )
+        + f"?ref={registration.pk}"
+    )
+
+
 def _has_course_registration(
     user,
     registration_campaign: RegistrationCampaign | None,
@@ -152,6 +189,12 @@ def course_page_context(data: CoursePageData) -> dict:
         == CourseRegistration.Status.PENDING.value
     )
     context["registered_count"] = registered_people_count(data.course)
+    context["invite_url"] = _invite_url_for_user(
+        data.user,
+        data.course,
+        data.registration_campaign,
+        context["registration_wall_status"],
+    )
     return context
 
 

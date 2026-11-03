@@ -89,7 +89,31 @@ def _registration_form(
             user=request.user,
         )
 
-    return CourseRegistrationForm(campaign=campaign, user=request.user)
+    form = CourseRegistrationForm(campaign=campaign, user=request.user)
+    inviter_email = _invite_prefill_email(request, campaign)
+    if inviter_email:
+        form.fields["invited_by_email"].initial = inviter_email
+    return form
+
+
+def _invite_prefill_email(
+    request: HttpRequest,
+    campaign: RegistrationCampaign,
+) -> str | None:
+    """Prefill "who invited you" from a personal invite link (?ref=<id>).
+
+    Only same-campaign registrations prefill; unknown ids are ignored.
+    """
+    raw_ref = (request.GET.get("ref") or "").strip()
+    if not raw_ref.isdigit():
+        return None
+    referrer = CourseRegistration.objects.filter(
+        campaign=campaign,
+        pk=int(raw_ref),
+    ).first()
+    if referrer is None:
+        return None
+    return referrer.email_normalized or None
 
 
 @transaction.atomic

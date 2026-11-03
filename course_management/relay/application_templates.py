@@ -24,6 +24,7 @@ def template(name, subject, html, text, fields):
             "review_url": "https://courses.datatalks.club/cadmin/campaigns/example/registrations/?status=pending",
             "confirmation_url": "https://courses.datatalks.club/register/confirm/example/",
             "custom_message": "Example update: join the live workshop today at 18:00!",
+            "invite_url": "https://courses.datatalks.club/register/example/?ref=7",
             "deadline": "2026-11-02 09:00:00 CET (Europe/Berlin)",
             "digest_date": "2026-10-26",
             "total_count": 2,
@@ -84,23 +85,33 @@ APPLICATION_TEMPLATES = {
         "You're accepted: {{ course_title }}",
         "<p>Hi {{ name }},</p>"
         "<p>Your application for <strong>{{ course_title }}</strong> has been accepted. Welcome!</p>"
-        "{% if custom_message %}<p>{{ custom_message }}</p>{% endif %}"
+        "{% if custom_message %}<p>{{ custom_message|linebreaksbr }}</p>{% endif %}"
         '<p><a href="{{ course_url }}">Open the course workspace</a> and sign in '
         "with the same email address you used for your application to access the course, homework and projects.</p>"
+        "<p>Know someone who would love this course? Invite them with your personal link: "
+        '<a href="{{ invite_url }}">{{ invite_url }}</a> &mdash; you will earn 3 leaderboard points '
+        "for each invitee who gets accepted.</p>"
+        "<p>Copy-paste starter (make it your own voice &mdash; personal invites work best):</p>"
+        '<p><i>&ldquo;I got accepted to {{ course_title }}. Join me &mdash; apply here: '
+        "{{ invite_url }}&rdquo;</i></p>"
         "<p>We look forward to learning with you.<br>DataTalks.Club</p>",
         "Hi {{ name }},\n\nYour application for {{ course_title }} has been accepted. Welcome!\n\n"
         "{% if custom_message %}{{ custom_message }}\n\n{% endif %}"
         "Open the course workspace: {{ course_url }}\n"
         "Sign in with the same email address you used for your application to access the course, homework and projects.\n\n"
+        "Know someone who would love this course? Invite them with your personal link: {{ invite_url }} — "
+        "you will earn 3 leaderboard points for each invitee who gets accepted.\n\n"
+        "Copy-paste starter (make it your own voice — personal invites work best):\n"
+        '"I got accepted to {{ course_title }}. Join me — apply here: {{ invite_url }}"\n\n'
         "We look forward to learning with you.\nDataTalks.Club",
-        ["name", "course_title", "course_url", "custom_message"],
+        ["name", "course_title", "course_url", "custom_message", "invite_url"],
     ),
     "application-rejected": template(
         "Course application update",
         "Your application: {{ course_title }}",
         "<p>Hi {{ name }},</p>"
         "<p>Thank you for your interest in <strong>{{ course_title }}</strong> and for taking the time to apply.</p>"
-        "{% if custom_message %}<p>{{ custom_message }}</p>{% endif %}"
+        "{% if custom_message %}<p>{{ custom_message|linebreaksbr }}</p>{% endif %}"
         "<p>We're sorry that we are unable to offer you a place in this cohort. "
         "We appreciate your interest and hope you will join us for a future opportunity.</p>"
         "<p>Best wishes,<br>DataTalks.Club</p>",

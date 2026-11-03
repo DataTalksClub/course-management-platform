@@ -9,7 +9,7 @@ Relay template context) lives in
 
 SLACK_JOIN_URL = "https://datatalks.club/slack.html"
 SLACK_CHANNEL_URL = "https://app.slack.com/client/T01ATQK62F8/C0CEG1BUDKL"
-SLACK_CHANNEL_NAME = "#course-generative-media"
+SLACK_CHANNEL_NAME = "#course-ai-mediagen"
 GITHUB_REPO_URL = "https://github.com/DataTalksClub/production-ai-agents-for-media-generation"
 WORKSHOP_URL = "https://luma.com/tj2nbrl2"
 
@@ -22,6 +22,9 @@ APPROVAL_MESSAGE_LAUNCH = (
     f"{SLACK_JOIN_URL} — come say hi in "
     f"{SLACK_CHANNEL_NAME} ({SLACK_CHANNEL_URL}) "
     "to meet your cohort and get updates. "
+    "Know someone who would love this course? Invite them with your "
+    "personal invite link below — you'll earn 3 leaderboard points "
+    "for each invitee who gets accepted. "
     "And share the news that you got in: post "
     "'I was accepted to Production AI Agents for Generative Media — "
     "see you in class!' on LinkedIn or X so others can join too."
@@ -34,6 +37,9 @@ APPROVAL_MESSAGE_PERIODIC = (
     f"{SLACK_JOIN_URL} "
     "and come say hi in "
     f"{SLACK_CHANNEL_NAME} ({SLACK_CHANNEL_URL}). "
+    "Know someone who would love this course? Invite them with your "
+    "personal invite link below — you'll earn 3 leaderboard points "
+    "for each invitee who gets accepted. "
     "And share the news that you got in: post "
     "'I was accepted to Production AI Agents for Generative Media — "
     "see you in class!' on LinkedIn or X so others can join too."

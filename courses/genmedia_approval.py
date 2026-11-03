@@ -138,6 +138,18 @@ def approve_pending_registrations(now=None) -> ApprovalResult:
             CourseRegistration.objects.bulk_update(
                 eligible, ["status", "auto_approved_at", "updated_at"]
             )
+            # Points are not emails: accepted invitees still earn their
+            # referrer the bonus. Idempotent per invitee.
+            from courses.referrals import award_referral_bonus
+
+            for registration in eligible:
+                try:
+                    award_referral_bonus(registration)
+                except Exception:
+                    logger.error(
+                        "genmedia referral award failed registration_id=%s",
+                        registration.pk,
+                    )
             GenmediaApprovalRun.objects.create(
                 date=day,
                 status=GenmediaApprovalRun.Status.COMPLETED,
