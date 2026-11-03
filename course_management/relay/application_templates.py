@@ -89,7 +89,7 @@ APPLICATION_TEMPLATES = {
         '<p><a href="{{ course_url }}">Open the course workspace</a> and sign in '
         "with the same email address you used for your application to access the course, homework and projects.</p>"
         "<p>Know someone who would love this course? Invite them with your personal link: "
-        '<a href="{{ invite_url }}">{{ invite_url }}</a> &mdash; you will earn 3 leaderboard points '
+        '<a href="{{ invite_url }}">{{ invite_url }}</a> &mdash; you will earn 1 leaderboard point '
         "for each invitee who gets accepted.</p>"
         "<p>Copy-paste starter (make it your own voice &mdash; personal invites work best):</p>"
         '<p><i>&ldquo;I got accepted to {{ course_title }}. Join me &mdash; apply here: '
@@ -100,11 +100,13 @@ APPLICATION_TEMPLATES = {
         "Open the course workspace: {{ course_url }}\n"
         "Sign in with the same email address you used for your application to access the course, homework and projects.\n\n"
         "Know someone who would love this course? Invite them with your personal link: {{ invite_url }} — "
-        "you will earn 3 leaderboard points for each invitee who gets accepted.\n\n"
+        "you will earn 1 leaderboard point for each invitee who gets accepted.\n\n"
         "Copy-paste starter (make it your own voice — personal invites work best):\n"
         '"I got accepted to {{ course_title }}. Join me — apply here: {{ invite_url }}"\n\n'
         "We look forward to learning with you.\nDataTalks.Club",
-        ["name", "course_title", "course_url", "custom_message", "invite_url"],
+        # custom_message intentionally not required: empty (plain approval
+        # emails) must validate. The {% if %} block skips it when empty.
+        ["name", "course_title", "course_url", "invite_url"],
     ),
     "application-rejected": template(
         "Course application update",

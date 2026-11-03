@@ -242,10 +242,13 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
 
         for key in ("application-approved", "application-rejected"):
             draft = APPLICATION_TEMPLATES[key]
+            # Optional: empty messages must validate, so the field is
+            # not in required_context. It stays in the shared example
+            # pool for template authors.
             field_names = [
                 field["name"] for field in draft["required_context"]
             ]
-            self.assertIn("custom_message", field_names)
+            self.assertNotIn("custom_message", field_names)
             self.assertIn("custom_message", draft["html_body"])
             self.assertIn("custom_message", draft["text_body"])
 

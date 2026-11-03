@@ -20,7 +20,7 @@ class ReferralReward(models.Model):
         related_name="referral_rewards_earned",
         help_text="Registration that invited the referred applicant.",
     )
-    points = models.PositiveIntegerField(default=3)
+    points = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

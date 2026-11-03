@@ -20,7 +20,7 @@ from django.urls import reverse
 
 logger = logging.getLogger(__name__)
 
-REFERRAL_BONUS_POINTS = 3
+REFERRAL_BONUS_POINTS = 1
 
 
 def invite_path_for_registration(registration) -> str:
