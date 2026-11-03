@@ -45,7 +45,7 @@ APPLICATION_TEMPLATES = {
     "application-pending-operator": template(
         "New course application",
         "New application: {{ campaign_title }}",
-        "<p>A new application for <strong>{{ campaign_title }}</strong> is waiting for review.</p>"
+        "<p>A new application for {{ campaign_title }} is waiting for review.</p>"
         "<p>{{ name }} ({{ applicant_email }})</p>"
         '<p><a href="{{ review_url }}">Review pending applications in CMP</a></p>',
         "A new application for {{ campaign_title }} is waiting for review.\n\n"
@@ -84,13 +84,15 @@ APPLICATION_TEMPLATES = {
         "Course application accepted",
         "You're accepted: {{ course_title }}",
         "<p>Hi {{ name }},</p>"
-        "<p>Your application for <strong>{{ course_title }}</strong> has been accepted. Welcome!</p>"
+        "<p>Your application for {{ course_title }} has been accepted. Welcome!</p>"
         "{% if custom_message_html %}{{ custom_message_html|safe }}{% endif %}"
         '<p><a href="{{ course_url }}">Open the course workspace</a> and sign in '
         "with the same email address you used for your application to access the course, homework and projects.</p>"
         "<p>Know someone who would love this course? Invite them with your personal link: "
         '<a href="{{ invite_url }}">{{ invite_url }}</a> &mdash; you will earn 1 leaderboard point '
         "for each invitee who gets accepted.</p>"
+        "<p>Your personal invite link:<br>"
+        '<a href="{{ invite_url }}">{{ invite_url }}</a></p>'
         "<p>Copy-paste starter (make it your own voice &mdash; personal invites work best):</p>"
         '<p><i>&ldquo;I got accepted to {{ course_title }}. Join me &mdash; apply here: '
         "{{ invite_url }}&rdquo;</i></p>"
@@ -105,6 +107,7 @@ APPLICATION_TEMPLATES = {
         "Sign in with the same email address you used for your application to access the course, homework and projects.\n\n"
         "Know someone who would love this course? Invite them with your personal link: {{ invite_url }} — "
         "you will earn 1 leaderboard point for each invitee who gets accepted.\n\n"
+        "Your personal invite link: {{ invite_url }}\n\n"
         "Copy-paste starter (make it your own voice — personal invites work best):\n"
         '"I got accepted to {{ course_title }}. Join me — apply here: {{ invite_url }}"\n\n'
         "Posting publicly? Here is an example post (make it your own):\n"
@@ -120,7 +123,7 @@ APPLICATION_TEMPLATES = {
         "Course application update",
         "Your application: {{ course_title }}",
         "<p>Hi {{ name }},</p>"
-        "<p>Thank you for your interest in <strong>{{ course_title }}</strong> and for taking the time to apply.</p>"
+        "<p>Thank you for your interest in {{ course_title }} and for taking the time to apply.</p>"
         "{% if custom_message_html %}{{ custom_message_html|safe }}{% endif %}"
         "<p>We're sorry that we are unable to offer you a place in this cohort. "
         "We appreciate your interest and hope you will join us for a future opportunity.</p>"
