@@ -22,12 +22,7 @@ APPROVAL_MESSAGE_LAUNCH = (
     "and join our Slack at "
     f"{SLACK_JOIN_URL} - come say hi in "
     f"[{SLACK_CHANNEL_NAME}]({SLACK_CHANNEL_URL}) "
-    "to meet your cohort and get updates.\n"
-    "\n"
-    "Invite friends, earn points: share your personal invite link "
-    "below - you'll earn 1 leaderboard point for each invitee who gets "
-    "accepted. There is a copy-paste invite and an example LinkedIn/X "
-    "post further down in this email."
+    "to meet your cohort and get updates."
 )
 
 APPROVAL_MESSAGE_PERIODIC = (
@@ -36,16 +31,14 @@ APPROVAL_MESSAGE_PERIODIC = (
     "join our Slack at "
     f"{SLACK_JOIN_URL} "
     "and come say hi in "
-    f"[{SLACK_CHANNEL_NAME}]({SLACK_CHANNEL_URL}).\n"
-    "\n"
-    "Invite friends, earn points: share your personal invite link "
-    "below - you'll earn 1 leaderboard point for each invitee who gets "
-    "accepted. There is a copy-paste invite and an example LinkedIn/X "
-    "post further down in this email."
+    f"[{SLACK_CHANNEL_NAME}]({SLACK_CHANNEL_URL})."
 )
 
 REJECTION_MESSAGE_LOCATION = (
     "Due to your location, we unfortunately cannot give you access "
     "to the course environment for this cohort. Thank you for your "
-    "interest - we hope to see you in a future opportunity."
+    "interest - we hope to see you in a future opportunity.\n"
+    "\n"
+    "You are still welcome today: join our workshop at "
+    f"{WORKSHOP_URL} - we'd love to see you there."
 )

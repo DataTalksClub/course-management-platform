@@ -179,15 +179,8 @@ APPLICATION_TEMPLATES = {
             "you will earn 1 leaderboard point for each invitee who gets accepted.</p>"
             + invite_link_box()
             + divider()
-            + section_title("Copy and send")
-            + "<p>Make it your own voice - personal invites work best:</p>"
-            + quote_block(
-                "&ldquo;I got accepted to {{ course_title }}. Join me - apply here: "
-                "{{ invite_url }}&rdquo;"
-            )
-            + divider()
-            + section_title("Posting publicly")
-            + "<p>Here is an example post:</p>"
+            + section_title("Spread the word")
+            + "<p>Make it your own voice - personal invites work best. Copy, paste, adapt:</p>"
             + quote_block(
                 "&ldquo;Excited to share: I got accepted to {{ course_title }} by DataTalks.Club! "
                 "I will be learning to build and ship production-ready GenAI systems - containers, GPUs, "
@@ -202,9 +195,8 @@ APPLICATION_TEMPLATES = {
         "Know someone who would love this course? Invite them with your personal link: {{ invite_url }} - "
         "you will earn 1 leaderboard point for each invitee who gets accepted.\n\n"
         "Your personal invite link: {{ invite_url }}\n\n"
-        "Copy-paste starter (make it your own voice - personal invites work best):\n"
-        '"I got accepted to {{ course_title }}. Join me - apply here: {{ invite_url }}"\n\n'
-        "Posting publicly? Here is an example post (make it your own):\n"
+        "Spread the word (make it your own voice - personal invites work best, "
+        "works for DMs and public posts):\n"
         '"Excited to share: I got accepted to {{ course_title }} by DataTalks.Club! '
         "I will be learning to build and ship production-ready GenAI systems - containers, GPUs, "
         'real workloads. Join me: {{ invite_url }}"\n\n'
@@ -222,12 +214,23 @@ APPLICATION_TEMPLATES = {
             "{% if custom_message_html %}{{ custom_message_html|safe }}{% endif %}"
             "<p>We're sorry that we are unable to offer you a place in this cohort. "
             "We appreciate your interest and hope you will join us for a future opportunity.</p>"
+            + divider()
+            + section_title("Audit the course for free")
+            + "<p>The course materials are free for everyone, with or without a seat. "
+            "You can follow along at your own pace.</p>"
+            + "{% if github_url %}"
+            + "<p>Start here: "
+            '<a href="{{ github_url }}" style="color:' + LINK_BLUE + ';">{{ github_url }}</a> '
+            "- and if you like what you see, give the repo a star.</p>"
+            + "{% endif %}"
             + "<p>Best wishes,<br>DataTalks.Club</p>",
         ),
         "Hi {{ name }},\n\nThank you for your interest in {{ course_title }} and for taking the time to apply.\n\n"
         "{% if custom_message_text %}{{ custom_message_text }}\n\n{% endif %}"
         "We're sorry that we are unable to offer you a place in this cohort. "
         "We appreciate your interest and hope you will join us for a future opportunity.\n\n"
+        "You can still audit the course for free - the materials are open to everyone.\n"
+        "{% if github_url %}Start here: {{ github_url }} - and give the repo a star if you like it.\n{% endif %}\n"
         "Best wishes,\nDataTalks.Club",
         # custom_message intentionally not required: see approved above.
         ["name", "course_title"],
