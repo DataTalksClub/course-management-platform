@@ -1909,11 +1909,11 @@ body.dark-mode .form-container {
   border-color: transparent !important;
 }
 
-body.dark-mode a {
+body.dark-mode a:not(.primer-button) {
   color: var(--dk-text-link);
 }
 
-body.dark-mode a:hover {
+body.dark-mode a:not(.primer-button):hover {
   color: var(--dk-text-link-hover);
 }
 
