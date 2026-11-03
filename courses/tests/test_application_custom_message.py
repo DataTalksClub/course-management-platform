@@ -233,7 +233,7 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
             )
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "youtube.com/@DataTalksClub")
+        self.assertContains(response, "watch?v=XzS6MrNfrcA")
 
     def test_decision_templates_render_custom_message(self):
         from course_management.relay.application_templates import (
