@@ -3,7 +3,6 @@ import logging
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
-import requests
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -13,24 +12,12 @@ from course_management.worker_lock import worker_lock
 from courses.models import CourseRegistration
 from courses.registration_confirmation import EMAIL_CONFIRMATION_TOKEN_TTL_DAYS, generate_confirmation_token
 from .application_notifications import send_transactional_message
+from .retry_policy import is_permanent_relay_error
 
 logger = logging.getLogger(__name__)
 REMINDERS = ((1, timedelta(hours=24)), (2, timedelta(hours=72)))
 RETRYABLE_BACKOFF = timedelta(minutes=5)
 PERMANENT_BACKOFF = timedelta(hours=24)
-
-
-def is_permanent_relay_error(exc):
-    """True for Relay 4xx that will never succeed on retry (except 429)."""
-    if not isinstance(exc, requests.HTTPError):
-        return False
-    response = getattr(exc, "response", None)
-    status_code = getattr(response, "status_code", 0) or 0
-    if not status_code:
-        return False
-    if status_code == 429:
-        return False
-    return 400 <= status_code < 500
 
 
 def backoff_for_error(exc):

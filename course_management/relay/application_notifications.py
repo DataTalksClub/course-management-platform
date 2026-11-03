@@ -18,6 +18,7 @@ from course_management.relay.message_format import (
     custom_message_html,
     custom_message_text,
 )
+from course_management.relay.retry_policy import is_permanent_relay_error
 from course_management.worker_lock import worker_lock
 from courses.models.application_notification import ApplicationNotification
 
@@ -25,19 +26,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_OPERATOR = "alexey@datatalks.club"
 RETRYABLE_BACKOFF = timedelta(minutes=5)
 PERMANENT_BACKOFF = timedelta(hours=24)
-
-
-def is_permanent_relay_error(exc):
-    """True for Relay 4xx that will never succeed on retry (except 429)."""
-    if not isinstance(exc, requests.HTTPError):
-        return False
-    response = getattr(exc, "response", None)
-    status_code = getattr(response, "status_code", 0) or 0
-    if not status_code:
-        return False
-    if status_code == 429:
-        return False
-    return 400 <= status_code < 500
 
 
 def operator_recipients():
