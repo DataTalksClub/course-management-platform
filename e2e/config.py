@@ -5,7 +5,7 @@ variables / CI secrets. Nothing is hardcoded. Loading order:
 
 1. Process environment (CI secrets).
 2. ``e2e/.env`` if present (local convenience, gitignored).
-3. The repo-root ``.env`` (dev API token + base URLs live here already).
+3. The repo-root ``.env`` (dev API token lives there already).
 
 Required vars are validated lazily so that ``--collect-only`` and the
 health-check test can run even when full credentials are missing.
@@ -22,27 +22,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # it without updating the teardown logic.
 NAMESPACE_PREFIX = "e2e-smoke-"
 
-# Hard-gate: smoke must never target production. Exact host match only —
-# ``dev.courses.datatalks.club`` is allowed; bare ``courses.datatalks.club``
-# (and www) are refused. See t1283u / run 39946102491.
-FORBIDDEN_PROD_HOSTS = frozenset(
-    {
-        "courses.datatalks.club",
-        "www.courses.datatalks.club",
-    }
-)
-ALLOWED_REMOTE_HOSTS = frozenset(
-    {
-        "dev.courses.datatalks.club",
-    }
-)
-ALLOWED_LOCAL_HOSTS = frozenset(
-    {
-        "localhost",
-        "127.0.0.1",
-        "::1",
-    }
-)
+# Hard-gate: smoke must only target an explicit loopback origin with a
+# throwaway database. Production, current dev, and all other remote targets
+# are forbidden until an isolated dev service and database have been
+# verified. There is deliberately no override flag. See e2e/safety.py.
 
 
 def _load_dotenv(path: Path) -> None:
@@ -156,52 +139,34 @@ def _int_env(name: str, default: str) -> int:
     return int(raw_value)
 
 
-def _hostname(base_url: str) -> str:
-    from urllib.parse import urlparse
-
-    parsed = urlparse(base_url if "://" in base_url else f"https://{base_url}")
-    host = (parsed.hostname or "").lower().rstrip(".")
-    return host
-
-
 def assert_safe_e2e_base_url(base_url: str) -> str:
-    """Refuse production (and any non-DEV remote) as an e2e target.
+    """Refuse anything but an explicit loopback base URL.
 
-    Raises ``ConfigError`` when ``base_url`` points at
-    ``courses.datatalks.club`` prod, or at any remote host other than
-    ``dev.courses.datatalks.club``. Localhost is allowed for offline runs.
+    Only a loopback HTTP(S) origin with a throwaway database is supported
+    until an isolated dev service and database have been verified. There is
+    deliberately no override flag: production, current dev, and all other
+    remote targets are forbidden. See e2e/safety.py.
     """
-    cleaned = base_url.rstrip("/")
-    host = _hostname(cleaned)
-    if not host:
-        raise ConfigError(
-            f"E2E base URL has no hostname (refusing): {base_url!r}"
-        )
-    if host in FORBIDDEN_PROD_HOSTS:
-        raise ConfigError(
-            "Refusing e2e against CMP PRODUCTION host "
-            f"{host!r} (base_url={cleaned!r}). "
-            "Smoke must only hit DEV (https://dev.courses.datatalks.club). "
-            "Do not create e2e-smoke-* courses on prod."
-        )
-    if host in ALLOWED_LOCAL_HOSTS:
-        return cleaned
-    if host in ALLOWED_REMOTE_HOSTS:
-        return cleaned
-    raise ConfigError(
-        "Refusing e2e against non-DEV host "
-        f"{host!r} (base_url={cleaned!r}). "
-        "Allowed remote host: dev.courses.datatalks.club "
-        "(or localhost for local runs)."
-    )
+    from e2e import safety
+
+    try:
+        return safety.require_safe_base_url(base_url)
+    except safety.ConfigError as exc:
+        raise ConfigError(str(exc)) from None
 
 
 def _base_url() -> str:
-    # Default to dev. Never fall through to a prod PUBLIC_BASE_URL silently:
-    # assert_safe_e2e_base_url refuses courses.datatalks.club.
-    base_url = _first_env(
-        "E2E_BASE_URL", "PUBLIC_BASE_URL"
-    ) or "https://dev.courses.datatalks.club"
+    # Fail closed: an explicit E2E_BASE_URL is required. There is no
+    # PUBLIC_BASE_URL fallback and no dev default — the suite must never
+    # silently run against a live deployment.
+    base_url = _first_env("E2E_BASE_URL")
+    if not base_url:
+        raise ConfigError(
+            "E2E_BASE_URL is required (an explicit loopback origin, e.g. "
+            "http://127.0.0.1:8000). Refusing to run without a target: "
+            "production, current dev, and all other remote targets are "
+            "forbidden."
+        )
     return assert_safe_e2e_base_url(base_url.rstrip("/"))
 
 

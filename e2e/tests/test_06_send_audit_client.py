@@ -210,14 +210,16 @@ def test_wait_for_send_audit_times_out_when_empty():
 # -- config helpers --------------------------------------------------------
 
 
-def test_student_address_is_namespaced_and_sanitised():
+def test_student_address_is_namespaced_and_sanitised(monkeypatch):
+    monkeypatch.setenv("E2E_BASE_URL", "http://127.0.0.1:8000")
     cfg = load_settings()
     assert cfg.student_address("e2e-smoke-123") == "e2e-smoke-123@example.com"
     # Sanitises unexpected characters in the label.
     assert cfg.student_address("a b/c") == "a-b-c@example.com"
 
 
-def test_load_settings_returns_settings():
+def test_load_settings_returns_settings(monkeypatch):
+    monkeypatch.setenv("E2E_BASE_URL", "http://127.0.0.1:8000")
     cfg = load_settings()
     assert isinstance(cfg, Settings)
     assert cfg.base_url
@@ -246,20 +248,29 @@ def test_load_dotenv_sets_missing_values_only(tmp_path, monkeypatch):
     assert os.environ["E2E_QUOTED"] == "quoted"
 
 
-# -- prod hard-gate (t1283u) -----------------------------------------------
+# -- loopback-only hard-gate -----------------------------------------------
+
+LOOPBACK_REFUSAL = "loopback"
 
 
-def test_assert_safe_e2e_base_url_allows_dev():
+def test_assert_safe_e2e_base_url_allows_loopback():
     from e2e.config import assert_safe_e2e_base_url
 
     assert (
-        assert_safe_e2e_base_url("https://dev.courses.datatalks.club")
-        == "https://dev.courses.datatalks.club"
+        assert_safe_e2e_base_url("http://127.0.0.1:8000")
+        == "http://127.0.0.1:8000"
     )
     assert (
-        assert_safe_e2e_base_url("https://dev.courses.datatalks.club/")
-        == "https://dev.courses.datatalks.club"
+        assert_safe_e2e_base_url("http://127.0.0.1:8000/")
+        == "http://127.0.0.1:8000"
     )
+
+
+def test_assert_safe_e2e_base_url_refuses_dev():
+    from e2e.config import ConfigError, assert_safe_e2e_base_url
+
+    with pytest.raises(ConfigError, match=LOOPBACK_REFUSAL):
+        assert_safe_e2e_base_url("https://dev.courses.datatalks.club")
 
 
 def test_assert_safe_e2e_base_url_allows_localhost():
@@ -278,7 +289,7 @@ def test_assert_safe_e2e_base_url_refuses_prod():
         "https://www.courses.datatalks.club",
         "http://courses.datatalks.club/admin/",
     ):
-        with pytest.raises(ConfigError, match="PRODUCTION"):
+        with pytest.raises(ConfigError, match=LOOPBACK_REFUSAL):
             assert_safe_e2e_base_url(url)
 
 
@@ -293,7 +304,7 @@ def test_assert_safe_e2e_base_url_refuses_prod():
 def test_assert_safe_e2e_base_url_refuses_unknown_remote(url):
     from e2e.config import ConfigError, assert_safe_e2e_base_url
 
-    with pytest.raises(ConfigError, match="non-DEV"):
+    with pytest.raises(ConfigError, match=LOOPBACK_REFUSAL):
         assert_safe_e2e_base_url(url)
 
 
@@ -302,7 +313,7 @@ def test_load_settings_refuses_prod_base_url(monkeypatch):
 
     monkeypatch.setenv("E2E_BASE_URL", "https://courses.datatalks.club")
     monkeypatch.delenv("PUBLIC_BASE_URL", raising=False)
-    with pytest.raises(ConfigError, match="PRODUCTION"):
+    with pytest.raises(ConfigError, match=LOOPBACK_REFUSAL):
         load_settings()
 
 
@@ -320,5 +331,5 @@ def test_create_course_refuses_prod_base_url(monkeypatch):
     from e2e.api_client import CmpApiClient
     from e2e.config import ConfigError
 
-    with pytest.raises(ConfigError, match="PRODUCTION"):
+    with pytest.raises(ConfigError, match=LOOPBACK_REFUSAL):
         CmpApiClient("https://courses.datatalks.club", "token")

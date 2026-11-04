@@ -53,8 +53,9 @@ def client_with(responses):
 @pytest.mark.parametrize(
     ("base_url", "error"),
     [
-        ("https://courses.datatalks.club", "PRODUCTION"),
-        ("https://cmp.example", "non-DEV"),
+        ("https://courses.datatalks.club", "loopback"),
+        ("https://cmp.example", "loopback"),
+        ("https://dev.courses.datatalks.club", "loopback"),
     ],
 )
 def test_client_refuses_unsafe_host_before_opening_session(

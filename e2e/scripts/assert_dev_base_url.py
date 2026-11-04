@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""CI/local helper: refuse e2e against CMP production.
+"""CI/local helper: refuse e2e against anything but an explicit loopback target.
 
-Exit 0 only when E2E_BASE_URL (or argv[1] / PUBLIC_BASE_URL) targets DEV
-or localhost. Used by the E2E Smoke (Dev) workflow and mirrors
-``e2e.config.assert_safe_e2e_base_url`` (t1283u).
+Exit 0 only when E2E_BASE_URL (or argv[1]) is a loopback HTTP(S) origin.
+Mirrors ``e2e.config.assert_safe_e2e_base_url`` / ``e2e/safety.py``:
+production, current dev, and all other remote targets are forbidden until
+an isolated dev service and database have been verified.
 """
 
 from __future__ import annotations
@@ -23,9 +24,10 @@ def main(argv: list[str]) -> int:
     if len(argv) > 1:
         raw = argv[1]
     else:
-        raw = os.environ.get("E2E_BASE_URL") or os.environ.get("PUBLIC_BASE_URL")
+        raw = os.environ.get("E2E_BASE_URL")
     if not raw:
-        raw = "https://dev.courses.datatalks.club"
+        print("ERROR: E2E_BASE_URL is required (explicit loopback origin).", file=sys.stderr)
+        return 1
     try:
         cleaned = assert_safe_e2e_base_url(raw.rstrip("/"))
     except ConfigError as exc:

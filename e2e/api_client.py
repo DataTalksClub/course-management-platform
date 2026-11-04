@@ -107,11 +107,15 @@ class CmpApiClient:
         data = None
         if json_body is not None:
             data = json.dumps(json_body)
+        # Never follow redirects: a 3xx that points at a forbidden target
+        # (e.g. production) must surface as an ApiError, never as traffic
+        # forwarded to that target.
         return self.session.request(
             method,
             url,
             data=data,
             timeout=self.timeout,
+            allow_redirects=False,
         )
 
     def _sleep_before_retry(self, attempt: int) -> None:

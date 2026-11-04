@@ -10,9 +10,9 @@ Stops approving once 2000 registrations exist for the campaign course.
 
 Sends NO emails to registrants: approvals use ``bulk_update`` (never
 ``.save()``), so no ``ApplicationNotification`` rows are queued and the
-Relay outbox stays untouched. There is deliberately no send path to
-Nebius either: the approved list is only visible on the staff-only
-cadmin preview page.
+Relay outbox stays untouched. The only mail sent is the operator-only
+Nebius report (approved-list CSV to Mikhail + Alexey copy) via
+``courses.genmedia_report``; it never raises and never touches registrants.
 """
 
 import logging
@@ -156,6 +156,19 @@ def approve_pending_registrations(now=None) -> ApprovalResult:
                 approved_count=len(eligible),
                 excluded_count=len(registrations) - len(eligible),
             )
+    if eligible:
+        # Operator-only CSV report (Nebius + Alexey copy). Skipped when
+        # nothing was approved; never raises and never emails registrants.
+        try:
+            from courses import genmedia_report
+
+            genmedia_report.send_nebius_report(
+                day=day,
+                approved=eligible,
+                excluded_count=len(registrations) - len(eligible),
+            )
+        except Exception:
+            logger.error("genmedia nebius report failed day=%s", day)
     try:
         record_event("genmedia.nightly-approval", properties={
             "source": "genmedia-approval",

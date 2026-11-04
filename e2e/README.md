@@ -1,9 +1,15 @@
 # E2E smoke tests (Playwright)
 
-End-to-end smoke suite that runs against a **live** CMP deployment (dev by
-default) after each deploy. It provisions a full course lifecycle, exercises
-the user-facing flows through a real browser, verifies scoring + leaderboard,
-and tears the data down again so dev stays clean.
+End-to-end smoke suite that runs against a **local** CMP server with a
+throwaway database. It provisions a full course lifecycle, exercises the
+user-facing flows through a real browser, verifies scoring + leaderboard,
+and tears the data down again so the next run starts clean.
+
+Only an explicit loopback target (`E2E_BASE_URL` pointing at
+`localhost` / `127.0.0.1` / `::1`) is supported until an isolated dev
+service and database have been verified — production, current dev, and all
+other remote targets are hard-refused by `e2e/config.py`
+(see `e2e/safety.py`). There is deliberately no override flag.
 
 This suite is intentionally **separate from the Django unit tests**
 (`courses/tests`, `api/tests`, ...). It has its own `pytest.ini`, never sets
@@ -63,8 +69,8 @@ context) contains `/homework/` / `/project/`.
 
 **What runs now vs. what's gated.** The client logic is covered by
 `tests/test_06_send_audit_client.py` (no-network unit tests — path, query
-params, response shape, poll/timeout, body matching). The **live** email
-assertions in `test_03/04` need the target deployment to have Relay
+params, response shape, poll/timeout, body matching). The email
+assertions in `test_03/04` need the local target to have Relay
 configured **and** `RELAY_TRANSACTIONAL_DRY_RUN=1`; when no matching audit
 appears, they **xfail** (a fast pre-check avoids burning the poll timeout) so
 the suite stays green until dry-run is switched on.
@@ -99,7 +105,7 @@ So teardown:
 
 Teardown stays robust: if the admin delete is unavailable (no admin creds) or
 fails, it falls back to **parking** the course (`visible=false`, renamed
-`[DELETED] ...`) and reports the residual, so dev still stays clean.
+`[DELETED] ...`) and reports the residual, so the throwaway database stays clean.
 
 The post-run assertions verify **no _visible_ `e2e-smoke-*` course remains**
 and that the course is **fully purged** (no longer retrievable via the API).
@@ -136,11 +142,11 @@ uv run playwright install chromium
 
 Copy `e2e/.env.example` to `e2e/.env` for local runs, or provide as CI
 secrets. The suite also falls back to the **repo-root `.env`** for
-`DEV_AUTH_TOKEN` and `PUBLIC_BASE_URL`.
+`DEV_AUTH_TOKEN`.
 
 | Var | Required for | Notes |
 |-----|--------------|-------|
-| `E2E_BASE_URL` | all | Defaults to `https://dev.courses.datatalks.club` (or `PUBLIC_BASE_URL`). **Prod `courses.datatalks.club` is hard-refused** by `assert_safe_e2e_base_url` + the CI workflow (t1283u); only DEV or localhost is allowed. |
+| `E2E_BASE_URL` | all | **Required, loopback only** (e.g. `http://127.0.0.1:8000`). Production, dev, and all other remote targets are hard-refused by `assert_safe_e2e_base_url` (see `e2e/safety.py`); there is no default and no `PUBLIC_BASE_URL` fallback. |
 | `E2E_API_TOKEN` | provisioning/scoring/teardown | Staff token. Falls back to `DEV_AUTH_TOKEN`. |
 | `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` | browser flows + teardown | Staff account; logs in via the admin form (no OAuth). Teardown deletes the course through the admin UI with this session; without it, teardown only parks the course hidden. |
 | `E2E_STUDENT_EMAIL` / `E2E_STUDENT_PASSWORD` | optional | If unset, a per-run `<namespace>@example.com` student is created admin-side. With dry-run nothing is delivered, so no special address is needed. |
@@ -149,11 +155,15 @@ secrets. The suite also falls back to the **repo-root `.env`** for
 
 **Never hardcode secrets.** Nothing in this suite contains credentials.
 
-## Scheduling (post dev-deploy)
+## Scheduling (disabled until an isolated target exists)
 
-Run the suite as a **post-deploy job** in the dev deploy workflow (see
-`.github/workflows/e2e-smoke-dev.yml`): it triggers on `workflow_run`
-completion of the dev deploy, waits for `/api/health/` to report the new
-version (`E2E_EXPECTED_VERSION`), runs the suite, and fails (alerting) with
-the exact scenario that broke. Alternatively, an EventBridge schedule
-(consistent with the deadline-reminder infra) can invoke the same command.
+The suite currently refuses all remote targets (loopback only), so the
+scheduled/dev-triggered runs are on hold: `.github/workflows/e2e-smoke-dev.yml`
+still targets dev and will fail the safety gate until an isolated dev
+service and database have been verified and the workflow is re-enabled.
+Once that happens, run the suite as a **post-deploy job** in the dev deploy
+workflow: trigger on `workflow_run` completion of the dev deploy, wait for
+`/api/health/` to report the new version (`E2E_EXPECTED_VERSION`), run the
+suite, and fail (alerting) with the exact scenario that broke. Alternatively,
+an EventBridge schedule (consistent with the deadline-reminder infra) can
+invoke the same command.
