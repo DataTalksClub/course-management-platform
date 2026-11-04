@@ -157,11 +157,14 @@ secrets. The suite also falls back to the **repo-root `.env`** for
 
 ## Scheduling (disabled until an isolated target exists)
 
-The suite currently refuses all remote targets (loopback only), so the
-scheduled/dev-triggered runs are on hold: `.github/workflows/e2e-smoke-dev.yml`
-still targets dev and will fail the safety gate until an isolated dev
-service and database have been verified and the workflow is re-enabled.
-Once that happens, run the suite as a **post-deploy job** in the dev deploy
+The suite currently refuses all remote targets (loopback only), so
+scheduled/dev-triggered runs are on hold: on 2026-11-04 the daily `schedule`
+trigger and the dev default target were removed from
+`.github/workflows/e2e-smoke-dev.yaml`. Until then the scheduled job kept
+targeting dev and failed the safety gate every day (e.g. run 41845974293).
+The workflow remains for on-demand dispatch against a loopback server. Once
+an isolated dev service and database have been verified and the workflow is
+re-enabled, run the suite as a **post-deploy job** in the dev deploy
 workflow: trigger on `workflow_run` completion of the dev deploy, wait for
 `/api/health/` to report the new version (`E2E_EXPECTED_VERSION`), run the
 suite, and fail (alerting) with the exact scenario that broke. Alternatively,
