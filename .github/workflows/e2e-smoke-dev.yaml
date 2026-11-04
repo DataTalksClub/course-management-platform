@@ -1,21 +1,18 @@
 name: E2E Smoke (Dev)
 
-# Standalone Playwright e2e smoke suite against dev. Runs on demand or on a
-# schedule -- intentionally NOT tied to deploys or commits to main, so it can
-# be triggered independently. See e2e/README.md and issue #194.
+# Standalone Playwright e2e smoke suite. ON HOLD since 2026-11-04: the daily
+# schedule and the dev default target are removed until an isolated dev
+# service and database have been verified, because e2e/safety.py deliberately
+# hard-refuses every remote target (including current dev). Dispatch is kept
+# for on-demand runs against a loopback server. See e2e/README.md
+# ("Scheduling") and issue #194.
 on:
-  # Manual run (the primary way to run this job).
+  # Manual run (the primary way to run this job once a safe target exists).
   workflow_dispatch:
     inputs:
-      base_url:
-        description: "Target base URL"
-        default: "https://dev.courses.datatalks.club"
       expected_version:
         description: "Expected /api/health/ version (optional)"
         required: false
-  # Scheduled run, independent of any deploy (daily at 06:00 UTC).
-  schedule:
-    - cron: "0 6 * * *"
 
 jobs:
   smoke:
@@ -31,7 +28,11 @@ jobs:
     # dev would send real email during the smoke run; the email tests xfail
     # if no audit appears.
     env:
-      E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev.courses.datatalks.club' }}
+      # Loopback is the only allowed target class (e2e/safety.py hard-refuses
+      # everything else). Until the local-server harness or the isolated dev
+      # target is verified (e2e/README.md), a dispatch without a booted local
+      # server fails fast at the health step.
+      E2E_BASE_URL: 'http://127.0.0.1:8000'
       E2E_API_TOKEN: ${{ secrets.E2E_DEV_API_TOKEN }}
       E2E_ADMIN_EMAIL: ${{ secrets.E2E_DEV_ADMIN_EMAIL }}
       E2E_ADMIN_PASSWORD: ${{ secrets.E2E_DEV_ADMIN_PASSWORD }}
@@ -54,7 +55,7 @@ jobs:
       - name: Install Playwright browser
         run: uv run playwright install --with-deps chromium
 
-      - name: Wait for dev health endpoint
+      - name: Wait for target health endpoint
         run: |
           for i in $(seq 1 30); do
             if curl -fsS "${E2E_BASE_URL}/api/health/" | grep -q '"status": *"ok"'; then
