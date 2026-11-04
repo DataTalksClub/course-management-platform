@@ -137,21 +137,13 @@ class ReferralBonusTests(RegistrationCampaignBase):
         enrollment.refresh_from_db()
         self.assertEqual(enrollment.total_score, REFERRAL_BONUS_POINTS)
 
-    def test_nightly_approval_awards_referral_silently(self):
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
+    def test_approve_awards_referral_and_queues_decision_email(self):
+        from courses.models import ApplicationNotification
+        from courses.registration_wall import approve_registration
 
-        from courses import genmedia_approval
-        from courses.genmedia_policy import (
-            AUTO_APPROVAL_TIMEZONE,
-            CAMPAIGN_SLUG,
-        )
-        from courses.models import ApplicationNotification, RegistrationCampaign
-
-        campaign = RegistrationCampaign.objects.get(slug=CAMPAIGN_SLUG)
         invitee = CourseRegistration.objects.create(
-            campaign=campaign,
-            course=campaign.current_course,
+            campaign=self.campaign,
+            course=self.course,
             email="invitee@example.com",
             name="Invitee",
             country="Germany",
@@ -159,22 +151,17 @@ class ReferralBonusTests(RegistrationCampaignBase):
             role=CourseRegistration.Role.DATA_ENGINEER,
             referred_by=self.inviter_registration,
         )
-        zone = ZoneInfo(AUTO_APPROVAL_TIMEZONE)
-        now = datetime.now(zone).replace(
-            hour=20, minute=5, second=0, microsecond=0
-        )
-        result = genmedia_approval.approve_pending_registrations(now=now)
-        self.assertTrue(result.ran)
-        self.assertEqual(result.approved, 1)
+        approve_registration(invitee)
         enrollment = Enrollment.objects.get(
-            student=self.inviter, course=campaign.current_course
+            student=self.inviter, course=self.course
         )
         self.assertEqual(
             enrollment.bonus_points, REFERRAL_BONUS_POINTS
         )
-        self.assertFalse(
+        self.assertTrue(
             ApplicationNotification.objects.filter(
-                registration=invitee
+                registration=invitee,
+                template_key="application-approved",
             ).exists()
         )
 

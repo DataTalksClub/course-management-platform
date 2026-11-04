@@ -235,14 +235,4 @@ APPLICATION_TEMPLATES = {
         # custom_message intentionally not required: see approved above.
         ["name", "course_title"],
     ),
-    "genmedia-nebius-approval-report": template(
-        "Genmedia nightly approved list",
-        "Genmedia approved {{ date_label }}: {{ approved_count }} approved",
-        "<p>{{ approved_count }} approved, {{ excluded_count }} excluded "
-        "for {{ date_label }}.</p>"
-        "<pre>{{ csv_text }}</pre>",
-        "Genmedia approved {{ date_label }}: {{ approved_count }} approved, "
-        "{{ excluded_count }} excluded.\n\n{{ csv_text }}",
-        ["date_label", "approved_count", "excluded_count", "csv_text"],
-    ),
 }

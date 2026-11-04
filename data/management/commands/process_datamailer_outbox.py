@@ -10,7 +10,6 @@ from course_management.relay.application_notifications import (
 from course_management.relay.registration_digest import (
     maybe_send_scheduled_digest,
 )
-from courses.genmedia_approval import maybe_run_scheduled_approval
 
 
 class Command(BaseCommand):
@@ -32,10 +31,6 @@ class Command(BaseCommand):
         # it sends at most once per Europe/Berlin day around 09:00 and never
         # raises, so digest trouble cannot block outbox processing.
         maybe_send_scheduled_digest()
-        # Genmedia evening bulk approval piggybacks the same way: at most
-        # one silent run per Europe/Berlin day inside the 20:00 hour, never
-        # raises, never sends mail (bulk_update, staff-only preview page).
-        maybe_run_scheduled_approval()
         from course_management.relay.confirmation_reminders import process_confirmation_reminders
         process_confirmation_reminders(limit=options["limit"])
         if DatamailerConfig.from_settings() is None:
