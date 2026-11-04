@@ -109,6 +109,7 @@ ALLOWED_MARKDOWN_TAGS = [
     "h3",
     "h4",
     "hr",
+    "img",
     "li",
     "ol",
     "p",
@@ -116,7 +117,10 @@ ALLOWED_MARKDOWN_TAGS = [
     "strong",
     "ul",
 ]
-ALLOWED_MARKDOWN_ATTRIBUTES = {"a": ["href", "title", "rel", "target"]}
+ALLOWED_MARKDOWN_ATTRIBUTES = {
+    "a": ["href", "title", "rel", "target"],
+    "img": ["src", "alt", "title"],
+}
 
 
 def region_for_country(country):
