@@ -257,12 +257,25 @@ def _registration_context(
         course is not None
         and getattr(course, "requires_registration_approval", False)
     )
+    # On wall courses the "start now" open-enrollment box would contradict
+    # the application box ("acceptance is not automatic"). Hide it unless
+    # the visitor's application is already approved.
+    registration_approved = bool(
+        registration is not None
+        and registration.status == CourseRegistration.Status.APPROVED
+    )
+    show_open_course_box = (
+        course_is_open
+        and bool(start_course_url)
+        and (not registration_wall or registration_approved)
+    )
 
     return {
         "campaign": campaign,
         "course": course,
         "course_is_open": course_is_open,
         "registration_wall": registration_wall,
+        "show_open_course_box": show_open_course_box,
         "signup_count": campaign.registrations.count(),
         "form": form,
         "registration": registration,

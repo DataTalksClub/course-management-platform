@@ -225,6 +225,32 @@ class RegistrationWallTests(RegistrationCampaignBase):
         self.assertContains(response, "Application only")
         self.assertContains(response, "limited seats")
 
+    def test_wall_course_hides_open_enrollment_box(self):
+        response = self.client.get(self.campaign_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Application only")
+        self.assertNotContains(response, "The course is already open.")
+        self.assertNotContains(response, "You can start now")
+
+    def test_wall_pending_registration_hides_start_now_box(self):
+        self.create_pending_registration(user=self.user)
+        self.client.force_login(self.user)
+        response = self.client.get(self.campaign_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "You can start now")
+
+    def test_wall_approved_registration_keeps_start_course(self):
+        registration = self.create_pending_registration(user=self.user)
+        registration.status = CourseRegistration.Status.APPROVED
+        registration.save(update_fields=["status"])
+        self.client.force_login(self.user)
+        response = self.client.get(self.campaign_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Start course")
+
     def test_wall_form_requires_experience(self):
         payload = self.registration_payload()
         payload.pop("experience", None)
