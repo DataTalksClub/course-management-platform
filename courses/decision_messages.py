@@ -14,8 +14,9 @@ GITHUB_REPO_URL = "https://github.com/DataTalksClub/production-ai-agents-for-med
 YOUTUBE_URL = "https://www.youtube.com/watch?v=XzS6MrNfrcA"
 
 APPROVAL_MESSAGE_LAUNCH = (
-    "We kicked off with a workshop - watch the recording here: "
-    f"{YOUTUBE_URL}\n"
+    "Before we start: join the pre-course Q&A at "
+    "https://luma.com/i4x6x2zy - bring your questions, we'll walk "
+    "through the setup and what to expect.\n"
     "\n"
     "Then star the course repo at "
     f"{GITHUB_REPO_URL} "

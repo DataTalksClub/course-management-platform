@@ -210,10 +210,10 @@ APPLICATION_TEMPLATES = {
         "Your application: {{ course_title }}",
         email_shell(
             "Update on your application, {{ name }}",
-            "<p>Thank you for your interest in {{ course_title }} and for taking the time to apply.</p>"
+            "<p>Thank you for your interest in {{ course_title }}.</p>"
+            "<p>We reviewed your application and cannot offer you "
+            "a seat in this cohort.</p>"
             "{% if custom_message_html %}{{ custom_message_html|safe }}{% endif %}"
-            "<p>We're sorry that we are unable to offer you a place in this cohort. "
-            "We appreciate your interest and hope you will join us for a future opportunity.</p>"
             + divider()
             + section_title("Audit the course for free")
             + "<p>The course materials are free for everyone, with or without a seat. "
@@ -225,11 +225,11 @@ APPLICATION_TEMPLATES = {
             + "{% endif %}"
             + "<p>Best wishes,<br>DataTalks.Club</p>",
         ),
-        "Hi {{ name }},\n\nThank you for your interest in {{ course_title }} and for taking the time to apply.\n\n"
+        "Hi {{ name }},\n\nThank you for your interest in {{ course_title }}. "
+        "We reviewed your application and cannot offer you "
+        "a seat in this cohort.\n\n"
         "{% if custom_message_text %}{{ custom_message_text }}\n\n{% endif %}"
-        "We're sorry that we are unable to offer you a place in this cohort. "
-        "We appreciate your interest and hope you will join us for a future opportunity.\n\n"
-        "You can still audit the course for free - the materials are open to everyone.\n"
+        "You can audit all materials for free - the course is open to everyone.\n"
         "{% if github_url %}Start here: {{ github_url }} - and give the repo a star if you like it.\n{% endif %}\n"
         "Best wishes,\nDataTalks.Club",
         # custom_message intentionally not required: see approved above.
