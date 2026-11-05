@@ -31,13 +31,6 @@ from courses.genmedia_policy import (  # noqa: E402
 
 BERLIN = ZoneInfo(AUTO_APPROVAL_TIMEZONE)
 BATCH_SIZE = 100
-SUCCESS_RECIPIENTS = [
-    "alexey.s.grigoriev@gmail.com",
-    "mnrozhkov@nebius.com",
-]
-FAILURE_RECIPIENTS = [
-    "alexey.s.grigoriev@gmail.com",
-]
 
 
 class BatchError(RuntimeError):
@@ -49,6 +42,29 @@ def env(name, default=None, required=False):
     if required and not value:
         raise BatchError(f"Missing required env var: {name}")
     return value
+
+
+def split_recipients(raw):
+    return [
+        address.strip()
+        for address in raw.replace(",", " ").split()
+        if "@" in address
+    ]
+
+
+def success_recipients():
+    return split_recipients(
+        env(
+            "GENMEDIA_SUMMARY_TO",
+            default="alexey.s.grigoriev@gmail.com,mnrozhkov@nebius.com",
+        )
+    )
+
+
+def failure_recipients():
+    return split_recipients(
+        env("GENMEDIA_FAILURE_TO", default="alexey.s.grigoriev@gmail.com")
+    )
 
 
 def api(method, path, token, base_url, payload=None, timeout=30):
@@ -191,7 +207,7 @@ def notify_failure(day_label, error):
         f"The evening genmedia batch failed and NOTHING was approved.\n\n"
         f"Error: {error}\n"
     )
-    for recipient in FAILURE_RECIPIENTS:
+    for recipient in failure_recipients():
         send_plain_email(
             recipient,
             subject,
@@ -222,7 +238,7 @@ def notify_success(day_label, approved, skipped, total):
         "Approved CSV:",
         csv_text,
     ]
-    for recipient in SUCCESS_RECIPIENTS:
+    for recipient in success_recipients():
         send_plain_email(
             recipient,
             subject,

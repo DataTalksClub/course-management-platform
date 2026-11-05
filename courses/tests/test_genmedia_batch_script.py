@@ -74,3 +74,13 @@ class BuildCsvTestCase(SimpleTestCase):
         )
         self.assertIn("a@example.com", lines[1])
         self.assertIn("2026-11-05", lines[1])
+
+
+class SplitRecipientsTestCase(SimpleTestCase):
+    def test_splits_commas_and_spaces(self):
+        from scripts.genmedia_evening_batch import split_recipients
+
+        self.assertEqual(
+            split_recipients("a@x.com, b@y.com c@z.com"),
+            ["a@x.com", "b@y.com", "c@z.com"],
+        )
