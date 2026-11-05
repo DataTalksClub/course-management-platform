@@ -211,7 +211,7 @@ APPLICATION_TEMPLATES = {
         email_shell(
             "Update on your application, {{ name }}",
             "<p>Thank you for your interest in {{ course_title }}. "
-            "We reviewed your application and cannot offer you "
+            "We reviewed your application and unfortunately cannot offer you "
             "a seat in this cohort.</p>"
             "{% if custom_message_html %}{{ custom_message_html|safe }}{% endif %}"
             "<p>You will still be able to audit the course for free and follow "
@@ -238,7 +238,7 @@ APPLICATION_TEMPLATES = {
             + "<p>Best wishes,<br>DataTalks.Club</p>",
         ),
         "Hi {{ name }},\n\nThank you for your interest in {{ course_title }}. "
-        "We reviewed your application and cannot offer you "
+        "We reviewed your application and unfortunately cannot offer you "
         "a seat in this cohort.\n\n"
         "{% if custom_message_text %}{{ custom_message_text }}\n\n{% endif %}"
         "You will still be able to audit the course for free and follow it "
