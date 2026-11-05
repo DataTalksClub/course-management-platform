@@ -210,10 +210,22 @@ APPLICATION_TEMPLATES = {
         "Your application: {{ course_title }}",
         email_shell(
             "Update on your application, {{ name }}",
-            "<p>Thank you for your interest in {{ course_title }}.</p>"
-            "<p>We reviewed your application and cannot offer you "
+            "<p>Thank you for your interest in {{ course_title }}. "
+            "We reviewed your application and cannot offer you "
             "a seat in this cohort.</p>"
             "{% if custom_message_html %}{{ custom_message_html|safe }}{% endif %}"
+            "<p>You will still be able to audit the course for free and follow "
+            "it along with the others in "
+            '<a href="https://datatalks.club/slack.html" style="color:' + LINK_BLUE + ';">Slack</a>. '
+            "But you won't get access to the Nebius platform and to our course "
+            "management platform where you can submit homework and projects.</p>"
+            "<p>You&rsquo;re still encouraged to follow the course.</p>"
+            "<ul>"
+            '<li>Soon we will have a pre-course Q&amp;A session: '
+            '<a href="https://luma.com/i4x6x2zy" style="color:' + LINK_BLUE + ';">https://luma.com/i4x6x2zy</a></li>'
+            '<li>You can also see a workshop we recently did: '
+            '<a href="https://www.youtube.com/watch?v=XzS6MrNfrcA" style="color:' + LINK_BLUE + ';">https://www.youtube.com/watch?v=XzS6MrNfrcA</a></li>'
+            "</ul>"
             + divider()
             + section_title("Audit the course for free")
             + "<p>The course materials are free for everyone, with or without a seat. "
@@ -229,7 +241,14 @@ APPLICATION_TEMPLATES = {
         "We reviewed your application and cannot offer you "
         "a seat in this cohort.\n\n"
         "{% if custom_message_text %}{{ custom_message_text }}\n\n{% endif %}"
-        "You can audit all materials for free - the course is open to everyone.\n"
+        "You will still be able to audit the course for free and follow it "
+        "along with the others in Slack (https://datatalks.club/slack.html). "
+        "But you won't get access to the Nebius platform and to our course "
+        "management platform where you can submit homework and projects.\n\n"
+        "You're still encouraged to follow the course.\n\n"
+        "- Soon we will have a pre-course Q&A session: https://luma.com/i4x6x2zy\n"
+        "- You can also see a workshop we recently did: https://www.youtube.com/watch?v=XzS6MrNfrcA\n\n"
+        "The course materials are open to everyone.\n"
         "{% if github_url %}Start here: {{ github_url }} - and give the repo a star if you like it.\n{% endif %}\n"
         "Best wishes,\nDataTalks.Club",
         # custom_message intentionally not required: see approved above.
