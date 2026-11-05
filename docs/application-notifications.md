@@ -38,11 +38,16 @@ per-site style, with no new client branding configuration:
 - `registration-confirmation-reminder-2`: final reminder 72h after an
   unconfirmed registration (confirmation link + 7-day deletion deadline).
 
-Publish to each environment with its own Relay configuration:
+Validate placeholder values against every registered template
+(without sending anything):
 
 ```
-uv run python manage.py publish_application_templates
+uv run python manage.py check_transactional_templates
 ```
+
+Add ``--live`` to also dry-run render each template in Relay (needs Relay
+configuration). Template bodies live in Relay and are edited there; this
+repo owns only the placeholder values each template receives.
 
 The existing scheduled outbox command also processes these notifications, so no
 additional scheduler is required. To process just the application queue:

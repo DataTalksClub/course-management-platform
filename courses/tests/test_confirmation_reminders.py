@@ -3,7 +3,6 @@ from io import StringIO
 from unittest.mock import patch
 
 from django.core.management import call_command
-from django.template import Context, Template
 from django.utils import timezone
 
 from courses.models import CourseRegistration
@@ -55,19 +54,15 @@ class ConfirmationReminderTests(RegistrationCampaignBase):
         self.assertIsNotNone(row.confirmation_reminder_1_sent_at)
         self.assertIsNotNone(row.confirmation_reminder_2_sent_at)
 
-    def test_final_copy_has_berlin_deadline_and_confirm_link(self):
-        from course_management.relay.application_templates import APPLICATION_TEMPLATES
+    def test_final_reminder_context_has_berlin_deadline_and_confirm_link(self):
         from zoneinfo import ZoneInfo
         row = self.make_registration(timedelta(hours=72), confirmation_reminder_1_sent_at=self.now-timedelta(hours=48))
         self.run_job()
         key, recipient, context, _ = self.send.call_args.args
-        draft = APPLICATION_TEMPLATES[key]
-        body = Template(draft["text_body"]).render(Context(context))
-        self.assertIn("last reminder", body)
-        self.assertIn((row.created_at+timedelta(days=7)).astimezone(ZoneInfo("Europe/Berlin")).strftime("%Y-%m-%d"), body)
-        self.assertIn("Europe/Berlin", body)
-        self.assertIn("your registration will be deleted", body)
-        self.assertIn("/register/confirm/original/", body)
+        self.assertEqual(key, "registration-confirmation-reminder-2")
+        self.assertIn((row.created_at+timedelta(days=7)).astimezone(ZoneInfo("Europe/Berlin")).strftime("%Y-%m-%d"), context["deadline"])
+        self.assertIn("Europe/Berlin", context["deadline"])
+        self.assertIn("/register/confirm/original/", context["confirmation_url"])
         self.assertEqual(recipient, row.email_normalized)
 
     def test_delete_only_after_deadline_with_final_and_never_confirmed(self):

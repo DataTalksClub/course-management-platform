@@ -235,22 +235,22 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "https://luma.com/i4x6x2zy")
 
-    def test_decision_templates_render_custom_message(self):
+    def test_decision_templates_leave_custom_message_optional(self):
         from course_management.relay.application_templates import (
-            APPLICATION_TEMPLATES,
+            TRANSACTIONAL_TEMPLATES,
         )
 
         for key in ("application-approved", "application-rejected"):
-            draft = APPLICATION_TEMPLATES[key]
+            spec = TRANSACTIONAL_TEMPLATES[key]
             # Optional: empty messages must validate, so the field is
-            # not in required_context. It stays in the shared example
-            # pool for template authors.
-            field_names = [
-                field["name"] for field in draft["required_context"]
-            ]
-            self.assertNotIn("custom_message", field_names)
-            self.assertIn("custom_message", draft["html_body"])
-            self.assertIn("custom_message", draft["text_body"])
+            # not required. Bodies live in Relay; code only owns values.
+            self.assertNotIn("custom_message", spec["required_context"])
+            self.assertNotIn(
+                "custom_message_html", spec["required_context"]
+            )
+            self.assertNotIn(
+                "custom_message_text", spec["required_context"]
+            )
 
 
 class DecisionCustomMessageMigrationTests(TransactionTestCase):
@@ -396,15 +396,15 @@ class CustomMessageFormatTests(RegistrationCampaignBase):
             "Come say hi in #course-ai-mediagen (https://example.com/c).",
         )
 
-    def test_rejected_template_has_audit_block(self):
+    def test_rejected_template_needs_only_name_and_title(self):
         from course_management.relay.application_templates import (
-            APPLICATION_TEMPLATES,
+            TRANSACTIONAL_TEMPLATES,
         )
 
-        draft = APPLICATION_TEMPLATES["application-rejected"]
-        self.assertIn("Audit the course for free", draft["html_body"])
-        self.assertIn("github_url", draft["html_body"])
-        self.assertIn("audit the course for free", draft["text_body"])
+        # Bodies (including the audit block) live in Relay; the code
+        # contract is just the placeholder values CMP must send.
+        spec = TRANSACTIONAL_TEMPLATES["application-rejected"]
+        self.assertEqual(spec["required_context"], ["name", "course_title"])
 
     def test_context_carries_github_url(self):
         from course_management.relay.application_notifications import (

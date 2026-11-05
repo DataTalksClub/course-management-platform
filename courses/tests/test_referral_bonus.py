@@ -177,19 +177,16 @@ class ReferralBonusTests(RegistrationCampaignBase):
         )
         self.assertIn("register", context["invite_url"])
 
-    def test_approved_template_renders_invite_section(self):
+    def test_approved_template_contract_includes_invite_url(self):
         from course_management.relay.application_templates import (
-            APPLICATION_TEMPLATES,
+            TRANSACTIONAL_TEMPLATES,
         )
 
-        draft = APPLICATION_TEMPLATES["application-approved"]
-        field_names = [
-            field["name"] for field in draft["required_context"]
-        ]
-        self.assertIn("invite_url", field_names)
-        self.assertIn("invite_url", draft["html_body"])
-        self.assertIn("Spread the word", draft["html_body"])
-        self.assertIn("Spread the word", draft["text_body"])
+        # Invite section copy lives in Relay; the code contract is
+        # the placeholder values CMP must send.
+        spec = TRANSACTIONAL_TEMPLATES["application-approved"]
+        self.assertIn("invite_url", spec["required_context"])
+        self.assertIn("course_url", spec["required_context"])
 
     def test_course_page_shows_invite_link_to_approved(self):
         approve_registration(self.inviter_registration)
