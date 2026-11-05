@@ -187,6 +187,78 @@ def apply_registration_patch(registration, data):
         registration.region = region_for_country(registration.country)
 
 
+BATCH_APPROVE_LIMIT = 100
+
+
+def approve_registrations_batch_payload(campaign, request):
+    """Approve up to 100 pending registrations in one staff call.
+
+    Uses the normal approve path (``approve_registration``), so each
+    approval queues the applicant decision email and awards referral
+    points exactly like a manual cadmin approval. Already-approved rows
+    are reported as approved without re-sending anything.
+    """
+    from django.utils import timezone
+
+    from courses.registration_wall import approve_registration
+
+    data, err = parse_json_body(request)
+    if err:
+        return None, err
+
+    if not isinstance(data, dict):
+        error = error_response("Body must be an object", "invalid_body")
+        return None, error
+
+    ids = data.get("ids")
+    if not isinstance(ids, list) or not ids or not all(
+        isinstance(item, int) for item in ids
+    ):
+        error = error_response(
+            "Body must be {ids: [registration id, ...]}",
+            "invalid_ids",
+        )
+        return None, error
+    if len(ids) > BATCH_APPROVE_LIMIT:
+        error = error_response(
+            f"At most {BATCH_APPROVE_LIMIT} ids per request",
+            "batch_too_large",
+        )
+        return None, error
+
+    approved = []
+    skipped = []
+    for registration_id in ids:
+        registration = CourseRegistration.objects.filter(
+            campaign=campaign, id=registration_id
+        ).first()
+        if registration is None:
+            skipped.append({"id": registration_id, "reason": "not-found"})
+            continue
+        if registration.status == CourseRegistration.Status.APPROVED:
+            approved.append(registration_to_dict(registration))
+            continue
+        if registration.status != CourseRegistration.Status.PENDING:
+            skipped.append(
+                {
+                    "id": registration_id,
+                    "reason": f"unexpected-status-{registration.status}",
+                }
+            )
+            continue
+        approve_registration(registration)
+        registration.auto_approved_at = timezone.now()
+        registration.save(update_fields=["auto_approved_at", "updated_at"])
+        approved.append(
+            registration_to_dict(
+                CourseRegistration.objects.select_related(
+                    "campaign", "course"
+                ).get(id=registration.id)
+            )
+        )
+    return {"approved": approved, "skipped": skipped}, None
+
+
 def results_summary(results):
     created = 0
     skipped = 0

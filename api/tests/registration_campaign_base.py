@@ -29,11 +29,11 @@ class RegistrationCampaignAPITestBase(TestCase):
             current_course=self.course,
         )
 
-    def create_registration(self, campaign):
+    def create_registration(self, campaign, email="student@example.com"):
         return CourseRegistration.objects.create(
             campaign=campaign,
             course=self.course,
-            email="student@example.com",
+            email=email,
             name="Student",
             company_name="Acme Data",
             country="Germany",
@@ -88,3 +88,30 @@ class RegistrationCampaignAPITestBase(TestCase):
             request_body,
             content_type="application/json",
         )
+
+    def approve_batch_url(self):
+        return (
+            "/api/registration-campaigns/llm-zoomcamp/registrations/"
+            "approve-batch/"
+        )
+
+    def post_approve_batch(self, client, payload):
+        url = self.approve_batch_url()
+        request_body = json.dumps(payload)
+        return client.post(
+            url,
+            request_body,
+            content_type="application/json",
+        )
+
+    def non_staff_client(self):
+        non_staff = CustomUser.objects.create(
+            username="plain",
+            email="plain@example.com",
+        )
+        token = Token.objects.create(user=non_staff)
+        client = Client()
+        client.defaults[
+            "HTTP_AUTHORIZATION"
+        ] = f"Token {token.key}"
+        return client

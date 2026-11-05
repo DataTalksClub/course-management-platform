@@ -38,8 +38,10 @@ def registration_to_dict(registration):
         "course": course_slug,
         "country": registration.country,
         "region": registration.region,
+        "ukraine_region": registration.ukraine_region,
         "role": registration.role,
         "role_display": role_display,
         "comment": registration.comment,
+        "status": registration.status,
         "created_at": created_at,
     }

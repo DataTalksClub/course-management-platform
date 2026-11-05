@@ -42,7 +42,7 @@ def apply_registration_search(queryset, search):
 
 
 def apply_registration_exact_filters(queryset, params):
-    for field in ("role", "country", "region"):
+    for field in ("role", "country", "region", "status"):
         value = params.get(field, "").strip()
         if value:
             queryset = queryset.filter(**{field: value})

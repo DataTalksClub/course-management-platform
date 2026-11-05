@@ -11,6 +11,7 @@ from api.views.registration_campaign_mutations import (
     created_campaign,
 )
 from api.views.registration_campaign_registration_mutations import (
+    approve_registrations_batch_payload,
     bulk_create_registrations_payload,
     update_registration_payload,
 )
@@ -144,6 +145,23 @@ def registration_patch_response(request, registration):
     if err:
         return err
     response = JsonResponse(data)
+    return response
+
+
+@token_required
+@csrf_exempt
+@require_methods("POST")
+def registration_campaign_approve_batch_view(request, campaign_slug):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
+    campaign = get_object_or_404(RegistrationCampaign, slug=campaign_slug)
+
+    payload, err = approve_registrations_batch_payload(campaign, request)
+    if err:
+        return err
+    response = JsonResponse(payload)
     return response
 
 

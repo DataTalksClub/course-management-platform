@@ -109,6 +109,12 @@ urlpatterns = [
     ),
     path(
         "registration-campaigns/<slug:campaign_slug>/registrations/"
+        "approve-batch/",
+        registration_campaigns.registration_campaign_approve_batch_view,
+        name="api_registration_campaign_approve_batch",
+    ),
+    path(
+        "registration-campaigns/<slug:campaign_slug>/registrations/"
         "<int:registration_id>/",
         registration_campaigns.registration_campaign_registration_detail_view,
         name="api_registration_campaign_registration_detail",

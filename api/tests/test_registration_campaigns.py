@@ -177,3 +177,133 @@ class RegistrationCampaignAPITestCase(RegistrationCampaignAPITestBase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_approve_batch_approves_pending_and_queues_emails(self):
+        from courses.models.application_notification import (
+            ApplicationNotification,
+        )
+
+        campaign = self.create_campaign()
+        first = self.create_registration(campaign)
+        second = self.create_registration(campaign, email="second@example.com")
+
+        response = self.post_approve_batch(
+            self.client, {"ids": [first.id, second.id]}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(
+            sorted(item["id"] for item in data["approved"]),
+            sorted([first.id, second.id]),
+        )
+        self.assertEqual(data["skipped"], [])
+        for registration_id in (first.id, second.id):
+            registration = CourseRegistration.objects.get(
+                id=registration_id
+            )
+            self.assertEqual(
+                registration.status, CourseRegistration.Status.APPROVED
+            )
+            self.assertIsNotNone(registration.auto_approved_at)
+            self.assertTrue(
+                ApplicationNotification.objects.filter(
+                    registration=registration,
+                    template_key="application-approved",
+                ).exists()
+            )
+
+    def test_approve_batch_is_idempotent(self):
+        from courses.models.application_notification import (
+            ApplicationNotification,
+        )
+
+        campaign = self.create_campaign()
+        registration = self.create_registration(campaign)
+
+        first = self.post_approve_batch(
+            self.client, {"ids": [registration.id]}
+        )
+        self.assertEqual(first.status_code, 200)
+        count = ApplicationNotification.objects.filter(
+            registration=registration
+        ).count()
+
+        second = self.post_approve_batch(
+            self.client, {"ids": [registration.id]}
+        )
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json()["approved"][0]["id"], registration.id)
+        self.assertEqual(
+            ApplicationNotification.objects.filter(
+                registration=registration
+            ).count(),
+            count,
+        )
+
+    def test_approve_batch_skips_unknown_and_non_pending(self):
+        campaign = self.create_campaign()
+        pending = self.create_registration(campaign)
+        rejected = self.create_registration(campaign, email="rejected@example.com")
+        rejected.status = CourseRegistration.Status.REJECTED
+        rejected.save(update_fields=["status", "updated_at"])
+
+        response = self.post_approve_batch(
+            self.client, {"ids": [pending.id, rejected.id, 999999]}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(
+            [item["id"] for item in data["approved"]], [pending.id]
+        )
+        self.assertEqual(
+            [(item["id"], item["reason"]) for item in data["skipped"]],
+            [
+                (rejected.id, "unexpected-status-rejected"),
+                (999999, "not-found"),
+            ],
+        )
+
+    def test_approve_batch_rejects_over_100_ids(self):
+        campaign = self.create_campaign()
+        self.create_registration(campaign)
+
+        response = self.post_approve_batch(
+            self.client, {"ids": list(range(1, 102))}
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_approve_batch_requires_staff(self):
+        campaign = self.create_campaign()
+        registration = self.create_registration(campaign)
+
+        response = self.post_approve_batch(
+            self.non_staff_client(), {"ids": [registration.id]}
+        )
+
+        self.assertEqual(response.status_code, 403)
+        registration.refresh_from_db()
+        self.assertEqual(
+            registration.status, CourseRegistration.Status.PENDING
+        )
+
+    def test_registrations_list_filters_by_status(self):
+        campaign = self.create_campaign()
+        pending = self.create_registration(campaign)
+        approved = self.create_registration(campaign, email="approved@example.com")
+        approved.status = CourseRegistration.Status.APPROVED
+        approved.save(update_fields=["status", "updated_at"])
+
+        response = self.client.get(
+            self.campaign_registrations_url() + "?status=pending"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        ids = [
+            item["id"]
+            for item in response.json()["registrations"]
+        ]
+        self.assertIn(pending.id, ids)
+        self.assertNotIn(approved.id, ids)
