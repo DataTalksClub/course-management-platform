@@ -233,7 +233,7 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
             )
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "watch?v=XzS6MrNfrcA")
+        self.assertContains(response, "https://luma.com/i4x6x2zy")
 
     def test_decision_templates_render_custom_message(self):
         from course_management.relay.application_templates import (
