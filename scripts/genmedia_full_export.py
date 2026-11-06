@@ -14,10 +14,8 @@ Prerequisites:
     DATAMAILER_URL, DATAMAILER_API_TOKEN, GENMEDIA_FULL_EXPORT_TO
     (default "alexey.s.grigoriev@gmail.com,mnrozhkov@nebius.com").
 
-Crontab example (hetzner, Europe/Berlin):
-  15 20 * * * cd /home/alexey/git/course-management-platform && \\
-    flock -n /tmp/genmedia-full-export.lock \\
-    uv run python scripts/genmedia_full_export.py >> /tmp/genmedia-full-export.log 2>&1
+Crontab example (hetzner, Europe/Berlin) — mirrors the evening batch line:
+  15 20 * * * set -a; . /home/alexey/.config/genmedia-batch.env; set +a; /usr/bin/flock -n /home/alexey/.local/state/genmedia-full-export.lock /home/alexey/git/course-management-platform/.venv/bin/python /home/alexey/git/course-management-platform/scripts/genmedia_full_export.py >> /home/alexey/.local/state/genmedia-full-export.log 2>&1
 """
 
 import os
