@@ -1,6 +1,6 @@
 """Unit tests for the hetzner evening batch script (pure functions only).
 
-HTTP and datamailer sending are exercised against prod in the manual
+HTTP and relay sending are exercised against prod in the manual
 first run; API behaviour itself is covered by api/tests.
 """
 

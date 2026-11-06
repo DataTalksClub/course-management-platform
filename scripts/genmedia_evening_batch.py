@@ -6,7 +6,7 @@ Runs from cron on hetzner at 20:05 Europe/Berlin daily. The first run is
 manual (``--ignore-start-date``); cron takes over once START_DATE passes.
 
 No Relay templates are used here: decisions use the standard application
-emails, the summary is a plain email sent with ``datamailer send``.
+emails, the summary is a plain email sent with ``relay send``.
 """
 
 import csv
@@ -200,7 +200,7 @@ def send_plain_email(to, subject, body_text, idempotency_key, attachments=()):
     try:
         subprocess.run(command, check=True, capture_output=True, text=True)
     except (subprocess.CalledProcessError, OSError) as exc:
-        raise BatchError(f"datamailer send to {to} failed: {exc}") from exc
+        raise BatchError(f"relay send to {to} failed: {exc}") from exc
 
 
 def notify_failure(day_label, error):
