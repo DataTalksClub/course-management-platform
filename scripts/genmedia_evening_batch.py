@@ -219,32 +219,40 @@ def notify_failure(day_label, error):
 
 
 def notify_success(day_label, approved, skipped, total, csv_path):
-    subject = (
+    with open(csv_path) as handle:
+        csv_text = handle.read()
+    header, _, body = csv_text.partition("\n")
+    rows = body.strip().splitlines() or [""]
+    subject_base = (
         f"Genmedia approved {day_label}: "
         f"{len(approved)} approved, {len(skipped)} skipped"
     )
-    lines = [
-        f"Approved {len(approved)}, skipped {len(skipped)} "
-        f"(campaign total now ~{total + len(approved)}).",
-        "",
-        "Skipped (not in the attached CSV): "
-        + (
-            ", ".join(
-                f"{row.get('email')} ({reason})" for row, reason in skipped
+    skipped_text = ", ".join(
+        f"{row.get('email')} ({reason})" for row, reason in skipped
+    ) or "none"
+    chunks = chunked(rows, 60)
+    total_parts = max(1, len(chunks))
+    for part_no, rows_chunk in enumerate(chunks or [[]], start=1):
+        part_path = "%s.p%dof%d.csv" % (csv_path, part_no, total_parts)
+        with open(part_path, "w") as handle:
+            handle.write(header + "\n" + "\n".join(rows_chunk) + "\n")
+        lines = [
+            f"Approved {len(approved)}, skipped {len(skipped)} "
+            f"(campaign total now ~{total + len(approved)}).",
+            "",
+            "Skipped (not in the attached CSV): " + skipped_text,
+            "",
+            "Approved list attached as CSV part %d of %d." % (part_no, total_parts),
+        ]
+        for recipient in success_recipients():
+            label = "" if total_parts == 1 else " [%d/%d]" % (part_no, total_parts)
+            send_plain_email(
+                recipient,
+                subject_base + label,
+                "\n".join(lines),
+                "genmedia-evening:%s:%s:p%d" % (day_label, recipient, part_no),
+                attachments=[part_path],
             )
-            or "none"
-        ),
-        "",
-        "Full approved list attached as CSV.",
-    ]
-    for recipient in success_recipients():
-        send_plain_email(
-            recipient,
-            subject,
-            "\n".join(lines),
-            f"genmedia-evening:{day_label}:{recipient}",
-            attachments=[csv_path],
-        )
 
 
 def run(dry_run=False):
