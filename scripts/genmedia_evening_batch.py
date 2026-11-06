@@ -216,35 +216,52 @@ def notify_failure(day_label, error):
         )
 
 
+def csv_parts(csv_text, max_rows=60):
+    """Split a CSV into ~5KB emails (Relay transactional body limit).
+
+    Returns [(part_no, total_parts, text)]. Header repeats in each part.
+    """
+    lines = csv_text.strip().splitlines()
+    header, rows = lines[0], lines[1:]
+    parts = []
+    chunks = chunked(rows, max_rows) or [[]]
+    for index, rows_chunk in enumerate(chunks, start=1):
+        parts.append(
+            (index, len(chunks), "\n".join([header] + rows_chunk) + "\n")
+        )
+    return parts
+
+
 def notify_success(day_label, approved, skipped, total):
     csv_text = build_csv(approved, date.fromisoformat(day_label))
-    subject = (
-        f"Genmedia approved {day_label}: "
-        f"{len(approved)} approved, {len(skipped)} skipped"
-    )
-    lines = [
-        f"Approved {len(approved)}, skipped {len(skipped)} "
-        f"(campaign total now ~{total + len(approved)}).",
-        "",
-        "Skipped (not listed below): "
-        + (
-            ", ".join(
-                f"{row.get('email')} ({reason})"
-                for row, reason in skipped
-            )
-            or "none"
-        ),
-        "",
-        "Approved CSV:",
-        csv_text,
-    ]
-    for recipient in success_recipients():
-        send_plain_email(
-            recipient,
-            subject,
-            "\n".join(lines),
-            f"genmedia-evening:{day_label}:{recipient}",
+    skipped_text = (
+        ", ".join(
+            f"{row.get('email')} ({reason})" for row, reason in skipped
         )
+        or "none"
+    )
+    for part_no, part_total, part_csv in csv_parts(csv_text):
+        subject = (
+            f"Genmedia approved {day_label}: "
+            f"{len(approved)} approved, {len(skipped)} skipped "
+            f"[{part_no}/{part_total}]"
+        )
+        lines = [
+            f"Approved {len(approved)}, skipped {len(skipped)} "
+            f"(campaign total now ~{total + len(approved)}).",
+            "",
+            "Skipped (not listed below): " + skipped_text,
+            "",
+            f"Approved CSV part {part_no} of {part_total}:",
+            part_csv,
+        ]
+        for recipient in success_recipients():
+            send_plain_email(
+                recipient,
+                subject,
+                "\n".join(lines),
+                f"genmedia-evening:{day_label}:{recipient}:p{part_no}",
+            )
 
 
 def run(dry_run=False):
