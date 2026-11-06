@@ -83,3 +83,20 @@ class BuildMessageTestCase(SimpleTestCase):
         attachments = list(message.iter_attachments())
         self.assertEqual(len(attachments), 1)
         self.assertTrue(attachments[0].get_filename().endswith(".csv"))
+
+
+from scripts.send_campaign_export import build_body, build_subject
+
+
+class CampaignExportTextTestCase(SimpleTestCase):
+    def test_subject_and_body_carry_counts(self):
+        counts = {"approved": 325, "pending": 273, "rejected": 27}
+        self.assertEqual(
+            build_subject(625),
+            "Genmedia registrations so far: 625 (full CSV attached)",
+        )
+        body = build_body(625, counts, "2026-11-06")
+        for fragment in ("625 registrations", "325 approved",
+                         "273 pending", "27 rejected", "2026-11-06",
+                         "single CSV file"):
+            self.assertIn(fragment, body)
