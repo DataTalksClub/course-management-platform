@@ -100,3 +100,28 @@ class CampaignExportTextTestCase(SimpleTestCase):
                          "273 pending", "27 rejected", "2026-11-06",
                          "single CSV file"):
             self.assertIn(fragment, body)
+
+
+from scripts.genmedia_full_export import build_relay_command, split_recipients as export_split
+
+
+class FullExportCommandTestCase(SimpleTestCase):
+    def test_single_call_multi_to_with_attachment(self):
+        command = build_relay_command(
+            'relay', 'https://relay.example.com', 'KEY',
+            ['me@example.com', 'peer@example.com'],
+            'Subject', 'Body', 'idem-1', ['/tmp/x.csv'],
+        )
+        self.assertEqual(command[:4], ['relay', 'send', '--url', 'https://relay.example.com'])
+        self.assertEqual(command.count('--to'), 2)
+        self.assertIn('me@example.com', command)
+        self.assertIn('peer@example.com', command)
+        self.assertEqual(command.count('--attach'), 1)
+        self.assertIn('/tmp/x.csv', command)
+        self.assertEqual(command.count('send'), 1)
+
+    def test_export_recipient_split(self):
+        self.assertEqual(
+            export_split('a@example.com, b@example.com'),
+            ['a@example.com', 'b@example.com'],
+        )
