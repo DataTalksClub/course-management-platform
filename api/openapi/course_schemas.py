@@ -227,6 +227,28 @@ COURSE_REGISTRATIONS_BULK_CREATE_RESULT_SCHEMA = {
         "results": array_of(COURSE_REGISTRATION_CREATE_RESULT_SCHEMA),
     },
 }
+COURSE_REGISTRATIONS_APPROVE_BATCH_SCHEMA = {
+    "type": "object",
+    "required": ["ids"],
+    "properties": {
+        "ids": array_of({"type": "integer"}),
+    },
+}
+COURSE_REGISTRATIONS_APPROVE_BATCH_RESULT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "approved": array_of(COURSE_REGISTRATION_REF),
+        "skipped": array_of(
+            {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer"},
+                    "reason": {"type": "string"},
+                },
+            }
+        ),
+    },
+}
 
 COURSE_SCHEMAS = {
     "Error": {
@@ -328,6 +350,12 @@ COURSE_SCHEMAS = {
     "CourseRegistrationsBulkCreate": COURSE_REGISTRATIONS_BULK_CREATE_SCHEMA,
     "CourseRegistrationsBulkCreateResult": (
         COURSE_REGISTRATIONS_BULK_CREATE_RESULT_SCHEMA
+    ),
+    "CourseRegistrationsApproveBatch": (
+        COURSE_REGISTRATIONS_APPROVE_BATCH_SCHEMA
+    ),
+    "CourseRegistrationsApproveBatchResult": (
+        COURSE_REGISTRATIONS_APPROVE_BATCH_RESULT_SCHEMA
     ),
     "CourseRegistrationPatch": COURSE_REGISTRATION_PATCH_SCHEMA,
 }

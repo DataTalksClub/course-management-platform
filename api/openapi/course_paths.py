@@ -25,6 +25,10 @@ COURSE_REGISTRATIONS_BULK_CREATE_REF = ref("CourseRegistrationsBulkCreate")
 COURSE_REGISTRATIONS_BULK_CREATE_RESULT_REF = ref(
     "CourseRegistrationsBulkCreateResult"
 )
+COURSE_REGISTRATIONS_APPROVE_BATCH_REF = ref("CourseRegistrationsApproveBatch")
+COURSE_REGISTRATIONS_APPROVE_BATCH_RESULT_REF = ref(
+    "CourseRegistrationsApproveBatchResult"
+)
 COURSE_REGISTRATION_REF = ref("CourseRegistration")
 COURSE_REGISTRATION_PATCH_REF = ref("CourseRegistrationPatch")
 ERROR_REF = ref("Error")
@@ -277,6 +281,35 @@ COURSE_REGISTRATIONS_BULK_CREATE_OPERATION = operation(
     COURSE_REGISTRATIONS_BULK_CREATE_DATA
 )
 
+COURSE_REGISTRATIONS_APPROVE_BATCH_RESPONSES = {
+    "200": response(
+        "Bulk registration approval results",
+        COURSE_REGISTRATIONS_APPROVE_BATCH_RESULT_REF,
+    ),
+    "400": INVALID_REQUEST_RESPONSE,
+    "404": REGISTRATION_CAMPAIGN_NOT_FOUND_RESPONSE,
+}
+COURSE_REGISTRATIONS_APPROVE_BATCH_BODY = request_body(
+    COURSE_REGISTRATIONS_APPROVE_BATCH_REF
+)
+COURSE_REGISTRATIONS_APPROVE_BATCH_DATA = OperationData(
+    "api_registration_campaign_approve_batch",
+    ["Registration Campaigns"],
+    "Bulk approve pending registrations for a campaign",
+    COURSE_REGISTRATIONS_APPROVE_BATCH_RESPONSES,
+    body=COURSE_REGISTRATIONS_APPROVE_BATCH_BODY,
+    description=(
+        "Approves up to 100 pending registrations (by id) with the normal "
+        "approve path: each approval queues the applicant decision email "
+        "and awards referral points. Already-approved ids are reported as "
+        "approved without re-sending anything; unknown or non-pending ids "
+        "are reported as skipped. Requires a staff token."
+    ),
+)
+COURSE_REGISTRATIONS_APPROVE_BATCH_OPERATION = operation(
+    COURSE_REGISTRATIONS_APPROVE_BATCH_DATA
+)
+
 COURSE_REGISTRATION_DETAIL_RESPONSES = {
     "200": COURSE_REGISTRATION_DETAIL_SUCCESS_RESPONSE,
     "404": COURSE_REGISTRATION_NOT_FOUND_RESPONSE,
@@ -332,6 +365,9 @@ COURSE_PATHS_BY_URL_NAME = {
     "api_registration_campaign_registrations": {
         "get": REGISTRATION_CAMPAIGN_REGISTRATIONS_OPERATION,
         "post": COURSE_REGISTRATIONS_BULK_CREATE_OPERATION,
+    },
+    "api_registration_campaign_approve_batch": {
+        "post": COURSE_REGISTRATIONS_APPROVE_BATCH_OPERATION,
     },
     "api_registration_campaign_registration_detail": {
         "get": COURSE_REGISTRATION_DETAIL_OPERATION,
