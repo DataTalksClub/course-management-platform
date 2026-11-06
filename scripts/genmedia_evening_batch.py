@@ -173,12 +173,12 @@ def build_csv(approved, day):
     return buffer.getvalue()
 
 
-def send_plain_email(to, subject, body_text, idempotency_key):
-    """Plain email via datamailer CLI (no templates). Raises on failure."""
+def send_plain_email(to, subject, body_text, idempotency_key, attachments=()):
+    """Plain email via the relay CLI (no templates)."""
     url = env("DATAMAILER_URL", default="https://relay.datatalks.club")
     api_key = env("DATAMAILER_API_KEY", required=True)
     command = [
-        os.path.expanduser("~/.local/bin/datamailer"),
+        os.path.expanduser("~/.local/bin/relay"),
         "send",
         "--url",
         url,
@@ -195,6 +195,8 @@ def send_plain_email(to, subject, body_text, idempotency_key):
         "--idempotency-key",
         idempotency_key,
     ]
+    for attachment in attachments:
+        command.extend(["--attach", attachment])
     try:
         subprocess.run(command, check=True, capture_output=True, text=True)
     except (subprocess.CalledProcessError, OSError) as exc:
@@ -216,52 +218,33 @@ def notify_failure(day_label, error):
         )
 
 
-def csv_parts(csv_text, max_rows=60):
-    """Split a CSV into ~5KB emails (Relay transactional body limit).
-
-    Returns [(part_no, total_parts, text)]. Header repeats in each part.
-    """
-    lines = csv_text.strip().splitlines()
-    header, rows = lines[0], lines[1:]
-    parts = []
-    chunks = chunked(rows, max_rows) or [[]]
-    for index, rows_chunk in enumerate(chunks, start=1):
-        parts.append(
-            (index, len(chunks), "\n".join([header] + rows_chunk) + "\n")
-        )
-    return parts
-
-
-def notify_success(day_label, approved, skipped, total):
-    csv_text = build_csv(approved, date.fromisoformat(day_label))
-    skipped_text = (
-        ", ".join(
-            f"{row.get('email')} ({reason})" for row, reason in skipped
-        )
-        or "none"
+def notify_success(day_label, approved, skipped, total, csv_path):
+    subject = (
+        f"Genmedia approved {day_label}: "
+        f"{len(approved)} approved, {len(skipped)} skipped"
     )
-    for part_no, part_total, part_csv in csv_parts(csv_text):
-        subject = (
-            f"Genmedia approved {day_label}: "
-            f"{len(approved)} approved, {len(skipped)} skipped "
-            f"[{part_no}/{part_total}]"
-        )
-        lines = [
-            f"Approved {len(approved)}, skipped {len(skipped)} "
-            f"(campaign total now ~{total + len(approved)}).",
-            "",
-            "Skipped (not listed below): " + skipped_text,
-            "",
-            f"Approved CSV part {part_no} of {part_total}:",
-            part_csv,
-        ]
-        for recipient in success_recipients():
-            send_plain_email(
-                recipient,
-                subject,
-                "\n".join(lines),
-                f"genmedia-evening:{day_label}:{recipient}:p{part_no}",
+    lines = [
+        f"Approved {len(approved)}, skipped {len(skipped)} "
+        f"(campaign total now ~{total + len(approved)}).",
+        "",
+        "Skipped (not in the attached CSV): "
+        + (
+            ", ".join(
+                f"{row.get('email')} ({reason})" for row, reason in skipped
             )
+            or "none"
+        ),
+        "",
+        "Full approved list attached as CSV.",
+    ]
+    for recipient in success_recipients():
+        send_plain_email(
+            recipient,
+            subject,
+            "\n".join(lines),
+            f"genmedia-evening:{day_label}:{recipient}",
+            attachments=[csv_path],
+        )
 
 
 def run(dry_run=False):
@@ -292,7 +275,10 @@ def run(dry_run=False):
     if not approved and not skipped:
         print("nothing pending: no emails sent")
         return
-    notify_success(day_label, approved, skipped, total)
+    csv_path = "/tmp/opencode/genmedia-approved-%s.csv" % day_label
+    with open(csv_path, "w") as handle:
+        handle.write(build_csv(approved, date.fromisoformat(day_label)))
+    notify_success(day_label, approved, skipped, total, csv_path)
     print(f"summary sent for {len(approved)} approved")
 
 
