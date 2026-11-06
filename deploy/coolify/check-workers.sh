@@ -41,12 +41,92 @@ exec 9>"$state_dir/lock"
 flock -n 9 || exit 0
 mapfile -t containers < <(docker ps --format '{{.Names}}' | awk -v p="$prefix" 'index($0,p)==1')
 evaluation=alarm
+# Keep command output local and bounded. Only the parser's fixed categories and
+# allowlisted alarm codes are ever sent to syslog or Relay.
+diagnostic_dir=$(mktemp -d "${TMPDIR:-/tmp}/cmp-worker-check.XXXXXX")
+trap 'rm -rf "$diagnostic_dir"' EXIT
+diagnostic_categories=()
+diagnostic_alarms=()
+if ((${#containers[@]} == 0)); then
+  diagnostic_categories+=(no_container)
+fi
 # During a normal rolling release two containers may coexist. They share
 # the same durable worker timestamps; a successful check on either is enough.
 for container in "${containers[@]}"; do
-  if timeout 45 docker exec "$container" python manage.py check_cmp_workers >/dev/null 2>&1; then
+  response="$diagnostic_dir/response"
+  set +e
+  timeout 45 docker exec "$container" python manage.py check_cmp_workers 2>/dev/null \
+    | head -c 8193 >"$response"
+  command_status=${PIPESTATUS[0]}
+  set -e
+  if (( command_status == 124 )); then
+    diagnostic_categories+=(timeout)
+    continue
+  fi
+  if (( command_status != 0 && command_status != 1 )); then
+    diagnostic_categories+=(check_failed)
+    continue
+  fi
+
+  # The worker command emits exactly {status, alarms}. Reject oversized,
+  # malformed, inconsistent, or unknown responses without exposing their text.
+  parsed=$(python3 - "$response" "$command_status" <<'PY'
+import json
+import sys
+
+allowed_jobs = {"outbox", "health", "reminders", "digest", "scoring"}
+allowed_codes = {
+    *(f"{job}:{suffix}" for job in allowed_jobs for suffix in ("success_stale", "failed")),
+    "outbox:backlog_age",
+    "application_notifications:failed",
+    "application_notifications:backlog_age",
+    "scoring:backlog_age",
+    "scoring:stuck",
+}
+
+def no_duplicate_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate key")
+        result[key] = value
+    return result
+
+try:
+    with open(sys.argv[1], "rb") as stream:
+        raw = stream.read(8193)
+    if len(raw) > 8192:
+        raise ValueError("oversized")
+    payload = json.loads(raw, object_pairs_hook=no_duplicate_keys)
+    if not isinstance(payload, dict) or set(payload) != {"status", "alarms"}:
+        raise ValueError("shape")
+    alarms = payload["alarms"]
+    if not isinstance(alarms, list) or len(alarms) > 16:
+        raise ValueError("alarms")
+    if any(not isinstance(code, str) or code not in allowed_codes for code in alarms):
+        raise ValueError("code")
+    if payload["status"] == "ok" and not alarms and sys.argv[2] == "0":
+        print("ok")
+    elif payload["status"] == "warning" and alarms and sys.argv[2] == "1":
+        print("check_failed\t" + ",".join(sorted(set(alarms))))
+    else:
+        raise ValueError("status")
+except Exception:
+    print("invalid_response")
+PY
+  )
+  if [[ "$parsed" == ok ]]; then
     evaluation=ok
     break
+  elif [[ "$parsed" == invalid_response ]]; then
+    diagnostic_categories+=(invalid_response)
+  elif [[ "$parsed" == check_failed$'\t'* ]]; then
+    diagnostic_categories+=(check_failed)
+    codes=${parsed#*$'\t'}
+    IFS=',' read -r -a parsed_codes <<< "$codes"
+    diagnostic_alarms+=("${parsed_codes[@]}")
+  else
+    diagnostic_categories+=(check_failed)
   fi
 done
 previous=$(cat "$state_dir/status" 2>/dev/null || echo "ok")
@@ -64,7 +144,9 @@ if [[ "$evaluation" == "ok" ]]; then
 else
   consecutive_fails=$((consecutive_fails + 1))
   echo "$consecutive_fails" > "$state_dir/consecutive-failures"
-  logger -t cmp-workers "CMP worker check evaluation failed (evaluation ${consecutive_fails} of ${fail_threshold})"
+  alarm_summary=$(printf '%s\n' "${diagnostic_alarms[@]}" | sort -u | head -n 16 | paste -sd, -)
+  category_summary=$(printf '%s\n' "${diagnostic_categories[@]}" | sort -u | head -n 4 | paste -sd, -)
+  logger -t cmp-workers "CMP worker check failed categories=${category_summary:-check_failed} alarms=${alarm_summary:-none}"
   if [[ "$consecutive_fails" -ge "$fail_threshold" ]]; then
     status=alarm
   else
@@ -75,7 +157,12 @@ if [[ "$status" != "$previous" || ( "$status" == alarm && $((now-last)) -ge 3600
   echo "CMP_WORKERS_${status^^}"
   logger -t cmp-workers "CMP_WORKERS_${status^^}"
   if [[ "$status" == alarm || "$previous" == alarm ]]; then
-    relay_alert "$alert_to" "CMP workers $status" "CMP worker success or backlog age check: $status"
+    if [[ "$status" == alarm ]]; then
+      alert_detail="categories=${category_summary:-check_failed}; alarms=${alarm_summary:-none}"
+      relay_alert "$alert_to" "CMP workers $status" "CMP worker success or backlog age check: $status ($alert_detail)"
+    else
+      relay_alert "$alert_to" "CMP workers $status" "CMP worker success or backlog age check: $status"
+    fi
   fi
   echo "$now" > "$state_dir/last-alert"
 fi
