@@ -108,6 +108,30 @@
           </div>
         </div>
       </div>
+      {% if cross_sell_attribution %}
+        <div class="rounded-md border app-border px-3 py-2 text-sm" data-cross-sell-attribution>
+          <p class="font-medium app-heading">Cross-sell signups</p>
+          {% if cross_sell_attribution.led_to %}
+            <p class="mt-1 app-text">From here led to:</p>
+            <ul class="list-disc pl-5 app-text">
+              {% for row in cross_sell_attribution.led_to %}
+                <li>{{ row.campaign__title }} ({{ row.count }})</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          {% if cross_sell_attribution.came_from %}
+            <p class="mt-1 app-text">Came here from:</p>
+            <ul class="list-disc pl-5 app-text">
+              {% for row in cross_sell_attribution.came_from %}
+                <li>{{ row.referred_by__campaign__title }} ({{ row.count }})</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          {% if not cross_sell_attribution.led_to and not cross_sell_attribution.came_from %}
+            <p class="mt-1 app-text">No cross-sell signups yet.</p>
+          {% endif %}
+        </div>
+      {% endif %}
     </div>
   </section>
 

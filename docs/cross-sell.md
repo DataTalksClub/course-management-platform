@@ -33,6 +33,14 @@ The rule is deterministic, and `suggestions(source_campaign, user, email)` imple
   - `CROSS_SELL_MAX_SUGGESTIONS` (env, default `3`).
   - `CROSS_SELL_EXCLUDED_CAMPAIGNS` (env, comma-separated campaign slugs that are never suggested).
 
+## Attribution
+
+The campaign edit page (cadmin, Cross-sell section) shows both directions
+from the stored `referred_by` + link source: signups on other campaigns
+referred from here ("From here led to"), and signups here referred from
+other campaigns ("Came here from"). Invite-link referrals are excluded —
+only suggestion-link/email signups count.
+
 ## One-click registration
 
 Each suggestion has a **Register** button, and a checkbox list registers
@@ -54,7 +62,10 @@ never copied.
 
 - **Application-only courses:** campaigns for courses with
   `requires_registration_approval` are never registered in one click. They
-  show an **Apply** link to their own form.
+  show an **Apply** link to their own form — and the form comes prefilled
+  with the identity the visitor already gave (name, email, country, role,
+  experience), so applying is check-and-submit. Consents that need an
+  explicit tick are never copied.
 - **Allowed slugs:** only slugs from the current suggestion set are
   accepted. Anything else is ignored.
 - **Double submits:** these are idempotent, because of the unique

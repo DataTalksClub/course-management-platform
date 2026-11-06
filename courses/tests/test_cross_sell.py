@@ -399,3 +399,97 @@ class ConfirmationEmailTests(CrossSellBase):
         )
         self.assertEqual(context["suggested_courses"], [])
         self.assertNotIn("You might also like", context["next_steps_text"])
+
+
+class PrefillFromLinkTests(CrossSellBase):
+    def target_url(self):
+        url = reverse(
+            "registration_campaign", kwargs={"campaign_slug": "ml-zoomcamp"}
+        )
+        return f"{url}?src=xsell-link&from=llm-zoomcamp"
+
+    def test_link_visit_prefills_form_from_source_registration(self):
+        self.register()
+        response = self.client.get(self.target_url())
+
+        form = response.context["form"]
+        self.assertEqual(form.initial["email"], "Student@Example.com")
+        self.assertEqual(form.initial["name"], "Student One")
+        self.assertEqual(form.initial["country"], "Germany")
+        self.assertContains(response, "We filled your details from your")
+
+    def test_visit_without_click_leaves_form_blank(self):
+        self.register()
+        url = reverse(
+            "registration_campaign", kwargs={"campaign_slug": "ml-zoomcamp"}
+        )
+        response = self.client.get(url)
+
+        self.assertNotIn("email", response.context["form"].initial)
+        self.assertNotContains(response, "We filled your details from your")
+
+    def test_consents_are_never_prefilled(self):
+        self.register()
+        source = self.source_registration()
+        source.accepted_nebius_sharing = True
+        source.save(update_fields=["accepted_nebius_sharing"])
+
+        response = self.client.get(self.target_url())
+
+        self.assertNotIn(
+            "accepted_nebius_sharing", response.context["form"].initial
+        )
+
+
+class AttributionCountsTests(CrossSellBase):
+    def test_led_to_and_came_from_counts_by_campaign(self):
+        self.register()
+        source = self.source_registration()
+        CourseRegistration.objects.create(
+            campaign=self.ml,
+            course=self.ml.current_course,
+            email="other@example.com",
+            name="Other",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            source=cross_sell.SOURCE_LINK,
+            referred_by=source,
+        )
+        CourseRegistration.objects.create(
+            campaign=self.ml,
+            course=self.ml.current_course,
+            email="stranger@example.com",
+            name="Stranger",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+        )
+
+        led = cross_sell.attribution_counts(self.campaign)["led_to"]
+        self.assertEqual(
+            [(row["campaign__slug"], row["count"]) for row in led],
+            [("ml-zoomcamp", 1)],
+        )
+        came = cross_sell.attribution_counts(self.ml)["came_from"]
+        self.assertEqual(len(came), 1)
+        self.assertEqual(came[0]["count"], 1)
+
+    def test_invite_referrals_are_excluded(self):
+        self.register()
+        source = self.source_registration()
+        CourseRegistration.objects.create(
+            campaign=self.ml,
+            course=self.ml.current_course,
+            email="invited@example.com",
+            name="Invited",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            source="",
+            referred_by=source,
+        )
+
+        self.assertEqual(
+            cross_sell.attribution_counts(self.campaign)["led_to"], []
+        )

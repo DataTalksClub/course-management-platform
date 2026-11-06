@@ -81,6 +81,7 @@ def _existing_user_registration(
 def _registration_form(
     request: HttpRequest,
     campaign: RegistrationCampaign,
+    initial=None,
 ) -> CourseRegistrationForm:
     if request.method == "POST":
         return CourseRegistrationForm(
@@ -89,7 +90,9 @@ def _registration_form(
             user=request.user,
         )
 
-    return CourseRegistrationForm(campaign=campaign, user=request.user)
+    return CourseRegistrationForm(
+        campaign=campaign, user=request.user, initial=initial
+    )
 
 
 def remember_invite_click(request: HttpRequest, campaign) -> None:
@@ -291,13 +294,18 @@ def registration_campaign_view(
     campaign_slug: str,
 ) -> HttpResponse:
     campaign = _active_registration_campaign(campaign_slug)
+    prefill = {}
+    prefill_source = None
     if request.method == "GET":
         cross_sell.remember_link_click(request, campaign)
         remember_invite_click(request, campaign)
+        prefill, prefill_source = cross_sell.prefill_identity(
+            request, campaign
+        )
     existing_registration = _existing_user_registration(
         request, campaign
     )
-    form = _registration_form(request, campaign)
+    form = _registration_form(request, campaign, initial=prefill or None)
 
     registration = None
     saved_fresh = False
@@ -339,6 +347,8 @@ def registration_campaign_view(
         form,
         shown_registration,
     )
+    if prefill and prefill_source is not None:
+        context["cross_sell_prefilled_from"] = prefill_source.title
     context.update(
         _cross_sell_context(request, campaign, shown_registration)
     )

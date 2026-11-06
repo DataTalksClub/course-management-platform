@@ -107,6 +107,8 @@ def handle_campaign_form_post(request, campaign):
 
 
 def campaign_edit_context(campaign, form):
+    from courses import cross_sell
+
     return {
         "form": form,
         "campaign": campaign,
@@ -114,4 +116,5 @@ def campaign_edit_context(campaign, form):
         "page_title": "Edit registration landing page",
         "submit_label": "Save changes",
         "email_campaigns": campaign.email_campaigns.all(),
+        "cross_sell_attribution": cross_sell.attribution_counts(campaign),
     }

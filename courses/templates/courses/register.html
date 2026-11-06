@@ -165,6 +165,11 @@
 
       <form method="post" class="registration-form space-y-4" data-registration-form novalidate>
         {% csrf_token %}
+        {% if cross_sell_prefilled_from %}
+          <div class="rounded-md border app-alert-success px-3 py-2 text-sm" data-cross-sell-prefilled>
+            We filled your details from your {{ cross_sell_prefilled_from }} registration — check and submit.
+          </div>
+        {% endif %}
 
         {% if form.non_field_errors %}
           <div class="rounded-md border app-alert-warning px-3 py-2 text-sm">

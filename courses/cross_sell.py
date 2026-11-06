@@ -267,6 +267,70 @@ def confirm_cross_sell_registrations(registration, now=None):
     )
 
 
+PREFILL_FIELDS = (
+    "email",
+    "name",
+    "company_name",
+    "country",
+    "role",
+    "years_experience",
+    "experience",
+    "comment",
+    "accepted_newsletter",
+    "ukraine_region",
+)
+
+
+def prefill_identity(request, campaign):
+    """Identity values copied from the source registration behind an
+    xsell link click, so applying to an application-only course is
+    review-and-submit instead of retyping.
+
+    Returns ``(identity, source_campaign)``; empty when there is no
+    tracked click or no matching source registration. Consents that
+    need an explicit tick (Nebius sharing) are never copied.
+    """
+    clicks = request.session.get("cross_sell_clicks", {})
+    click = clicks.get(str(campaign.pk))
+    if not click:
+        return {}, None
+    source = RegistrationCampaign.objects.filter(
+        slug=(click.get("from") or "")[:50]
+    ).first()
+    if source is None or source.pk == campaign.pk:
+        return {}, None
+    registration = _clicked_source_registration(request, source)
+    if registration is None:
+        return {}, None
+    identity = {}
+    for field_name in PREFILL_FIELDS:
+        value = getattr(registration, field_name, "")
+        if value not in (None, "", False):
+            identity[field_name] = value
+    return identity, source
+
+
+def _clicked_source_registration(request, source):
+    pending = request.session.get("registration_pending", {})
+    registration_id = pending.get(str(source.pk))
+    if registration_id:
+        registration = CourseRegistration.objects.filter(
+            pk=registration_id, campaign=source
+        ).first()
+        if registration is not None:
+            return registration
+    user = getattr(request, "user", None)
+    if user is not None and getattr(user, "is_authenticated", False):
+        email = (user.email or "").strip().lower()
+        identity = Q(user=user)
+        if email:
+            identity |= Q(email_normalized=email)
+        return CourseRegistration.objects.filter(
+            identity, campaign=source
+        ).first()
+    return None
+
+
 def remember_link_click(request, campaign) -> None:
     """Track a visit that came from a suggestion link (page or email)."""
     src = request.GET.get("src", "")
@@ -314,6 +378,41 @@ def attribute_link_registration(request, registration) -> None:
             "source": registration.source,
         },
     )
+
+
+def attribution_counts(campaign):
+    """Cross-sell attribution for the cadmin campaign page.
+
+    Returns ``{"led_to": [...], "came_from": [...]}`` with
+    ``{"slug", "title", "count"}`` rows: signups on other campaigns
+    referred from here, and signups here referred from other
+    campaigns. Invite-link referrals (no xsell source) are excluded.
+    """
+    from django.db.models import Count
+
+    led_to = list(
+        CourseRegistration.objects.filter(
+            referred_by__campaign=campaign,
+            source__in=LINK_SOURCES,
+        )
+        .values("campaign__slug", "campaign__title")
+        .annotate(count=Count("id"))
+        .order_by("-count", "campaign__title")
+    )
+    came_from = list(
+        CourseRegistration.objects.filter(
+            campaign=campaign,
+            source__in=LINK_SOURCES,
+        )
+        .exclude(referred_by__campaign=None)
+        .values(
+            "referred_by__campaign__slug",
+            "referred_by__campaign__title",
+        )
+        .annotate(count=Count("id"))
+        .order_by("-count", "referred_by__campaign__title")
+    )
+    return {"led_to": led_to, "came_from": came_from}
 
 
 def record_impression(request, source_campaign, shown) -> None:
