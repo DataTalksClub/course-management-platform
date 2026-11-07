@@ -144,6 +144,21 @@ class OpenAPITestCase(TestCase):
             {"$ref": "#/components/schemas/SystemEvaluationCreate"},
         )
 
+    def test_project_score_notification_route_is_documented(self):
+        spec = build_openapi_spec()
+        methods = spec["paths"][
+            "/api/courses/{course_slug}/projects/by-slug/"
+            "{project_slug}/notify-scores/"
+        ]
+
+        self.assertEqual(set(methods), {"get", "post"})
+        for method in methods.values():
+            self.assertEqual(method["security"], [{"TokenAuth": []}])
+            self.assertIn("401", method["responses"])
+            self.assertIn("403", method["responses"])
+        self.assertIn("409", methods["post"]["responses"])
+        self.assertIn("502", methods["post"]["responses"])
+
     def test_delete_safety_rules_are_documented(self):
         spec = build_openapi_spec()
 

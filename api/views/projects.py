@@ -32,6 +32,10 @@ from api.views.project_peer_review_notifications import (
     peer_review_notification_send_response,
     peer_review_notification_status_response,
 )
+from api.views.project_score_notifications import (
+    project_score_notification_send_response,
+    project_score_notification_status_response,
+)
 from api.views.project_upsert import upsert_project_by_slug
 from api.views.project_upsert_rules import (
     PROJECT_PATCH_RULES,
@@ -171,6 +175,28 @@ def project_notify_peer_reviews_by_slug_view(
     if request.method == "GET":
         return peer_review_notification_status_response(project)
     return peer_review_notification_send_response(request, project)
+
+
+@token_required
+@csrf_exempt
+@require_methods("GET", "POST")
+def project_notify_scores_by_slug_view(request, course_slug, project_slug):
+    """
+    POST /api/courses/<slug>/projects/by-slug/<slug>/notify-scores/ - Queue once.
+    GET /api/courses/<slug>/projects/by-slug/<slug>/notify-scores/ - Send audit.
+    """
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+    route_data = ProjectActionRouteData(
+        request=request,
+        course_slug=course_slug,
+        project_slug=project_slug,
+    )
+    project = project_for_action(route_data)
+    if request.method == "GET":
+        return project_score_notification_status_response(project)
+    return project_score_notification_send_response(project)
 
 
 @token_required

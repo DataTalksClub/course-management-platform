@@ -71,6 +71,7 @@ SYSTEM_EVALUATION_RESPONSE = response(
 )
 
 PEER_REVIEW_NOTIFICATION_REF = ref("PeerReviewNotificationResponse")
+PROJECT_SCORE_NOTIFICATION_REF = ref("ProjectScoreNotificationResponse")
 PEER_REVIEW_NOTIFICATION_STATUS_RESPONSES = {
     "200": response(
         "Send-once status (audit is null before any send)",
@@ -117,6 +118,58 @@ PEER_REVIEW_NOTIFICATION_STATUS_DATA = OperationData(
         "Read-only. Returns the send audit for "
         "peer-review-assignment:<course>:<project>, or audit=null when "
         "nothing was sent. Requires a staff token."
+    ),
+)
+
+PROJECT_SCORE_NOTIFICATION_STATUS_RESPONSES = {
+    "200": response(
+        "Read-only score notification send status",
+        PROJECT_SCORE_NOTIFICATION_REF,
+    ),
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
+}
+PROJECT_SCORE_NOTIFICATION_SEND_RESPONSES = {
+    "200": response(
+        "Queued; returns the send-once audit",
+        PROJECT_SCORE_NOTIFICATION_REF,
+    ),
+    "400": response("Project is not completed", ERROR_REF),
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_PROJECT_NOT_FOUND_RESPONSE,
+    "409": response(
+        "Already sent or queued; returns the existing audit",
+        PROJECT_SCORE_NOTIFICATION_REF,
+    ),
+    "502": response(
+        "Queue failed; returns the failed audit and retry is allowed",
+        PROJECT_SCORE_NOTIFICATION_REF,
+    ),
+}
+PROJECT_SCORE_NOTIFICATION_SEND_DATA = OperationData(
+    "api_project_notify_scores_by_slug",
+    ["Projects"],
+    "Queue project score notifications once",
+    PROJECT_SCORE_NOTIFICATION_SEND_RESPONSES,
+    requires_auth=True,
+    description=(
+        "Queues the same score notification as the cadmin 'Notify scores' "
+        "button using the existing idempotency key "
+        "project-score:<course>:<project>. Requires a staff token and the "
+        "project in CO state. A succeeded or in-flight audit/outbox event "
+        "returns 409 without queueing again. Failed work can be retried."
+    ),
+)
+PROJECT_SCORE_NOTIFICATION_STATUS_DATA = OperationData(
+    "api_project_notify_scores_by_slug",
+    ["Projects"],
+    "Get project score notification send status",
+    PROJECT_SCORE_NOTIFICATION_STATUS_RESPONSES,
+    requires_auth=True,
+    description=(
+        "Read-only. Returns the send audit for "
+        "project-score:<course>:<project>, or audit=null when no send audit "
+        "exists. Requires a staff token and is available in any project state."
     ),
 )
 
@@ -454,6 +507,10 @@ PROJECT_PATHS_BY_URL_NAME = {
     "api_project_notify_peer_reviews_by_slug": {
         "get": operation(PEER_REVIEW_NOTIFICATION_STATUS_DATA),
         "post": operation(PEER_REVIEW_NOTIFICATION_SEND_DATA),
+    },
+    "api_project_notify_scores_by_slug": {
+        "get": operation(PROJECT_SCORE_NOTIFICATION_STATUS_DATA),
+        "post": operation(PROJECT_SCORE_NOTIFICATION_SEND_DATA),
     },
     "api_project_score_by_slug": {
         "get": PROJECT_SCORE_BY_SLUG_STATUS_OPERATION,

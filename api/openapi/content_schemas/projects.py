@@ -268,6 +268,40 @@ PROJECT_SCHEMAS = {
             "code": {"type": "string"},
         },
     },
+    "ProjectScoreNotificationSendAudit": {
+        "allOf": [
+            {"$ref": "#/components/schemas/PeerReviewNotificationSendAudit"}
+        ],
+    },
+    "ProjectScoreNotificationResponse": {
+        "type": "object",
+        "required": [
+            "course_slug",
+            "project_slug",
+            "idempotency_key",
+            "sent",
+            "audit",
+        ],
+        "properties": {
+            "course_slug": {"type": "string"},
+            "project_slug": {"type": "string"},
+            "idempotency_key": {"type": "string"},
+            "sent": {"type": "boolean"},
+            "audit": {
+                "oneOf": [
+                    {
+                        "$ref": (
+                            "#/components/schemas/"
+                            "ProjectScoreNotificationSendAudit"
+                        )
+                    },
+                    {"type": "null"},
+                ],
+            },
+            "error": {"type": "string"},
+            "code": {"type": "string"},
+        },
+    },
     "ProjectScoreResponse": {
         "type": "object",
         "required": [
