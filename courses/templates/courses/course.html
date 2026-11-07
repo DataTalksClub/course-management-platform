@@ -230,14 +230,18 @@
           </div>
 
           <div class="md:text-right">
-            {% if project.badge_css_class == 'bg-success' or project.badge_css_class == 'bg-info' %}
-              <span class="app-badge app-badge-upper app-badge-success">{{ project.badge_state_name }}</span>
-            {% elif project.badge_css_class == 'bg-warning' %}
-              <span class="app-badge app-badge-upper app-badge-warning">{{ project.badge_state_name }}</span>
-            {% elif project.badge_css_class == 'bg-danger' %}
-              <span class="app-badge app-badge-upper app-badge-danger">{{ project.badge_state_name }}</span>
+            {% if is_authenticated %}
+              {% if project.badge_css_class == 'bg-success' or project.badge_css_class == 'bg-info' %}
+                <span class="app-badge app-badge-upper app-badge-success">{{ project.badge_state_name }}</span>
+              {% elif project.badge_css_class == 'bg-warning' %}
+                <span class="app-badge app-badge-upper app-badge-warning">{{ project.badge_state_name }}</span>
+              {% elif project.badge_css_class == 'bg-danger' %}
+                <span class="app-badge app-badge-upper app-badge-danger">{{ project.badge_state_name }}</span>
+              {% else %}
+                <span class="app-badge app-badge-upper app-badge-neutral">{{ project.badge_state_name }}</span>
+              {% endif %}
             {% else %}
-              <span class="app-badge app-badge-upper app-badge-neutral">{{ project.badge_state_name }}</span>
+              <a href="{% url 'login' %}" class="app-link">Log in to see submission status</a>
             {% endif %}
           </div>
         </div>

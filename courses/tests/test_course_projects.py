@@ -8,6 +8,13 @@ from courses.tests.course_view_base import (
 
 
 class CourseProjectDisplayTest(CourseDetailViewTestBase):
+    def test_logged_out_course_page_prompts_for_submission_status(self):
+        response = self.client.get(self.course_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Not submitted")
+        self.assertContains(response, "Log in to see submission status")
+
     def test_course_view_with_completed_projects(self):
         self.client.login(**credentials)
         course_url = reverse("course", args=[self.course.slug])
@@ -17,6 +24,18 @@ class CourseProjectDisplayTest(CourseDetailViewTestBase):
         self.assertTemplateUsed(response, "courses/course.html")
         self.assertTrue(response.context["has_completed_projects"])
         self.assertContains(response, "See all submitted projects")
+
+        completed_project = next(
+            project
+            for project in response.context["projects"]
+            if project.slug == self.completed_project.slug
+        )
+        self.assertTrue(completed_project.submitted)
+        self.assertNotEqual(
+            completed_project.badge_state_name,
+            "Not submitted",
+        )
+        self.assertContains(response, completed_project.badge_state_name)
 
     def test_course_view_without_completed_projects(self):
         self.completed_project.state = (
