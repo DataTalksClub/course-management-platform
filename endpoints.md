@@ -304,6 +304,8 @@ Delete rejection examples:
 | `DELETE` | `/api/courses/{course_slug}/projects/by-slug/{project_slug}/` | Delete project by slug, only when safe |
 | `GET` | `/api/courses/{course_slug}/projects/by-slug/{project_slug}/notify-peer-reviews/` | Read-only: peer-review-assigned email send status (audit or `null`) |
 | `POST` | `/api/courses/{course_slug}/projects/by-slug/{project_slug}/notify-peer-reviews/` | Send the peer-review-assigned email once (staff token) |
+| `GET` | `/api/courses/{course_slug}/projects/by-slug/{project_slug}/notify-scores/` | Read-only: project score email send status (audit or `null`) |
+| `POST` | `/api/courses/{course_slug}/projects/by-slug/{project_slug}/notify-scores/` | Queue project score emails once (staff token; project must be `CO`) |
 
 Create payload:
 ```json
@@ -370,6 +372,31 @@ It is send-once. The `recipient_list` send audit for that key is the marker:
     "created_at": "2026-10-29T10:00:00+00:00",
     "updated_at": "2026-10-29T10:00:01+00:00"
   }
+}
+```
+
+#### Project score notification (send once)
+
+`POST .../projects/by-slug/{project_slug}/notify-scores/` queues the same
+score notification as the cadmin “Notify scores” button via
+`queue_project_score_notification`, using the existing idempotency key
+`project-score:{course_slug}:{project_slug}`. It requires a staff token and
+the project in `CO` (completed) state. A succeeded or in-flight send audit or
+outbox event returns `409` with the existing audit; nothing is queued again.
+Failed queue attempts return `502` and may be retried. The queue is
+asynchronous, so a successful POST can return `sent: false` with a pending
+audit until delivery completes.
+
+`GET` on the same path is read-only and works in any project state. It returns
+the current send audit, or `audit: null` when none exists:
+
+```json
+{
+  "course_slug": "ai-dev-tools-2026",
+  "project_slug": "project1",
+  "idempotency_key": "project-score:ai-dev-tools-2026:project1",
+  "sent": false,
+  "audit": null
 }
 ```
 
