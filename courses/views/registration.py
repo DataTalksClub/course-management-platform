@@ -15,7 +15,7 @@ from course_management.relay.notifications import (
     send_registration_confirmation_email,
 )
 from course_management.observability import record_event
-from courses import cross_sell
+from courses import attribution, cross_sell
 from courses.models.course import (
     CourseRegistration,
     RegistrationCampaign,
@@ -299,6 +299,7 @@ def registration_campaign_view(
     if request.method == "GET":
         cross_sell.remember_link_click(request, campaign)
         remember_invite_click(request, campaign)
+        attribution.remember_attribution(request, campaign)
         prefill, prefill_source = cross_sell.prefill_identity(
             request, campaign
         )
@@ -326,6 +327,7 @@ def registration_campaign_view(
         if saved_fresh:
             cross_sell.attribute_link_registration(request, registration)
             attribute_invite_referrer(request, registration)
+            attribution.attribute_registration(request, registration)
             course_slug = ""
             if registration.course_id:
                 course_slug = registration.course.slug

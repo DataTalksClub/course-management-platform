@@ -393,6 +393,18 @@ class CourseRegistration(models.Model):
         help_text="How the registration started: empty for the "
         + "normal form, xsell* for cross-sell suggestions.",
     )
+    utm_source = models.CharField(
+        max_length=100, blank=True, default="", db_index=True,
+        help_text="utm_source from the landing URL.",
+    )
+    utm_medium = models.CharField(max_length=100, blank=True, default="")
+    utm_campaign = models.CharField(max_length=150, blank=True, default="")
+    utm_content = models.CharField(max_length=150, blank=True, default="")
+    utm_term = models.CharField(max_length=150, blank=True, default="")
+    landing_referrer = models.CharField(
+        max_length=500, blank=True, default="",
+        help_text="External HTTP referrer of the landing visit.",
+    )
     referred_by = models.ForeignKey(
         "self",
         on_delete=models.CASCADE,

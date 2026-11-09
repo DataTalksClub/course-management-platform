@@ -220,6 +220,7 @@
         </div>
         <div class="text-xs">
           <p class="app-muted">{{ registration.created_at|date:"M j, Y H:i" }}</p>
+          {% if registration.utm_source %}<p class="mt-1 break-words"><span class="app-muted">UTM:</span> {{ registration.utm_source }}{% if registration.utm_medium %} / {{ registration.utm_medium }}{% endif %}{% if registration.utm_campaign %} / {{ registration.utm_campaign }}{% endif %}</p>{% endif %}
           {% if needs_approval %}<p class="mt-1 font-semibold app-heading">{{ registration.get_status_display }}</p>{% endif %}
         </div>
         {% if needs_approval %}
