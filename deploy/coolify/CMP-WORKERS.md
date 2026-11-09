@@ -93,6 +93,29 @@ last success/due time. Email transport latency is additional. It deduplicates ma
 for one hour; recovery sends once. The monitor never runs jobs. Configure overrides
 in root-only `/etc/cmp-worker-monitor.env` if the service runner or thresholds change.
 
+The watchdog requires host Python 3 for diagnostic JSON parsing. It retains
+only allowlisted alarm labels, the command exit code and a UTC observation time
+in `last-check`, syslog (`cmp-workers`), and alarm/recovery message bodies.
+Raw stdout/stderr, exception messages, payloads and container names are never
+forwarded. Exit 124 identifies the check timeout; `no_runner` and
+`container_discovery_failed` distinguish runner discovery from database alarms.
+`alarms=unavailable` means no recognized JSON alarm labels were returned; it
+does not imply healthy worker state. `last-check` is the latest observation;
+syslog and delivered alarm messages preserve earlier failure evidence.
+
+The 2026-11-09 19:09Z alarm recovered at 19:14:10Z (oncall observation).
+The earlier watchdog discarded command output, so those generic messages alone
+cannot identify the breached check or distinguish a transient job stall from
+an execution/discovery failure. No specific failing database row has been
+established. Release #252 changed crawler directives and noindex metadata, not
+worker execution or API access controls. Scheduled worker commands do not go
+through HTTP crawler middleware. Do not attribute the alarm to #252 without
+additional evidence. `/api/health/` does not execute `check_cmp_workers`.
+
+Updating the repository script does not update an installed host watchdog.
+Any installation must follow the machine-management operator's sanctioned
+release process; do not manually access Contabo to install or investigate it.
+
 Recovery: restore the runner/image/configuration, inspect alarm output locally,
 verify new success timestamps and oldest-due age, and require monitor recovery.
 Do not mute alerts, truncate queues, or reset old reminder windows.
