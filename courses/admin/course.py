@@ -264,11 +264,13 @@ class CourseRegistrationAdmin(ModelAdmin):
         "role",
         "status",
         "auto_approved_at",
+        "utm_source",
         "created_at",
     ]
     search_fields = ["email", "email_normalized", "name", "company_name"]
     list_filter = [
         "campaign",
+        "utm_source",
         "course",
         "region",
         "ukraine_region",

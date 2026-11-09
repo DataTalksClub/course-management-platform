@@ -372,6 +372,12 @@ def campaign_registrations_export(request, campaign_slug):
             "comment",
             "accepted_newsletter",
             "accepted_nebius_sharing",
+            "utm_source",
+            "utm_medium",
+            "utm_campaign",
+            "utm_content",
+            "utm_term",
+            "landing_referrer",
             "created_at",
         ]
     )
@@ -404,6 +410,12 @@ def campaign_registrations_export(request, campaign_slug):
                 registration.comment,
                 registration.accepted_newsletter,
                 registration.accepted_nebius_sharing,
+                registration.utm_source,
+                registration.utm_medium,
+                registration.utm_campaign,
+                registration.utm_content,
+                registration.utm_term,
+                registration.landing_referrer,
                 registration.created_at.isoformat(),
             ]
         )

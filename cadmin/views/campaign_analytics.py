@@ -143,6 +143,9 @@ def analytics_context(campaign, start, end):
     sources = breakdown(
         registrations, "source", total, labels={"": "Direct (registration form)"}
     )
+    utm_sources = breakdown(
+        registrations, "utm_source", total, labels={"": "No UTM source"}
+    )
     return {
         "campaign": campaign,
         "course": campaign.current_course,
@@ -182,6 +185,7 @@ def analytics_context(campaign, start, end):
             ),
             ("Company", breakdown(registrations, "company_name", total)),
             ("Source", sources),
+            ("UTM source", utm_sources),
         ],
     }
 

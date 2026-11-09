@@ -43,5 +43,11 @@ def registration_to_dict(registration):
         "role_display": role_display,
         "comment": registration.comment,
         "status": registration.status,
+        "utm_source": registration.utm_source,
+        "utm_medium": registration.utm_medium,
+        "utm_campaign": registration.utm_campaign,
+        "utm_content": registration.utm_content,
+        "utm_term": registration.utm_term,
+        "landing_referrer": registration.landing_referrer,
         "created_at": created_at,
     }
