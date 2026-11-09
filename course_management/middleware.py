@@ -7,6 +7,26 @@ from django.http import HttpResponse
 from course_management.observability import report_exception
 
 
+class CrawlerNoindexMiddleware:
+    """Keep account, API and admin responses out of search results.
+
+    Headers also cover redirects and non-HTML 401/403 responses. Robots
+    exclusions prevent routine crawls; noindex helps clients that do fetch
+    these URLs, without changing their authentication or status codes.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if request.path.startswith(
+            ("/accounts/", "/api/", "/admin/", "/cadmin/")
+        ):
+            response["X-Robots-Tag"] = "noindex"
+        return response
+
+
 class HealthCheckMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
