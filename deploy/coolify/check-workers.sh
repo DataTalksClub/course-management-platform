@@ -39,16 +39,55 @@ fi
 mkdir -p "$state_dir"
 exec 9>"$state_dir/lock"
 flock -n 9 || exit 0
-mapfile -t containers < <(docker ps --format '{{.Names}}' | awk -v p="$prefix" 'index($0,p)==1')
+# Never forward raw command output: exceptions may contain credentials or PII.
+# The host needs Python 3 only to parse JSON and allowlist diagnostic labels.
+safe_alarm_labels() {
+  python3 -c '
+import json, sys
+jobs = ("outbox", "health", "reminders", "digest", "scoring")
+allowed = {f"{job}:{kind}" for job in jobs for kind in ("success_stale", "failed")}
+allowed.update(("outbox:backlog_age", "application_notifications:failed",
+                "application_notifications:backlog_age", "scoring:backlog_age", "scoring:stuck"))
+labels = set()
+for line in sys.stdin:
+    try:
+        payload = json.loads(line)
+    except ValueError:
+        continue
+    if isinstance(payload, dict) and isinstance(payload.get("alarms"), list):
+        labels.update(label for label in payload["alarms"]
+                      if isinstance(label, str) and label in allowed)
+print(",".join(sorted(labels)) or "unavailable")
+'
+}
+
 evaluation=alarm
+details=no_runner
+containers=()
+if container_names=$(docker ps --format '{{.Names}}' 2>/dev/null); then
+  mapfile -t containers < <(printf '%s\n' "$container_names" | awk -v p="$prefix" 'index($0,p)==1')
+else
+  details=container_discovery_failed
+fi
 # During a normal rolling release two containers may coexist. They share
 # the same durable worker timestamps; a successful check on either is enough.
 for container in "${containers[@]}"; do
-  if timeout 45 docker exec "$container" python manage.py check_cmp_workers >/dev/null 2>&1; then
+  if check_output=$(timeout 45 docker exec "$container" python manage.py check_cmp_workers 2>&1); then
     evaluation=ok
+    details='check_exit=0 alarms=none'
     break
+  else
+    check_exit=$?
+    labels=$(printf '%s\n' "$check_output" | safe_alarm_labels 2>/dev/null) || labels=unavailable
+    # Preserve failures from each replica without exposing names or raw output.
+    if [[ "$details" == no_runner ]]; then details=""; fi
+    details+="check_exit=${check_exit} alarms=${labels}; "
   fi
 done
+unset check_output container_names
+checked_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+evidence="checked_at=${checked_at} result=${evaluation} ${details}"
+printf '%s\n' "$evidence" > "$state_dir/last-check"
 previous=$(cat "$state_dir/status" 2>/dev/null || echo "ok")
 consecutive_fails=$(cat "$state_dir/consecutive-failures" 2>/dev/null || echo 0)
 last=$(cat "$state_dir/last-alert" 2>/dev/null || echo 0)
@@ -64,7 +103,7 @@ if [[ "$evaluation" == "ok" ]]; then
 else
   consecutive_fails=$((consecutive_fails + 1))
   echo "$consecutive_fails" > "$state_dir/consecutive-failures"
-  logger -t cmp-workers "CMP worker check evaluation failed (evaluation ${consecutive_fails} of ${fail_threshold})"
+  logger -t cmp-workers "CMP worker check evaluation failed (evaluation ${consecutive_fails} of ${fail_threshold}): ${evidence}"
   if [[ "$consecutive_fails" -ge "$fail_threshold" ]]; then
     status=alarm
   else
@@ -73,9 +112,9 @@ else
 fi
 if [[ "$status" != "$previous" || ( "$status" == alarm && $((now-last)) -ge 3600 ) ]]; then
   echo "CMP_WORKERS_${status^^}"
-  logger -t cmp-workers "CMP_WORKERS_${status^^}"
+  logger -t cmp-workers "CMP_WORKERS_${status^^} ${evidence}"
   if [[ "$status" == alarm || "$previous" == alarm ]]; then
-    relay_alert "$alert_to" "CMP workers $status" "CMP worker success or backlog age check: $status"
+    relay_alert "$alert_to" "CMP workers $status" "CMP worker success or backlog age check: $status; $evidence"
   fi
   echo "$now" > "$state_dir/last-alert"
 fi
