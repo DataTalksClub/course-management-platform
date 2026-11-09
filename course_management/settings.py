@@ -71,6 +71,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "course_management.middleware.CrawlerNoindexMiddleware",
     "course_management.middleware.HealthCheckMiddleware",
     "course_management.middleware.RateLimitMiddleware",
     "course_management.middleware.ObservabilityExceptionMiddleware",
