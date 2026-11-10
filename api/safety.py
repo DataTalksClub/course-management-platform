@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import wraps
 
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
@@ -41,6 +42,20 @@ def require_staff_token(request):
         "staff_token_required",
         status=403,
     )
+
+
+def staff_token_required(view):
+    """Require a staff API token and mark the view for route-policy checks."""
+
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        error = require_staff_token(request)
+        if error:
+            return error
+        return view(request, *args, **kwargs)
+
+    wrapped.requires_staff_token = True
+    return wrapped
 
 
 def ensure_closed_for_delete(instance, closed_state, noun):

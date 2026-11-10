@@ -11,6 +11,7 @@ from django.forms.models import model_to_dict
 from django.views.decorators.http import require_GET
 
 from accounts.auth import token_required
+from api.safety import staff_token_required
 
 from courses.models.course import Course
 from courses.models.homework import (
@@ -73,6 +74,7 @@ def homework_export_payload(course, homework, submissions):
 
 @require_GET
 @token_required
+@staff_token_required
 def homework_data_view(request, course_slug: str, homework_slug: str):
     """Get homework data including course info, homework details, and all submissions with answers."""
     course = get_object_or_404(Course, slug=course_slug)

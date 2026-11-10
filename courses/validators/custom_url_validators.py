@@ -1,3 +1,6 @@
+import ipaddress
+import socket
+from time import monotonic
 from urllib.parse import urlparse
 
 import requests
@@ -123,9 +126,55 @@ def get_error_message(status_code, url):
 URL_VALIDATION_TIMEOUT = 3
 URL_VALIDATION_ERRORS = (
     requests.RequestException,
+    OSError,
     UnicodeError,
     ValueError,
 )
+URL_PUBLIC_ADDRESS_ERROR = (
+    "The submitted link must use a public HTTP or HTTPS address "
+    "on port 80 or 443."
+)
+URL_REACHABILITY_ERROR = (
+    "The submitted link could not be reached. Confirm it is a public URL "
+    "and try again."
+)
+
+
+def _public_url_address(url):
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        raise ValidationError(URL_PUBLIC_ADDRESS_ERROR)
+
+    if (
+        parsed.scheme not in ("http", "https")
+        or not hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise ValidationError(URL_PUBLIC_ADDRESS_ERROR)
+
+    expected_port = 80 if parsed.scheme == "http" else 443
+    if port not in (None, expected_port):
+        raise ValidationError(URL_PUBLIC_ADDRESS_ERROR)
+
+    try:
+        addresses = [ipaddress.ip_address(hostname)]
+    except ValueError:
+        resolved = socket.getaddrinfo(
+            hostname,
+            expected_port,
+            type=socket.SOCK_STREAM,
+        )
+        addresses = [
+            ipaddress.ip_address(result[4][0].split("%", 1)[0])
+            for result in resolved
+        ]
+
+    if not addresses or any(not address.is_global for address in addresses):
+        raise ValidationError(URL_PUBLIC_ADDRESS_ERROR)
 
 
 def _url_validation_method(get_method):
@@ -139,11 +188,34 @@ def _should_retry_with_get(status_code):
 
 
 def _validated_url_response(url, get_method):
-    response = get_method(url, timeout=URL_VALIDATION_TIMEOUT)
+    _public_url_address(url)
+    deadline = monotonic() + URL_VALIDATION_TIMEOUT
+    response = get_method(
+        url,
+        timeout=_remaining_url_timeout(deadline),
+        allow_redirects=False,
+    )
     if _should_retry_with_get(response.status_code):
-        return requests.get(url, timeout=URL_VALIDATION_TIMEOUT)
+        close_response = getattr(response, "close", None)
+        if close_response:
+            close_response()
+        return requests.get(
+            url,
+            timeout=_remaining_url_timeout(deadline),
+            allow_redirects=False,
+            stream=True,
+        )
 
     return response
+
+
+def _remaining_url_timeout(deadline):
+    remaining = deadline - monotonic()
+    if remaining <= 0:
+        raise requests.Timeout("URL validation exceeded its time budget")
+    # Requests applies connect and read timeouts independently. Split the
+    # remaining budget so their combined maximum stays within our deadline.
+    return (remaining / 2, remaining / 2)
 
 
 def _raise_url_status_error(status_code, url, code, params):
@@ -153,6 +225,7 @@ def _raise_url_status_error(status_code, url, code, params):
 
 def validate_url_200(url, get_method=None, code=None, params=None):
     get_method = _url_validation_method(get_method)
+    response = None
 
     try:
         response = _validated_url_response(url, get_method)
@@ -164,15 +237,19 @@ def validate_url_200(url, get_method=None, code=None, params=None):
         _raise_url_status_error(status_code, url, code, params)
     except ValidationError:
         raise
-    except URL_VALIDATION_ERRORS as e:
+    except URL_VALIDATION_ERRORS:
         # Not just requests.exceptions.RequestException: malformed-but-
         # valid-looking URLs can raise UnicodeError / LocationParseError,
         # which would otherwise escape as an uncaught 500.
         raise ValidationError(
-            f"An error occurred while trying to validate the URL: {e}",
+            URL_REACHABILITY_ERROR,
             code=code,
             params=params,
         )
+    finally:
+        close_response = getattr(response, "close", None)
+        if close_response:
+            close_response()
 
 
 class Status200UrlValidator(URLValidator):

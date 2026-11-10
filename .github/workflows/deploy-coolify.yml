@@ -61,6 +61,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres@localhost:5432/cmp_test
+      IS_LOCAL: "1"
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
@@ -71,6 +72,12 @@ jobs:
           uv run python manage.py shell -c "from django.db import connection; connection.ensure_connection(); print('CI database:', connection.vendor, connection.pg_version); assert connection.vendor == 'postgresql'"
           uv run python manage.py makemigrations --check --dry-run
           uv run python manage.py check
+      - name: Django deployment security checks
+        env:
+          IS_LOCAL: "0"
+        run: |
+          SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))')" \
+            uv run python manage.py check --deploy --fail-level WARNING
       - name: Tests
         run: uv run pytest
 

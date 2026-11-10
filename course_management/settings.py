@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 
@@ -26,24 +27,59 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY", "SOME_SECRET_KEY")
-
-DEBUG = os.getenv("DEBUG", "1") == "1"
-
-EXTRA_ALLOWED_HOSTS = os.getenv("EXTRA_ALLOWED_HOSTS", "")
-extra_allowed_hosts_parsed = EXTRA_ALLOWED_HOSTS.split(",")
-
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"] + extra_allowed_hosts_parsed
-
 IS_LOCAL = os.getenv("IS_LOCAL", "0") == "1"
 
-CSRF_TRUSTED_ORIGINS = []
+# Production must receive a deployment-specific secret. The fixed key is only
+# used for explicit local development and is never a production fallback.
+if IS_LOCAL:
+    SECRET_KEY = os.getenv(
+        "SECRET_KEY", "local-development-key-not-for-production"
+    )
+else:
+    SECRET_KEY = os.getenv("SECRET_KEY", "")
+    if not SECRET_KEY:
+        raise ImproperlyConfigured(
+            "SECRET_KEY must be configured when IS_LOCAL is not enabled"
+        )
 
-for host in ALLOWED_HOSTS:
-    CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
-    CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
+DEBUG = os.getenv("DEBUG", "1" if IS_LOCAL else "0") == "1"
 
+EXTRA_ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("EXTRA_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", *EXTRA_ALLOWED_HOSTS]
+
+if IS_LOCAL:
+    CSRF_TRUSTED_ORIGINS = [
+        f"{scheme}://{host}"
+        for host in ALLOWED_HOSTS
+        for scheme in ("http", "https")
+    ]
+else:
+    CSRF_TRUSTED_ORIGINS = [
+        f"https://{host}" for host in ALLOWED_HOSTS if host
+    ]
+
+SESSION_COOKIE_SECURE = not IS_LOCAL
+CSRF_COOKIE_SECURE = not IS_LOCAL
+SECURE_HSTS_SECONDS = 0 if IS_LOCAL else 31536000
+SECURE_PROXY_SSL_HEADER = (
+    None if IS_LOCAL else ("HTTP_X_FORWARDED_PROTO", "https")
+)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
+# Public HTTPS redirects and certificates are owned by Traefik. The app must
+# continue serving HTTP on its private port for container and rolling-readiness
+# probes; the forwarded-proto header still lets SecurityMiddleware emit HSTS.
+SECURE_SSL_REDIRECT = False
+
+# Django's deploy checks recommend broader HSTS scope and app-level redirects.
+# Keep HSTS scoped to this host until every descendant is verified; Traefik
+# handles public redirects, while internal health probes use plain HTTP.
+SILENCED_SYSTEM_CHECKS = ["security.W005", "security.W008", "security.W021"]
 
 # Application definition
 
@@ -367,8 +403,8 @@ SITE_ID_VALUE = os.getenv("SITE_ID", "2")
 SITE_ID = int(SITE_ID_VALUE)
 
 ACCOUNT_EMAIL_VERIFICATION = "none"
-ACCOUNT_AUTHENTICATION_METHOD = "username_email"
-ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 
 LOGIN_REDIRECT_URL = "/"
 LOGIN_URL = "/accounts/login/"
@@ -436,15 +472,6 @@ LOGGING = {
     },
 }
 
-
-# Use email authentication method
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-
-# Email is required for signing up
-ACCOUNT_EMAIL_REQUIRED = True
-
-# Don't require a username (use email instead)
-ACCOUNT_USERNAME_REQUIRED = False
 
 # Email has to be unique
 ACCOUNT_UNIQUE_EMAIL = True
