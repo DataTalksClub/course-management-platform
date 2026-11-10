@@ -339,6 +339,30 @@ class BuildConfigurationTestCase(SimpleTestCase):
         )
         self.assertIn("uv sync --locked --no-dev", dockerfile)
 
+    def test_production_image_uses_a_current_pinned_python_and_non_root_user(self):
+        dockerfile = (self.repo_root() / "Dockerfile").read_text()
+
+        self.assertIn("FROM python:3.13.18-slim-bookworm", dockerfile)
+        self.assertIn("setcap 'cap_net_bind_service=+ep'", dockerfile)
+        self.assertIn("USER cmp:cmp", dockerfile)
+        self.assertIn("chown -R cmp:cmp /code", dockerfile)
+
+    def test_dependency_refresh_and_vulnerability_audit_are_configured(self):
+        dependabot = yaml.safe_load(
+            (self.repo_root() / ".github" / "dependabot.yml").read_text()
+        )
+        ecosystems = {
+            update["package-ecosystem"]
+            for update in dependabot["updates"]
+        }
+        self.assertIn("uv", ecosystems)
+        self.assertIn("docker", ecosystems)
+
+        workflow = (
+            self.repo_root() / ".github" / "workflows" / "deploy-coolify.yml"
+        ).read_text()
+        self.assertIn("uv run --with pip-audit pip-audit --local", workflow)
+
     def test_collectstatic_uses_an_ephemeral_build_secret(self):
         dockerfile = (self.repo_root() / "Dockerfile").read_text()
 
@@ -376,6 +400,26 @@ class BuildConfigurationTestCase(SimpleTestCase):
                 for dependency in project["project"]["dependencies"]
             )
         )
+
+    def test_security_relevant_runtime_dependencies_have_version_bounds(self):
+        with (self.repo_root() / "pyproject.toml").open("rb") as file:
+            project = tomllib.load(file)
+
+        dependencies = project["project"]["dependencies"]
+        for prefix in (
+            "django>=5.2.18,<6.0",
+            "django-allauth>=65.21.1,<66",
+            "requests>=2.34.2,<3",
+            "pyjwt>=2.15.1,<3",
+            "cryptography>=47.0.0,<48",
+            "whitenoise>=6.12.0,<7",
+            "psycopg2-binary>=2.9.13,<3",
+            "gunicorn>=23.0.0,<24",
+        ):
+            with self.subTest(dependency=prefix):
+                self.assertTrue(
+                    any(dependency.startswith(prefix) for dependency in dependencies)
+                )
 
     def test_dockerfile_bakes_version_build_arg(self):
         contents = (self.repo_root() / "Dockerfile").read_text()

@@ -80,6 +80,8 @@ jobs:
             uv run python manage.py check --deploy --fail-level WARNING
       - name: Tests
         run: uv run pytest
+      - name: Dependency vulnerability audit
+        run: uv run --with pip-audit pip-audit --local
 
   build-and-push:
     # Test-only runs must not publish a tag: the production poller watches GHCR.

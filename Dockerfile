@@ -1,4 +1,4 @@
-FROM python:3.13.5-slim-bookworm
+FROM python:3.13.18-slim-bookworm
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /uvx /bin/
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -14,6 +14,16 @@ ENV VERSION=${VERSION}
 
 WORKDIR /code
 
+# Keep the configured port 80 for the existing Coolify application while
+# granting only the low-port bind capability to Python.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libcap2-bin && \
+    setcap 'cap_net_bind_service=+ep' /usr/local/bin/python3.13 && \
+    apt-get purge -y --auto-remove libcap2-bin && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN useradd --system --uid 10001 --create-home --home-dir /home/cmp cmp
+
 # Install dependencies
 COPY "pyproject.toml" "uv.lock" ".python-version" ./
 RUN uv sync --locked --no-dev
@@ -23,8 +33,10 @@ COPY . .
 RUN chmod +x entrypoint.sh docker-entrypoint.sh && \
     mkdir -p static && \
     SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')" \
-      python manage.py collectstatic --noinput
+      python manage.py collectstatic --noinput && \
+    chown -R cmp:cmp /code
 
 EXPOSE 80
+USER cmp:cmp
 ENTRYPOINT ["/code/entrypoint.sh"]
 CMD ["gunicorn", "course_management.wsgi", "--bind", "0.0.0.0:80", "--timeout", "90"]
