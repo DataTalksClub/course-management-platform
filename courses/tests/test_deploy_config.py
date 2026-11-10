@@ -828,8 +828,17 @@ class BuildConfigurationTestCase(SimpleTestCase):
         )
         self.assertEqual(set_migration_roles(updated), updated)
 
-        with self.assertRaisesRegex(ValueError, "worker"):
-            set_migration_roles("services:\n  web:\n    image: cmp:web\n")
+        web_only = set_migration_roles("services:\n  web:\n    image: cmp:web\n")
+        self.assertEqual(
+            yaml.safe_load(web_only)["services"]["web"]["environment"][
+                "CMP_RUN_MIGRATIONS"
+            ],
+            "1",
+        )
+        self.assertNotIn("worker:", web_only)
+
+        with self.assertRaisesRegex(ValueError, "web"):
+            set_migration_roles("services:\n")
 
     def test_migration_command_uses_postgres_lock_and_releases_it(self):
         from course_management.management.commands.migrate_with_lock import Command
