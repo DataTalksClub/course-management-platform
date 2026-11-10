@@ -41,6 +41,14 @@ API_HEALTH_DATA = OperationData(
     requires_auth=False,
 )
 API_HEALTH_OPERATION = operation(API_HEALTH_DATA)
+API_HEALTH_LIVE_DATA = OperationData(
+    "api_health_live",
+    ["System"],
+    "Application liveness",
+    API_HEALTH_RESPONSES,
+    requires_auth=False,
+)
+API_HEALTH_LIVE_OPERATION = operation(API_HEALTH_LIVE_DATA)
 
 COURSE_CRITERIA_CONTENT = {"text/yaml": {"schema": {"type": "string"}}}
 COURSE_CRITERIA_SUCCESS_RESPONSE = content_response(
@@ -300,6 +308,9 @@ RELAY_SEND_AUDIT_DETAIL_DATA = OperationData(
 RELAY_SEND_AUDIT_DETAIL_OPERATION = operation(RELAY_SEND_AUDIT_DETAIL_DATA)
 
 DATA_PATHS_BY_URL_NAME = {
+    "api_health_live": {
+        "get": API_HEALTH_LIVE_OPERATION,
+    },
     "api_health": {
         "get": API_HEALTH_OPERATION,
     },

@@ -84,7 +84,9 @@ class RelayConfigSendGuardTests(TestCase):
         self,
     ):
         response = self.client.get("/api/health/")
-        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+        self.assertTrue(response.json()["degraded"])
         self.assertEqual(
             response.json()["RELAY_TRANSACTIONAL_DRY_RUN"], "FAIL"
         )
