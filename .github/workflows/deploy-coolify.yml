@@ -9,6 +9,7 @@ name: Deploy CMP Coolify (Contabo)
 # Mirrors DataTalksClub/relay .github/workflows/deploy-coolify.yml (pilot).
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       test_only:
@@ -26,7 +27,14 @@ on:
     paths-ignore:
       - "docs/**"
       - "*.md"
-      - "deploy/coolify/**"
+      - "**/*.md"
+      - "e2e/**"
+      - "notebooks/**"
+      - "scripts/**"
+      - "**/tests/**"
+      - ".agents/**"
+      - ".claude/**"
+      - "deploy/hetzner/**"
       - ".github/workflows/e2e-smoke-dev.yaml"
 
 concurrency:
@@ -83,7 +91,7 @@ jobs:
 
   build-and-push:
     # Test-only runs must not publish a tag: the production poller watches GHCR.
-    if: ${{ !inputs.test_only }}
+    if: ${{ github.event_name != 'pull_request' && !inputs.test_only }}
     needs: test
     runs-on: ubuntu-24.04
     outputs:
@@ -148,6 +156,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
+    if: ${{ github.event_name != 'pull_request' }}
     needs: build-and-push
     runs-on: ubuntu-24.04
     # Environment name retained for existing secrets; targets production courses.

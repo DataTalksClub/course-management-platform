@@ -58,6 +58,40 @@ class DeploymentWorkflowTestCase(SimpleTestCase):
 
         self.assertIn("main", events["push"]["branches"])
 
+    def test_pull_requests_run_ci_without_publishing_or_deploying(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = yaml.load(
+            (root / ".github" / "workflows" / "deploy-coolify.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+
+        self.assertIn("pull_request", workflow["on"])
+        self.assertEqual(
+            workflow["jobs"]["build-and-push"]["if"],
+            "${{ github.event_name != 'pull_request' && !inputs.test_only }}",
+        )
+        self.assertEqual(
+            workflow["jobs"]["deploy"]["if"],
+            "${{ github.event_name != 'pull_request' }}",
+        )
+
+    def test_low_value_main_pushes_do_not_trigger_production_deployments(self):
+        events = self.workflow_events("deploy-coolify.yml")
+        patterns = set(events["push"]["paths-ignore"])
+
+        for pattern in (
+            "**/*.md",
+            "e2e/**",
+            "notebooks/**",
+            "scripts/**",
+            "**/tests/**",
+            ".agents/**",
+            "deploy/hetzner/**",
+        ):
+            with self.subTest(pattern=pattern):
+                self.assertIn(pattern, patterns)
+        self.assertNotIn("deploy/coolify/**", patterns)
+
     def test_production_deploy_waits_for_public_health_to_report_built_tag(self):
         root = Path(__file__).resolve().parents[2]
         workflow = yaml.load(
