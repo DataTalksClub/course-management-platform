@@ -456,6 +456,32 @@ class BuildConfigurationTestCase(SimpleTestCase):
             "Recent package releases must remain resolvable by Dependabot.",
         )
 
+    def test_release_workflow_actions_are_pinned_to_commit_shas(self):
+        workflow = (
+            self.repo_root() / ".github" / "workflows" / "deploy-coolify.yml"
+        ).read_text()
+        action_refs = [
+            line.split("uses:", 1)[1].split("#", 1)[0].strip()
+            for line in workflow.splitlines()
+            if "uses:" in line
+        ]
+
+        self.assertGreater(len(action_refs), 0)
+        for action_ref in action_refs:
+            if action_ref.startswith("./"):
+                continue
+            self.assertRegex(
+                action_ref,
+                r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$",
+            )
+
+    def test_release_ci_runs_the_configured_type_checker(self):
+        workflow = (
+            self.repo_root() / ".github" / "workflows" / "deploy-coolify.yml"
+        ).read_text()
+
+        self.assertIn("run: uv run pyrefly check", workflow)
+
     def test_collectstatic_uses_an_ephemeral_build_secret(self):
         dockerfile = (self.repo_root() / "Dockerfile").read_text()
 

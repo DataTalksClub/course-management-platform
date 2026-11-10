@@ -73,8 +73,8 @@ jobs:
       DATABASE_URL: postgresql://postgres@localhost:5432/cmp_test
       IS_LOCAL: "1"
     steps:
-      - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       - name: Install dependencies
         run: uv sync --locked
       - name: Django checks
@@ -88,6 +88,8 @@ jobs:
         run: |
           SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))')" \
             uv run python manage.py check --deploy --fail-level WARNING
+      - name: Static type checks
+        run: uv run pyrefly check
       - name: Tests
         run: uv run pytest
       - name: Dependency vulnerability audit
@@ -102,7 +104,7 @@ jobs:
       image_tag: ${{ steps.identity.outputs.version }}
       image_digest: ${{ steps.push.outputs.digest }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Construct release identity (timestamped release tag)
         id: identity
@@ -124,7 +126,7 @@ jobs:
           PY
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -132,7 +134,7 @@ jobs:
 
       - name: Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           # Timestamped production tag only (YYYYMMDD-HHMMSS-<7>). Never :latest. Never sha-<…>.
@@ -140,11 +142,11 @@ jobs:
             type=raw,value=${{ steps.identity.outputs.version }}
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build and push (linux/amd64)
         id: push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: Dockerfile
@@ -168,7 +170,7 @@ jobs:
     env:
       DEPLOY_DEV_ONLY: ${{ inputs.dev_only || false }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Record production version before isolated DEV deployment
         if: inputs.dev_only
