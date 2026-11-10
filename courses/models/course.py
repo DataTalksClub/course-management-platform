@@ -36,6 +36,37 @@ class Course(StartTimeModel):
         validators=[URLValidator()],
         help_text="Optional GitHub repository URL for the course.",
     )
+    live_session_schedule_details = models.TextField(
+        blank=True,
+        default="",
+        help_text=(
+            "Student-facing dates and times for live sessions, including "
+            "the pre-course Q&A."
+        ),
+    )
+    live_session_schedule_url = models.URLField(
+        blank=True,
+        default="",
+        validators=[URLValidator()],
+        help_text="Link to the live session and Q&A schedule or event page.",
+    )
+    support_channel_name = models.CharField(
+        max_length=150,
+        blank=True,
+        default="",
+        help_text="Student help channel label, for example a Slack channel.",
+    )
+    support_channel_url = models.URLField(
+        blank=True,
+        default="",
+        validators=[URLValidator()],
+        help_text="Link to the course help channel, such as a Slack channel.",
+    )
+    support_email = models.EmailField(
+        blank=True,
+        default="",
+        help_text="Optional course support email address.",
+    )
     students = models.ManyToManyField(
         User, through="Enrollment", related_name="courses_enrolled"
     )

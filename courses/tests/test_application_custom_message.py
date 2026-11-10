@@ -50,13 +50,16 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
             kwargs={"campaign_slug": self.campaign.slug},
         )
 
-    def test_approve_without_message_queues_empty_custom_message(self):
+    def test_approve_without_message_includes_course_information(self):
         registration = self.create_pending()
         approve_registration(registration)
         notification = ApplicationNotification.objects.get(
             registration=registration
         )
-        self.assertEqual(notification.context["custom_message"], "")
+        self.assertIn(
+            "The platform course page is only for logistics",
+            notification.context["custom_message"],
+        )
 
     def test_approve_with_message_stores_it_in_context(self):
         registration = self.create_pending()
@@ -67,9 +70,10 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
         notification = ApplicationNotification.objects.get(
             registration=registration
         )
-        self.assertEqual(
-            notification.context["custom_message"],
-            "Join the workshop today at 18:00!",
+        self.assertTrue(
+            notification.context["custom_message"].endswith(
+                "Join the workshop today at 18:00!"
+            )
         )
 
     def test_cadmin_approve_with_message(self):
@@ -87,9 +91,10 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
         notification = ApplicationNotification.objects.get(
             registration=registration
         )
-        self.assertEqual(
-            notification.context["custom_message"],
-            "Workshop today at 18:00!",
+        self.assertTrue(
+            notification.context["custom_message"].endswith(
+                "Workshop today at 18:00!"
+            )
         )
 
     def test_cadmin_reject_with_message(self):
@@ -129,9 +134,10 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
         )
         self.assertEqual(notifications.count(), 3)
         for notification in notifications:
-            self.assertEqual(
-                notification.context["custom_message"],
-                "Workshop today at 18:00!",
+            self.assertTrue(
+                notification.context["custom_message"].endswith(
+                    "Workshop today at 18:00!"
+                )
             )
 
     def test_bulk_approve_skips_genmedia_excluded(self):
@@ -222,7 +228,7 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
             eligible.status, CourseRegistration.Status.PENDING
         )
 
-    def test_list_page_prefills_launch_message(self):
+    def test_list_page_explains_automatic_course_information(self):
         from django.urls import reverse
 
         self.client.force_login(self.staff)
@@ -233,7 +239,8 @@ class ApplicationCustomMessageTests(RegistrationCampaignBase):
             )
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "https://luma.com/i4x6x2zy")
+        self.assertContains(response, "included automatically")
+        self.assertNotContains(response, "https://luma.com/i4x6x2zy")
 
     def test_decision_templates_leave_custom_message_optional(self):
         from course_management.relay.application_templates import (

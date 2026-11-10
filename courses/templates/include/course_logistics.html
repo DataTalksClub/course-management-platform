@@ -1,0 +1,79 @@
+{% if course %}
+  <section class="mt-6 max-w-3xl border-t app-border pt-5"
+           aria-labelledby="course-logistics-heading">
+    <h2 id="course-logistics-heading"
+        class="text-xl font-semibold app-heading">
+      Course logistics
+    </h2>
+    <dl class="mt-3 space-y-3 text-sm app-text">
+      {% if course.start_date %}
+        <div>
+          <dt class="font-medium app-heading">Course starts</dt>
+          <dd class="mt-1">{{ course.start_date|date:"D j M Y" }}</dd>
+        </div>
+      {% endif %}
+
+      {% if course.live_session_schedule_details or course.live_session_schedule_url %}
+        <div>
+          <dt class="font-medium app-heading">
+            Live sessions and pre-course Q&amp;A
+          </dt>
+          <dd class="mt-1">
+            {% if course.live_session_schedule_details %}
+              {{ course.live_session_schedule_details|linebreaksbr }}
+            {% endif %}
+            {% if course.live_session_schedule_url %}
+              <a href="{{ course.live_session_schedule_url }}"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="app-link">Open the schedule and join details</a>
+            {% endif %}
+          </dd>
+        </div>
+      {% endif %}
+
+      {% if course.github_repo_url %}
+        <div>
+          <dt class="font-medium app-heading">Course content</dt>
+          <dd class="mt-1">
+            All course content is on GitHub:
+            <a href="{{ course.github_repo_url }}"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="app-link">open the course repository</a>.
+          </dd>
+        </div>
+      {% endif %}
+
+      <div>
+        <dt class="font-medium app-heading">Platform page</dt>
+        <dd class="mt-1">
+          This page is only for logistics: homework, submissions, projects,
+          and leaderboard.
+        </dd>
+      </div>
+
+      {% if course.support_channel_url or course.support_email %}
+        <div>
+          <dt class="font-medium app-heading">Questions and help</dt>
+          <dd class="mt-1">
+            {% if course.support_channel_url %}
+              Ask in
+              <a href="{{ course.support_channel_url }}"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="app-link">
+                {{ course.support_channel_name|default:"the course help channel" }}
+              </a>.
+            {% endif %}
+            {% if course.support_email %}
+              {% if course.support_channel_url %}Or {% endif %}email
+              <a href="mailto:{{ course.support_email }}"
+                 class="app-link">{{ course.support_email }}</a>.
+            {% endif %}
+          </dd>
+        </div>
+      {% endif %}
+    </dl>
+  </section>
+{% endif %}
