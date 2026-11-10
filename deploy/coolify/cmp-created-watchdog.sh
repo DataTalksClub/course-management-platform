@@ -7,9 +7,10 @@
 # Traefik returned 503 for courses.datatalks.club until a manual
 # `docker start` ~3 min later. The 5-min HTTP healthcheck missed the window.
 #
-# This watchdog runs every 2 min on contabo-a (contabo) and starts any
-# coolify-managed container that has been sitting in Created beyond a grace
-# period. HTTP alerting stays with the existing coolify-healthcheck
+# This watchdog runs every 2 min on contabo-a (contabo). It may start only the
+# intended CMP private web resource, and only when no sibling is already
+# running. Other Created Coolify containers are left untouched and alerted.
+# HTTP alerting stays with the existing coolify-healthcheck
 # (every 5 min, dev@dtcdev.click) — this script only pages on its own
 # heal actions, so there is no duplicate alerting.
 #
@@ -24,6 +25,7 @@
 #   STATE_DIR=/var/lib/cmp-created-watchdog
 #   ALERT_TO=dev@dtcdev.click
 #   ALERT_REPEAT_MIN=60       # dedupe heal alerts per container
+#   CMP_APP_PREFIX=web-avcfd5kwb7cj9r1tx4ygjs6v
 #   DRY_RUN=1                 # log what would be started, do not start/mail
 set -euo pipefail
 
@@ -37,6 +39,7 @@ STATE_DIR="${STATE_DIR:-/var/lib/cmp-created-watchdog}"
 ALERT_TO="${ALERT_TO:-dev@dtcdev.click}"
 ALERT_REPEAT_MIN="${ALERT_REPEAT_MIN:-60}"
 DRY_RUN="${DRY_RUN:-0}"
+CMP_APP_PREFIX="${CMP_APP_PREFIX:-web-avcfd5kwb7cj9r1tx4ygjs6v}"
 
 
 # One client/key for Contabo monitors, stored root-owned mode 0600. The CLI
@@ -95,9 +98,14 @@ send_alert() { # subject, body, state_file
 healed=0
 checked=0
 would=0
+refused=0
 
-while IFS= read -r cid; do
-  [[ -n "$cid" ]] || continue
+if ! created_ids="$(docker ps -aq --filter status=created --filter label=coolify.managed=true)"; then
+  echo "$NOW ERROR: failed to discover Created Coolify containers" >&2
+  exit 1
+fi
+
+for cid in $created_ids; do
   checked=$((checked + 1))
   name="$(docker inspect --format '{{.Name}}' "$cid" 2>/dev/null | sed 's#^/##')"
   image="$(docker inspect --format '{{.Config.Image}}' "$cid" 2>/dev/null)"
@@ -113,6 +121,38 @@ while IFS= read -r cid; do
     echo "$NOW SKIP fresh (${age}s < ${GRACE_SEC}s grace): $name ($cid)"
     continue
   fi
+  safe_name="$(echo "$name" | tr -c '[:alnum:]._-' '_')"
+  if [[ "$name" != "$CMP_APP_PREFIX"* ]]; then
+    refused=$((refused + 1))
+    echo "$NOW REFUSED non-CMP Created container; alerting without start: $name ($cid) image=$image"
+    send_alert \
+      "[cmp-created-watchdog] REFUSED non-CMP container $name" \
+      "Created Coolify container $name ($cid, image $image) is outside the CMP resource prefix and was not started at $NOW." \
+      "$STATE_DIR/alert-$safe_name"
+    continue
+  fi
+
+  if ! running_ids="$(docker ps -q --filter status=running)"; then
+    echo "$NOW ERROR: failed to check running containers before start: $name ($cid)" >&2
+    exit 1
+  fi
+  running_sibling=""
+  for running_id in $running_ids; do
+    running_name="$(docker inspect --format '{{.Name}}' "$running_id" 2>/dev/null | sed 's#^/##')"
+    if [[ "$running_name" == "$CMP_APP_PREFIX"* ]]; then
+      running_sibling="$running_name"
+      break
+    fi
+  done
+  if [[ -n "$running_sibling" ]]; then
+    refused=$((refused + 1))
+    echo "$NOW REFUSED CMP start: running resource sibling exists: $running_sibling; Created=$name ($cid)"
+    send_alert \
+      "[cmp-created-watchdog] REFUSED duplicate CMP container $name" \
+      "Created CMP container $name ($cid, image $image) was not started at $NOW because $running_sibling is already running." \
+      "$STATE_DIR/alert-$safe_name"
+    continue
+  fi
   if [[ "$DRY_RUN" == "1" ]]; then
     echo "$NOW DRYRUN would start: $name ($cid) age=${age}s image=$image"
     would=$((would + 1))
@@ -121,19 +161,21 @@ while IFS= read -r cid; do
   if docker start "$cid" >/dev/null 2>&1; then
     healed=$((healed + 1))
     echo "$NOW HEALED started stuck Created container: $name ($cid) age=${age}s image=$image"
-    safe_name="$(echo "$name" | tr -c '[:alnum:]._-' '_')"
     send_alert \
       "[cmp-created-watchdog] STARTED stuck container $name" \
       "Container $name ($cid, image $image) sat in Created for ${age}s and was started at $NOW." \
       "$STATE_DIR/alert-$safe_name"
   else
-    echo "$NOW ERROR failed to start: $name ($cid)"
+    echo "$NOW ERROR failed to start: $name ($cid)" >&2
+    exit 1
   fi
-done < <(docker ps -aq --filter status=created --filter label=coolify.managed=true 2>/dev/null)
+done
 
 if (( healed == 0 )); then
   if [[ "$DRY_RUN" == "1" && "$would" -gt 0 ]]; then
     echo "$NOW DRYRUN checked=$checked would-heal=$would"
+  elif (( refused > 0 )); then
+    echo "$NOW REFUSED checked=$checked refused=$refused; no containers started"
   else
     echo "$NOW OK checked=$checked stuck=0"
   fi

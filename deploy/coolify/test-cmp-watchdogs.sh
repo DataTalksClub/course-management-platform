@@ -19,20 +19,28 @@ cat > "$TMP/bin/docker" <<'STUB'
 #!/bin/bash
 printf '%s\n' "$*" >> "$DOCKER_LOG"
 case "$1" in
- ps) [[ "${DISCOVERY_FAIL:-0}" == 0 ]] || exit 1
-     [[ "${NO_CONTAINERS:-0}" == 0 ]] || exit 0
-     if [[ "$*" == *'status=created'* ]]; then echo fake-created; else echo web-avcfd5kwb7cj9r1tx4ygjs6v-test
+ ps) if [[ "$*" == *'status=created'* ]]; then
+       [[ "${CREATED_DISCOVERY_FAIL:-0}" == 0 ]] || exit 1
+       [[ "${NO_CONTAINERS:-0}" == 0 ]] || exit 0
+       echo fake-created
+     elif [[ "$*" == *'status=running'* ]]; then
+       [[ "${RUNNING_DISCOVERY_FAIL:-0}" == 0 ]] || exit 1
+       [[ -z "${RUNNING_NAME:-}" ]] || echo fake-running
+     else
+       [[ "${DISCOVERY_FAIL:-0}" == 0 ]] || exit 1
+       [[ "${NO_CONTAINERS:-0}" == 0 ]] || exit 0
+       echo web-avcfd5kwb7cj9r1tx4ygjs6v-test
        [[ "${SECOND_RUNNER_OK:-0}" != 1 ]] || echo web-avcfd5kwb7cj9r1tx4ygjs6v-healthy
      fi ;;
  exec) [[ "${SECOND_RUNNER_OK:-0}" != 1 || "$2" != *-healthy ]] || exit 0
        printf '%s\n' "${CHECK_OUTPUT:-}"; exit "${CHECK_FAIL:-1}" ;;
  inspect)
    case "$3" in
-     '{{.Name}}') echo /fake-created ;;
-     '{{.Config.Image}}') echo ghcr.io/example/cmp:test ;;
+     '{{.Name}}') if [[ "$4" == fake-running ]]; then echo "/$RUNNING_NAME"; else echo "/${CREATED_NAME:-web-avcfd5kwb7cj9r1tx4ygjs6v-test}"; fi ;;
+     '{{.Config.Image}}') echo "${CREATED_IMAGE:-ghcr.io/example/cmp:test}" ;;
      '{{.Created}}') echo 2020-01-01T00:00:00Z ;;
    esac ;;
- start) exit 0 ;;
+ start) exit "${START_FAIL:-0}" ;;
 esac
 STUB
 cat > "$TMP/bin/logger" <<'STUB'
@@ -95,12 +103,34 @@ export STATE_DIR="$TMP/created" ALERT_TO=custom@example.com
 rm "$MAIL_LOG"
 bash "$SCRIPT_DIR/cmp-created-watchdog.sh"
 grep -q -- 'send --from alerts --to custom@example.com --subject \[cmp-created-watchdog\]' "$MAIL_LOG"
+grep -q '^start fake-created$' "$DOCKER_LOG"
 cp "$MAIL_LOG" "$TMP/before"
 bash "$SCRIPT_DIR/cmp-created-watchdog.sh"
 cmp "$TMP/before" "$MAIL_LOG"
 DRY_RUN=1 STATE_DIR="$TMP/dry" bash "$SCRIPT_DIR/cmp-created-watchdog.sh"
 cmp "$TMP/before" "$MAIL_LOG"
 echo 'PASS: Created healing retains dedupe and dry-run isolation'
+# Unrelated Coolify resources are never started; they produce a deduped alert.
+rm -f "$MAIL_LOG" "$DOCKER_LOG"
+CREATED_NAME=web-website-worker STATE_DIR="$TMP/non-cmp" bash "$SCRIPT_DIR/cmp-created-watchdog.sh"
+! grep -q '^start fake-created$' "$DOCKER_LOG"
+grep -q 'REFUSED non-CMP container web-website-worker' "$MAIL_LOG"
+# A running sibling makes recovery unsafe, so the Created CMP container is left alone.
+rm -f "$MAIL_LOG" "$DOCKER_LOG"
+CREATED_NAME=web-avcfd5kwb7cj9r1tx4ygjs6v-new RUNNING_NAME=web-avcfd5kwb7cj9r1tx4ygjs6v-live \
+  STATE_DIR="$TMP/running-sibling" bash "$SCRIPT_DIR/cmp-created-watchdog.sh"
+! grep -q '^start fake-created$' "$DOCKER_LOG"
+grep -q 'REFUSED duplicate CMP container web-avcfd5kwb7cj9r1tx4ygjs6v-new' "$MAIL_LOG"
+# If sibling discovery fails, fail closed and return an error instead of starting.
+rm -f "$MAIL_LOG" "$DOCKER_LOG"
+if CREATED_NAME=web-avcfd5kwb7cj9r1tx4ygjs6v-new RUNNING_DISCOVERY_FAIL=1 \
+  STATE_DIR="$TMP/discovery-error" bash "$SCRIPT_DIR/cmp-created-watchdog.sh" >"$TMP/discovery.out" 2>&1; then
+  echo 'expected running-container discovery failure' >&2
+  exit 1
+fi
+grep -q 'failed to check running containers before start' "$TMP/discovery.out"
+! grep -q '^start fake-created$' "$DOCKER_LOG"
+echo 'PASS: Created watchdog scopes recovery and fails closed on sibling uncertainty'
 # Both source proof modes send only to dev and do not run Docker or write state.
 for script in check-workers.sh cmp-created-watchdog.sh; do
  rm -f "$MAIL_LOG" "$DOCKER_LOG"
