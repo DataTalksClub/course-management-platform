@@ -213,3 +213,30 @@ class DatamailerCampaignCommandTest(TestCase):
             call_command(
                 *command_args,
             )
+
+    @override_settings(**RELAY_SETTINGS)
+    @patch("course_management.datamailer.client_campaigns.DatamailerCampaignClient.queue_campaign")
+    @patch("course_management.datamailer.client_campaigns.DatamailerCampaignClient.upsert_campaign")
+    def test_datamailer_campaign_command_shows_relay_refusal_body(
+        self,
+        upsert_campaign,
+        queue_campaign,
+    ):
+        upsert_campaign.return_value = {"campaign": {"status": "draft"}}
+        response = requests.Response()
+        response.status_code = 400
+        response._content = b'{"error": "2 recipient(s) are missing merge vars (invite_url)"}'
+        queue_campaign.side_effect = requests.HTTPError("400 Client Error", response=response)
+
+        with self.assertRaisesMessage(CommandError, "missing merge vars (invite_url)"):
+            call_command(
+                "datamailer_campaign",
+                "course-start-2026",
+                "--subject",
+                "Course starts",
+                "--text",
+                "Hello {{ invite_url }}",
+                "--recipient-list-key",
+                "genmedia:@approved",
+                "--queue",
+            )

@@ -180,6 +180,11 @@ class Command(BaseCommand):
         return config
 
     def raise_campaign_request_error(self, exc):
+        # Relay explains refusals (e.g. missing merge vars) in the body.
+        response = getattr(exc, "response", None)
+        detail = ""
+        if response is not None and response.text:
+            detail = f" {response.text[:2000]}"
         raise CommandError(
-            f"Datamailer campaign request failed: {exc}"
+            f"Datamailer campaign request failed: {exc}{detail}"
         ) from exc
