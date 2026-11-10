@@ -43,7 +43,7 @@ class ApprovedRegistrationsListTest(DatamailerRecipientListCommandTestBase):
         bulk_upsert.assert_called_once()
         list_key, payload = bulk_upsert.call_args.args
         self.assertEqual(list_key, f"{course.slug}:@approved")
-        self.assertEqual(payload["list"]["type"], "approved-registrants")
+        self.assertEqual(payload["list"]["type"], "registrants")
         self.assertNotIn("merge_vars", payload["list"]["metadata"])
         invites = {
             m["email"]: m["metadata"]["merge_vars"]["invite_url"]
