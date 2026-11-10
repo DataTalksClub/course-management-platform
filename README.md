@@ -259,11 +259,10 @@ Deadline reminder emails are triggered by a short CMP management command:
 uv run python manage.py send_deadline_reminders
 ```
 
-For deployed environments, this command is run on a schedule as a one-off ECS
-task. The recurring trigger (an EventBridge/CloudWatch rule targeting
-`ecs:RunTask` with the `send_deadline_reminders` command override) and its
-invocation role are provisioned via Terraform in `DataTalksClub/infra-terraform`,
-alongside the CMP ECS service. CMP doesn't configure the schedule.
+In production, Coolify runs the recurring reminders task against the stable
+private release service. The schedule and worker ownership are documented in
+[CMP-WORKERS.md](deploy/coolify/CMP-WORKERS.md). The former ECS deployment path
+is summarized in [legacy-aws-deploy.md](docs/legacy-aws-deploy.md).
 
 The scheduled task exits after reconciling Relay recipient lists and
 triggering Relay list sends. Relay handles per-recipient delivery
@@ -355,59 +354,8 @@ uv run python manage.py runserver 0.0.0.0:8000
 
 Then log out as admin and log in with Google.
 
-## Database Tunnel
+## Retired AWS deployment
 
-Example SSH config for an RDS tunnel:
-
-```text
-Host bastion-tunnel
-    HostName <IP>
-    User ubuntu
-    IdentityFile c:/Users/alexe/.ssh/<KEY>.pem
-    LocalForward 5433 dev-course-management-cluster.cluster-cpj5uw8ck6vb.eu-west-1.rds.amazonaws.com:5432
-    ServerAliveInterval 60
-```
-
-Connect to the bastion:
-
-```bash
-ssh bastion-tunnel
-```
-
-Connect to PostgreSQL through the tunnel:
-
-```bash
-pgcli -h localhost -p 5433 -u pgusr -d coursemanagement
-```
-
-When connecting for the first time, create the dev and prod databases:
-
-```sql
-CREATE DATABASE dev;
-CREATE DATABASE prod;
-```
-
-Open a Django shell against dev:
-
-```bash
-export DATABASE_URL="postgresql://pgusr:${DB_PASSWORD}@localhost:5433/dev"
-export SECRET_KEY="${DJANGO_SECRET}"
-uv run python manage.py shell
-```
-
-Open a Django shell against prod:
-
-```bash
-export DATABASE_URL="postgresql://pgusr:${DB_PASSWORD}@localhost:5433/prod"
-export SECRET_KEY="${DJANGO_SECRET}"
-uv run python manage.py shell
-```
-
-Find a user by email:
-
-```python
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
-user = User.objects.get(email="test@gmail.com")
-```
+The old AWS ECS deployment and RDS tunnel instructions are no longer usable.
+See [legacy-aws-deploy.md](docs/legacy-aws-deploy.md) for a short historical
+description of that path.

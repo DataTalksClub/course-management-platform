@@ -63,7 +63,7 @@ def coolify(method, path, payload=None):
         body = resp.read()
         return resp.status, (json.loads(body) if body else {})
 
-# 1. newest GHCR tag in ECR format (versions API is most-recent-first)
+# 1. newest timestamped GHCR release tag (versions API is most-recent-first)
 latest = None
 for v in gh_versions():
     tags = (v.get("metadata", {}).get("container", {}).get("tags", []) or [])
@@ -72,7 +72,7 @@ for v in gh_versions():
         latest = good[-1]
         break
 if not latest:
-    print("no ECR-format GHCR tag found; nothing to do")
+    print("no timestamped GHCR release tag found; nothing to do")
     sys.exit(0)
 print(f"latest GHCR tag: {latest}")
 

@@ -27,8 +27,6 @@ on:
       - "docs/**"
       - "*.md"
       - "deploy/coolify/**"
-      - ".github/workflows/deploy-dev.yaml"
-      - ".github/workflows/deploy-prod.yaml"
       - ".github/workflows/e2e-smoke-dev.yaml"
 
 concurrency:
@@ -94,7 +92,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Construct release identity (exact ECR tag format)
+      - name: Construct release identity (timestamped release tag)
         id: identity
         env:
           DEV_ONLY: ${{ inputs.dev_only || false }}
@@ -125,7 +123,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # Exact ECR production tag only (YYYYMMDD-HHMMSS-<7>). Never :latest. Never sha-<…>.
+          # Timestamped production tag only (YYYYMMDD-HHMMSS-<7>). Never :latest. Never sha-<…>.
           tags: |
             type=raw,value=${{ steps.identity.outputs.version }}
 
@@ -167,7 +165,7 @@ jobs:
           version=$(curl -fsS --max-time 20 https://courses.datatalks.club/api/health/ | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Pin Coolify image to ECR tag YYYYMMDD-HHMMSS-<7> and deploy
+      - name: Pin Coolify image to release tag YYYYMMDD-HHMMSS-<7> and deploy
         id: coolify-deploy
         env:
           COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
@@ -181,7 +179,7 @@ jobs:
             echo "Missing Coolify secrets: COOLIFY_URL, COOLIFY_TOKEN, COOLIFY_CMP_SERVICE_UUID" >&2
             exit 1
           fi
-          # Exact ECR tag (YYYYMMDD-HHMMSS-<7>): pin Coolify compose image AND
+          # Exact release tag (YYYYMMDD-HHMMSS-<7>): pin Coolify compose image AND
           # VERSION env to the same tag, never :latest.
           # /api/health/ reports settings.VERSION, so a stale VERSION env
           # makes prod report the previous release after a deploy (intake
@@ -398,3 +396,65 @@ jobs:
             fi
             echo "Isolated DEV version verified; production version unchanged."
           fi
+
+      - name: Verify public production release is live (F-22)
+        if: ${{ !inputs.dev_only }}
+        env:
+          EXPECTED_PRODUCTION_VERSION: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, socket, sys, time, urllib.error, urllib.request
+
+          expected = os.environ["EXPECTED_PRODUCTION_VERSION"]
+          url = "https://courses.datatalks.club/api/health/"
+          deadline = time.time() + 900  # public release follower may take several minutes
+          version_pattern = re.compile(r"[A-Za-z0-9._-]{1,80}")
+          last = "no_response"
+
+          while time.time() < deadline:
+              try:
+                  request = urllib.request.Request(
+                      url,
+                      headers={"Cache-Control": "no-cache", "Pragma": "no-cache"},
+                  )
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      http_status = response.status
+                      payload = json.loads(response.read())
+                  status = payload.get("status")
+                  version = payload.get("version")
+                  status = status if status in {"ok", "degraded"} else "invalid"
+                  version = (
+                      version
+                      if isinstance(version, str) and version_pattern.fullmatch(version)
+                      else "invalid"
+                  )
+                  last = f"http={http_status} status={status} version={version}"
+                  print(f"public health: {last}", flush=True)
+                  if status == "ok" and version == expected:
+                      print(f"public release verified: version={version}", flush=True)
+                      sys.exit(0)
+              except urllib.error.HTTPError as error:
+                  last = f"http={error.code}"
+                  print(f"public health: {last}; retrying", flush=True)
+              except urllib.error.URLError as error:
+                  last = f"network_error={type(error.reason).__name__}"
+                  print(f"public health: {last}; retrying", flush=True)
+              except (TimeoutError, socket.timeout):
+                  last = "network_error=timeout"
+                  print(f"public health: {last}; retrying", flush=True)
+              except json.JSONDecodeError:
+                  last = "http=200 invalid_json=true"
+                  print(f"public health: {last}; retrying", flush=True)
+              except Exception as error:
+                  last = f"check_error={type(error).__name__}"
+                  print(f"public health: {last}; retrying", flush=True)
+              time.sleep(15)
+
+          print(
+              f"::error::Public production release did not report version={expected} "
+              f"with status=ok within 15 minutes (last: {last})",
+              flush=True,
+          )
+          sys.exit(1)
+          PY
