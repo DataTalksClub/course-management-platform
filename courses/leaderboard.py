@@ -1,10 +1,10 @@
 import logging
 from time import time
 
-from django.core.cache import cache
-from django.db import connection
+from django.db import connection, transaction
+from django.db.models import F
 
-from courses.models.course import Enrollment
+from courses.models.course import Course, Enrollment
 from courses.models.homework import Submission
 from courses.models.project import (
     ProjectSubmission,
@@ -53,19 +53,18 @@ def _update_enrollment_totals(course):
         )
 
 
-def _invalidate_leaderboard_caches(course):
-    cache.delete(f"leaderboard:{course.id}")
-    cache.delete(f"leaderboard_data:{course.id}")
-    cache.delete(f"leaderboard_yaml:{course.id}")
-    version_key = f"leaderboard_cache_version:{course.id}"
-    cache.set(version_key, cache.get(version_key, 1) + 1, None)
-    logger.info(f"Invalidated cache for leaderboard of course {course.id}")
+def advance_leaderboard_cache_version(course):
+    Course.objects.filter(pk=course.pk).update(
+        leaderboard_cache_version=F("leaderboard_cache_version") + 1
+    )
+    logger.info("Advanced leaderboard cache version for course %s", course.id)
 
 
 def update_leaderboard(course):
     started_at = time()
     logger.info(f"Updating leaderboard for course {course.id}")
-    _update_enrollment_totals(course)
-    _invalidate_leaderboard_caches(course)
+    with transaction.atomic():
+        _update_enrollment_totals(course)
+        advance_leaderboard_cache_version(course)
     duration = time() - started_at
     logger.info(f"Updated leaderboard in {duration:.2f} seconds")

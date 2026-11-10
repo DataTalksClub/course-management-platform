@@ -13,7 +13,9 @@ def dashboard_view(request, course_slug: str):
         return response
 
     if getattr(settings, "PUBLIC_PAGE_CACHE_ENABLED", True):
-        cache_key = f"dashboard:{course.id}:v1"
+        cache_key = (
+            f"dashboard:{course.id}:v{course.leaderboard_cache_version}"
+        )
         context = cache.get(cache_key)
         if context is None:
             context = dashboard_context(course)

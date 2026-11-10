@@ -52,14 +52,6 @@ def leaderboard_context(course, user, page_number):
     }
 
 
-def invalidate_leaderboard_cache(course_id: int) -> None:
-    cache.delete(f"leaderboard:{course_id}")
-    version_key = f"leaderboard_cache_version:{course_id}"
-    current_version = cache.get(version_key, 1)
-    next_version = current_version + 1
-    cache.set(version_key, next_version, None)
-
-
 def current_student_leaderboard_enrollment(course, user):
     if user.is_authenticated:
         try:
@@ -165,7 +157,9 @@ def get_leaderboard_data(
     course,
     current_student: CurrentLeaderboardStudent,
 ):
-    cache_key = f"leaderboard:{course.id}"
+    cache_key = (
+        f"leaderboard:{course.id}:v{course.leaderboard_cache_version}"
+    )
     enrollments_data = cache.get(cache_key)
 
     if enrollments_data is None:

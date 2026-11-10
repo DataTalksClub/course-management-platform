@@ -42,8 +42,7 @@ def _get_positive_int(value, default, maximum=None):
 
 
 def _get_cache_version(course):
-    version_key = f"leaderboard_cache_version:{course.id}"
-    return cache.get(version_key, 1)
+    return course.leaderboard_cache_version
 
 
 def _cached_leaderboard_data(course, page, cache_version):

@@ -84,6 +84,12 @@ class Course(StartTimeModel):
         + "We use that for deciding whether to show the leaderboard.",
     )
 
+    leaderboard_cache_version = models.PositiveBigIntegerField(
+        default=1,
+        editable=False,
+        help_text="Incremented whenever this course's leaderboard is recalculated.",
+    )
+
     finished = models.BooleanField(
         default=False,
         blank=False,
