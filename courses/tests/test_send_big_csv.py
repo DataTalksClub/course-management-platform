@@ -15,6 +15,12 @@ from scripts.send_big_csv import (
     flatten,
     rows_to_csv_text,
 )
+from scripts.send_campaign_export import build_body, build_subject
+from scripts.genmedia_full_export import (
+    ExportError,
+    build_relay_command,
+    split_recipients as export_split,
+)
 
 
 def row(**overrides):
@@ -85,9 +91,6 @@ class BuildMessageTestCase(SimpleTestCase):
         self.assertTrue(attachments[0].get_filename().endswith(".csv"))
 
 
-from scripts.send_campaign_export import build_body, build_subject
-
-
 class CampaignExportTextTestCase(SimpleTestCase):
     def test_subject_and_body_carry_counts(self):
         counts = {"approved": 325, "pending": 273, "rejected": 27}
@@ -102,23 +105,33 @@ class CampaignExportTextTestCase(SimpleTestCase):
             self.assertIn(fragment, body)
 
 
-from scripts.genmedia_full_export import build_relay_command, split_recipients as export_split
-
-
 class FullExportCommandTestCase(SimpleTestCase):
-    def test_single_call_multi_to_with_attachment(self):
+    def test_single_call_single_recipient_with_one_attachment(self):
         command = build_relay_command(
             'relay', 'https://relay.example.com', 'KEY',
-            ['me@example.com', 'peer@example.com'],
+            ['misha@example.com'],
             'Subject', 'Body', 'idem-1', ['/tmp/x.csv'],
         )
         self.assertEqual(command[:4], ['relay', 'send', '--url', 'https://relay.example.com'])
-        self.assertEqual(command.count('--to'), 2)
-        self.assertIn('me@example.com', command)
-        self.assertIn('peer@example.com', command)
+        self.assertEqual(command.count('--to'), 1)
+        self.assertIn('misha@example.com', command)
         self.assertEqual(command.count('--attach'), 1)
         self.assertIn('/tmp/x.csv', command)
         self.assertEqual(command.count('send'), 1)
+
+    def test_rejects_multiple_recipients_or_attachments(self):
+        with self.assertRaisesRegex(ExportError, "exactly one recipient"):
+            build_relay_command(
+                'relay', 'https://relay.example.com', 'KEY',
+                ['one@example.com', 'two@example.com'],
+                'Subject', 'Body', 'idem-1', ['/tmp/x.csv'],
+            )
+        with self.assertRaisesRegex(ExportError, "exactly one attachment"):
+            build_relay_command(
+                'relay', 'https://relay.example.com', 'KEY',
+                ['one@example.com'], 'Subject', 'Body', 'idem-1',
+                ['/tmp/x.csv', '/tmp/y.csv'],
+            )
 
     def test_export_recipient_split(self):
         self.assertEqual(

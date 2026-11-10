@@ -1,20 +1,18 @@
 """Evening genmedia batch: approve eligible pending registrations via the
-CMP API (each approval queues the normal applicant decision email through
-Relay), then send a plain-email CSV summary.
+CMP API. The daily job sends no sponsor report; weekly statistics are sent by
+``genmedia_full_export.py``.
 
 Runs from cron on hetzner at 20:05 Europe/Berlin daily. The first run is
 manual (``--ignore-start-date``); cron takes over once START_DATE passes.
 
-No Relay templates are used here: decisions use the standard application
-emails, the summary is a plain email sent with ``relay send``.
+The approval API owns applicant notifications. This script never sends an
+email to Nebius.
 """
 
 import csv
 import io
 import os
-import subprocess
 import sys
-from datetime import date
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
@@ -28,6 +26,7 @@ from courses.genmedia_policy import (  # noqa: E402
     CAMPAIGN_SLUG,
     excluded_reason,
 )
+from scripts.genmedia_alerts import report_failure  # noqa: E402
 
 BERLIN = ZoneInfo(AUTO_APPROVAL_TIMEZONE)
 BATCH_SIZE = 100
@@ -50,21 +49,6 @@ def split_recipients(raw):
         for address in raw.replace(",", " ").split()
         if "@" in address
     ]
-
-
-def success_recipients():
-    return split_recipients(
-        env(
-            "GENMEDIA_SUMMARY_TO",
-            default="alexey.s.grigoriev@gmail.com,mnrozhkov@nebius.com",
-        )
-    )
-
-
-def failure_recipients():
-    return split_recipients(
-        env("GENMEDIA_FAILURE_TO", default="alexey.s.grigoriev@gmail.com")
-    )
 
 
 def api(method, path, token, base_url, payload=None, timeout=30):
@@ -173,86 +157,8 @@ def build_csv(approved, day):
     return buffer.getvalue()
 
 
-def send_plain_email(to, subject, body_text, idempotency_key, attachments=()):
-    """Plain email via the relay CLI (no templates)."""
-    url = env("DATAMAILER_URL", default="https://relay.datatalks.club")
-    api_key = env("DATAMAILER_API_KEY", required=True)
-    command = [
-        os.path.expanduser("~/.local/bin/relay"),
-        "send",
-        "--url",
-        url,
-        "--api-key",
-        api_key,
-        "--to",
-        to,
-        "--subject",
-        subject,
-        "--body",
-        body_text,
-        "--from",
-        "courses",
-        "--idempotency-key",
-        idempotency_key,
-    ]
-    for attachment in attachments:
-        command.extend(["--attach", attachment])
-    try:
-        subprocess.run(command, check=True, capture_output=True, text=True)
-    except (subprocess.CalledProcessError, OSError) as exc:
-        raise BatchError(f"relay send to {to} failed: {exc}") from exc
-
-
 def notify_failure(day_label, error):
-    subject = f"Genmedia batch FAILED {day_label}: {type(error).__name__}"
-    body = (
-        f"The evening genmedia batch failed and NOTHING was approved.\n\n"
-        f"Error: {error}\n"
-    )
-    for recipient in failure_recipients():
-        send_plain_email(
-            recipient,
-            subject,
-            body,
-            f"genmedia-evening-fail:{day_label}:{recipient}",
-        )
-
-
-def notify_success(day_label, approved, skipped, total, csv_path):
-    with open(csv_path) as handle:
-        csv_text = handle.read()
-    header, _, body = csv_text.partition("\n")
-    rows = body.strip().splitlines() or [""]
-    subject_base = (
-        f"Genmedia approved {day_label}: "
-        f"{len(approved)} approved, {len(skipped)} skipped"
-    )
-    skipped_text = ", ".join(
-        f"{row.get('email')} ({reason})" for row, reason in skipped
-    ) or "none"
-    chunks = chunked(rows, 60)
-    total_parts = max(1, len(chunks))
-    for part_no, rows_chunk in enumerate(chunks or [[]], start=1):
-        part_path = "%s.p%dof%d.csv" % (csv_path, part_no, total_parts)
-        with open(part_path, "w") as handle:
-            handle.write(header + "\n" + "\n".join(rows_chunk) + "\n")
-        lines = [
-            f"Approved {len(approved)}, skipped {len(skipped)} "
-            f"(campaign total now ~{total + len(approved)}).",
-            "",
-            "Skipped (not in the attached CSV): " + skipped_text,
-            "",
-            "Approved list attached as CSV part %d of %d." % (part_no, total_parts),
-        ]
-        for recipient in success_recipients():
-            label = "" if total_parts == 1 else " [%d/%d]" % (part_no, total_parts)
-            send_plain_email(
-                recipient,
-                subject_base + label,
-                "\n".join(lines),
-                "genmedia-evening:%s:%s:p%d" % (day_label, recipient, part_no),
-                attachments=[part_path],
-            )
+    report_failure(f"Genmedia daily approval batch {day_label}", error)
 
 
 def run(dry_run=False):
@@ -281,13 +187,12 @@ def run(dry_run=False):
         )
     approved = approve_batches(base_url, token, campaign, approvable, dry_run)
     if not approved and not skipped:
-        print("nothing pending: no emails sent")
+        print("nothing pending: no Nebius report sent")
         return
-    csv_path = "/tmp/opencode/genmedia-approved-%s.csv" % day_label
-    with open(csv_path, "w") as handle:
-        handle.write(build_csv(approved, date.fromisoformat(day_label)))
-    notify_success(day_label, approved, skipped, total, csv_path)
-    print(f"summary sent for {len(approved)} approved")
+    print(
+        f"daily approval complete: {len(approved)} approved, "
+        f"{len(skipped)} skipped; no Nebius report sent"
+    )
 
 
 def main(argv):
@@ -300,16 +205,16 @@ def main(argv):
         return 0
     try:
         run(dry_run=dry_run)
-    except Exception as exc:  # noqa: BLE001 - must mail, then exit nonzero
+    except Exception as exc:  # noqa: BLE001 - must alert, then exit nonzero
         day_label = (
             __import__("datetime").datetime.now(BERLIN).date().isoformat()
         )
         try:
             if not dry_run:
                 notify_failure(day_label, exc)
-        except Exception as mail_exc:  # noqa: BLE001
-            print(f"failure email also failed: {mail_exc}")
-        print(f"FAILED: {exc}")
+        except Exception as alert_exc:  # noqa: BLE001
+            print(f"failure alert also failed: {alert_exc}", file=sys.stderr)
+        print(f"FAILED: {exc}", file=sys.stderr)
         return 1
     return 0
 

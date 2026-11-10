@@ -1,0 +1,5 @@
+CRON_TZ=Europe/Berlin
+# Daily approvals stay enabled; the batch sends no Nebius summary email.
+5 20 * * * set -a; . /home/alexey/.config/genmedia-batch.env; set +a; /usr/bin/flock -n /home/alexey/.local/state/genmedia-batch.lock /home/alexey/git/course-management-platform/.venv/bin/python /home/alexey/git/course-management-platform/scripts/genmedia_evening_batch.py >> /home/alexey/.local/state/genmedia-batch/cron.log 2>&1
+# One weekly statistics email and one CSV; first scheduled send is Mon 2026-11-16 20:15 Berlin.
+15 20 * * 1 set -a; . /home/alexey/.config/genmedia-batch.env; set +a; export GENMEDIA_WEEKLY_REPORT_TO=mnrozhkov@nebius.com; /usr/bin/flock -n /home/alexey/.local/state/genmedia-full-export.lock /home/alexey/git/course-management-platform/.venv/bin/python /home/alexey/git/course-management-platform/scripts/genmedia_full_export.py >> /home/alexey/.local/state/genmedia-full-export.log 2>&1
