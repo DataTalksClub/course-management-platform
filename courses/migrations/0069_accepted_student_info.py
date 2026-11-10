@@ -24,12 +24,12 @@ def populate_accepted_student_info(apps, schema_editor):
     RegistrationCampaign = apps.get_model(
         "courses", "RegistrationCampaign"
     )
-    try:
-        course = Course.objects.get(slug=COURSE_SLUG)
-    except Course.DoesNotExist as exc:
-        raise RuntimeError(
-            f"Required course {COURSE_SLUG!r} is missing"
-        ) from exc
+    # This migration also runs in installations and historical migration
+    # tests that do not contain the example course. Only seed the course
+    # specific values when that course is present.
+    course = Course.objects.filter(slug=COURSE_SLUG).first()
+    if course is None:
+        return
 
     course.start_date = date(2026, 11, 16)
     course.github_repo_url = COURSE_REPOSITORY_URL
