@@ -23,15 +23,15 @@ def validate_service(uuid, service, dev_only):
 
 
 def set_migration_roles(compose_raw):
-    """Give migrations to the private web service and checks to its worker."""
+    """Give migrations to web and checks to a worker service when present."""
     if not isinstance(compose_raw, str):
         raise ValueError("Coolify compose must be a string")
 
     updated = _set_service_environment(compose_raw, "web", "1")
-    return _set_service_environment(updated, "worker", "0")
+    return _set_service_environment(updated, "worker", "0", optional=True)
 
 
-def _set_service_environment(compose_raw, service_name, migration_mode):
+def _set_service_environment(compose_raw, service_name, migration_mode, optional=False):
     services = re.search(r"(?m)^services:[ \t]*(?:#.*)?$", compose_raw)
     if not services:
         raise ValueError("Coolify compose has no services mapping")
@@ -41,6 +41,8 @@ def _set_service_environment(compose_raw, service_name, migration_mode):
     )
     service_match = service_pattern.search(compose_raw, services.end())
     if not service_match:
+        if optional:
+            return compose_raw
         raise ValueError(f"Coolify compose is missing the {service_name} service")
 
     service_line_end = compose_raw.find("\n", service_match.start())
