@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from django.db.models import Q
+
 from course_management.datamailer.payloads.base import (
     enrollment_recipient_list_payload,
 )
@@ -10,6 +12,7 @@ from course_management.datamailer.payloads.project_outcomes import (
     project_passed_recipient_list_payload,
 )
 from course_management.datamailer.payloads.registration_members import (
+    approved_registration_recipient_list_payload,
     registration_recipient_list_payload,
 )
 from course_management.datamailer.payloads.submissions import (
@@ -29,6 +32,7 @@ from courses.models.project import (
 
 RECIPIENT_LIST_KINDS = [
     "registrations",
+    "approved-registrations",
     "enrollments",
     "homework",
     "project",
@@ -52,6 +56,18 @@ def registration_queryset(filters):
     course_slug = filters.course_slug
     if course_slug:
         queryset = queryset.filter(course__slug=course_slug)
+    return queryset
+
+
+def approved_registration_queryset(filters):
+    """Approved registrations; --course-slug matches the course or campaign slug
+    (the list key is the course slug, else the registration campaign slug)."""
+    queryset = CourseRegistration.objects.select_related(
+        "campaign", "course", "user"
+    ).filter(status=CourseRegistration.Status.APPROVED).order_by("pk")
+    slug = filters.course_slug
+    if slug:
+        queryset = queryset.filter(Q(course__slug=slug) | Q(campaign__slug=slug))
     return queryset
 
 
@@ -136,6 +152,10 @@ RECIPIENT_LIST_SOURCES = {
     "registrations": (
         registration_queryset,
         registration_recipient_list_payload,
+    ),
+    "approved-registrations": (
+        approved_registration_queryset,
+        approved_registration_recipient_list_payload,
     ),
     "enrollments": (
         enrollment_queryset,
