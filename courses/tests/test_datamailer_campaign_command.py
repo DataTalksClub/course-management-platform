@@ -81,6 +81,11 @@ class DatamailerCampaignCommandTest(TestCase):
         self.assertEqual(payload["recipient_list_key"], "ml-zoomcamp-2026:@e")
         self.assertEqual(payload["include_tags"], ["course-ml-zoomcamp"])
         self.assertEqual(payload["exclude_tags"], ["course-ml-zoomcamp-alumni"])
+        self.assertTrue(
+            payload["unsubscribe_url_template"].endswith(
+                "/accounts/unsubscribe/{token}/"
+            )
+        )
         self.assertEqual(
             payload["metadata"],
             {"course_slug": "ml-zoomcamp-2026"},

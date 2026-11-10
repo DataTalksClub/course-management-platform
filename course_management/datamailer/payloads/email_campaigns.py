@@ -6,7 +6,7 @@ from courses.registration import render_markdown
 from ..client import DatamailerConfig
 from ..preference_categories import EMAIL_PREFERENCE_CATEGORIES
 from .score_notifications import add_from_email_if_configured
-from .urls import public_route_url
+from .urls import public_route_url, unsubscribe_url_template
 
 
 @dataclass(frozen=True)
@@ -61,6 +61,7 @@ def email_campaign_base_payload(
         ]["tag"],
         "include_tags": [],
         "exclude_tags": [],
+        "unsubscribe_url_template": unsubscribe_url_template(),
         "metadata": {
             "cmp_registration_campaign_slug": registration_campaign.slug,
             "cmp_email_campaign_id": email_campaign.pk,

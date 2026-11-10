@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Unsubscribe{% endblock %}
+{% block meta_robots %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl space-y-4 py-8">
+    <h1 class="text-2xl font-semibold">Unsubscribe from course emails</h1>
+    {% if confirmed %}
+        <p>You have been unsubscribed. You will no longer receive these emails.</p>
+        <p>You can review your email preferences in your <a class="app-link" href="{% url 'account_settings' %}">account settings</a>.</p>
+    {% elif invalid %}
+        <p>This unsubscribe link is invalid or has expired.</p>
+        <p>You can manage email preferences in your <a class="app-link" href="{% url 'account_settings' %}">account settings</a>.</p>
+    {% elif unavailable %}
+        <p>We could not process your unsubscribe request right now. Nothing was changed. Please try again in a few minutes.</p>
+    {% else %}
+        <p>Click the button to stop receiving these emails.</p>
+        <form method="post">
+            <button type="submit" class="primer-button">Unsubscribe</button>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}

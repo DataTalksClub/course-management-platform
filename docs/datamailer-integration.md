@@ -2161,3 +2161,19 @@ Target tests before relying on the integration:
   links read back from `GET /api/datamailer/send-audits`.
 - **Drift audit tests:** intentionally remove or alter a Datamailer membership and
   verify the audit reports or repairs the difference.
+
+## Campaign unsubscribe links
+
+Relay campaign emails would otherwise carry Relay's own `/unsubscribe/<token>`
+link and `List-Unsubscribe` / `List-Unsubscribe-Post` headers. CMP campaign
+payloads (admin email campaigns and `datamailer_campaign`) therefore send
+`unsubscribe_url_template` (`https://courses.datatalks.club/accounts/unsubscribe/{token}/`),
+and Relay uses it for the body link and both headers. The CMP endpoint
+(`accounts/views/unsubscribe.py`) shows a confirm page on GET and, on POST
+(page button or RFC 8058 one-click), forwards Relay's per-recipient token to
+Relay's one-click endpoint so suppression is applied there; Relay's
+`subscription.unsubscribed` webhook then updates the CMP preference. Relay or
+network failures return 503 (`Retry-After` for one-click), log
+`cmp_unsubscribe_failed` and record an `account.unsubscribe_failed` event; a
+failed unsubscribe is never reported as done. Relay-owned newsletters send no
+template and keep Relay's unsubscribe.

@@ -13,9 +13,11 @@ from accounts.views.login import (
     social_login_view,
 )
 from accounts.views.timezone import update_timezone_preference
+from accounts.views.unsubscribe import unsubscribe
 
 urlpatterns = [
     path('settings/', account_settings, name='account_settings'),
+    path('unsubscribe/<str:token>/', unsubscribe, name='account_unsubscribe'),
     path('login/', social_login_view, name='login'),
     path('signup/', signup_redirect_view, name='account_signup'),
     path('signup/', signup_redirect_view, name='signup'),

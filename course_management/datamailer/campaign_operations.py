@@ -3,6 +3,8 @@ from pathlib import Path
 
 from django.core.management.base import CommandError
 
+from .payloads.urls import unsubscribe_url_template
+
 
 @dataclass(frozen=True)
 class DatamailerCampaignRunData:
@@ -90,6 +92,7 @@ def campaign_payload(options):
         "category_tag": category_tag,
         "include_tags": options["include_tag"],
         "exclude_tags": options["exclude_tag"],
+        "unsubscribe_url_template": unsubscribe_url_template(),
         "metadata": metadata,
     }
     optional_fields = campaign_optional_fields(options)
