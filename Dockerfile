@@ -22,7 +22,7 @@ RUN uv sync --locked
 COPY . .
 RUN chmod +x entrypoint.sh docker-entrypoint.sh && \
     mkdir -p static && \
-    python manage.py collectstatic --noinput
+    python scripts/collectstatic_for_image.py
 
 EXPOSE 80
 ENTRYPOINT ["/code/entrypoint.sh"]

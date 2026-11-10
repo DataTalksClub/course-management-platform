@@ -40,6 +40,27 @@ class SettingsSecurityTests(TestCase):
         )
         return result
 
+    def test_collectstatic_build_command_needs_no_deployment_secret(self):
+        root = Path(__file__).resolve().parents[2]
+        env = os.environ.copy()
+        env.pop("SECRET_KEY", None)
+        env["IS_LOCAL"] = "0"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/collectstatic_for_image.py",
+                "--dry-run",
+            ],
+            cwd=root,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        dockerfile = (root / "Dockerfile").read_text()
+        self.assertIn("python scripts/collectstatic_for_image.py", dockerfile)
+
     def test_production_refuses_missing_secret_key(self):
         result = self.load_settings(
             {"IS_LOCAL": "0"},
