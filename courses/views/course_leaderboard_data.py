@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 
+from django.conf import settings
 from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.models import Value
@@ -13,6 +14,7 @@ from courses.models.project import ProjectState, ProjectSubmission
 logger = logging.getLogger(__name__)
 
 LEADERBOARD_PAGE_SIZE = 100
+LEADERBOARD_CACHE_TTL = getattr(settings, "LEADERBOARD_CACHE_TTL", 60)
 
 
 @dataclass(frozen=True)
@@ -139,7 +141,7 @@ def build_leaderboard_data(course, cache_key):
             "position_on_leaderboard": row["position_on_leaderboard"],
             "passed_projects": passed_projects,
         })
-    cache.set(cache_key, enrollments_data, 3600)
+    cache.set(cache_key, enrollments_data, LEADERBOARD_CACHE_TTL)
     return enrollments_data
 
 

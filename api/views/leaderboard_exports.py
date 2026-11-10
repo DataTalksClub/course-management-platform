@@ -9,6 +9,7 @@ import logging
 
 import yaml
 
+from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.core.cache import cache
@@ -21,7 +22,9 @@ from courses.models.course import Course
 
 logger = logging.getLogger(__name__)
 
-LEADERBOARD_DATA_CACHE_TTL = 86400  # 24 hours; also invalidated by update_leaderboard()
+LEADERBOARD_DATA_CACHE_TTL = getattr(
+    settings, "LEADERBOARD_CACHE_TTL", 60
+)
 LEADERBOARD_YAML_CACHE_TTL = LEADERBOARD_DATA_CACHE_TTL
 
 
