@@ -840,6 +840,16 @@ class BuildConfigurationTestCase(SimpleTestCase):
         with self.assertRaisesRegex(ValueError, "web"):
             set_migration_roles("services:\n")
 
+    def test_migration_owner_command_is_discoverable_at_startup(self):
+        from django.core.management import call_command
+
+        with patch(
+            "course_management.management.commands.migrate_with_lock.Command.handle",
+            return_value=None,
+        ) as handle:
+            call_command("migrate_with_lock")
+        handle.assert_called_once()
+
     def test_migration_command_uses_postgres_lock_and_releases_it(self):
         from course_management.management.commands.migrate_with_lock import Command
 
