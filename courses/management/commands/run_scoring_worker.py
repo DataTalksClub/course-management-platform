@@ -16,7 +16,10 @@ from pathlib import Path
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
+from course_management.db_timeouts import set_statement_timeout
+
 HEARTBEAT_PATH = Path("/tmp/scoring-worker-heartbeat")
+SCORING_STATEMENT_TIMEOUT_MS = 120_000
 
 
 class Command(BaseCommand):
@@ -39,6 +42,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Scoring worker loop started (interval={interval}s)")
         iteration = 0
         while True:
+            set_statement_timeout(SCORING_STATEMENT_TIMEOUT_MS)
             call_command("run_cmp_job", "scoring", stdout=self.stdout)
             heartbeat.touch()
             iteration += 1
