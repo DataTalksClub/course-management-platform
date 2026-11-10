@@ -5,15 +5,15 @@ description = "A Django-based course management platform"
 requires-python = ">=3.13"
 
 dependencies = [
-    "django",
-    "django-allauth[slack]",
-    "requests",
-    "pyjwt",
-    "cryptography",
+    "django>=5.2.18,<6.0",
+    "django-allauth>=65.21.1,<66",
+    "requests>=2.34.2,<3",
+    "pyjwt>=2.15.1,<3",
+    "cryptography>=47.0.0,<48",
     "dj-database-url",
-    "whitenoise",
-    "psycopg2-binary",
-    "gunicorn",
+    "whitenoise>=6.12.0,<7",
+    "psycopg2-binary>=2.9.13,<3",
+    "gunicorn>=23.0.0,<24",
     "python-json-logger",
     "django-unfold",
     "django-loginas",
@@ -21,7 +21,7 @@ dependencies = [
     "bleach>=6.2.0",
     "boto3>=1.43.33",
     "dnspython>=2.9.0",
-    "pyyaml>=6.0.2",
+    "pyyaml>=6.0.3",
 ]
 
 [dependency-groups]
