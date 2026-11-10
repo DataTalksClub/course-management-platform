@@ -45,12 +45,17 @@ class HealthCheckMiddleware:
 # assume the production worker count.
 _rate_limit_buckets: dict = {}
 _rate_limit_lock = threading.Lock()
+_rate_limit_bucket_ttl = 60.0
+_rate_limit_cleanup_interval = 60.0
+_rate_limit_last_cleanup = 0.0
 
 
 def reset_rate_limit_state():
     """Clear all per-IP buckets. Used by tests to isolate cases."""
+    global _rate_limit_last_cleanup
     with _rate_limit_lock:
         _rate_limit_buckets.clear()
+        _rate_limit_last_cleanup = 0.0
 
 
 def rate_limit_exempt_path(path):
@@ -58,7 +63,7 @@ def rate_limit_exempt_path(path):
         getattr(
             settings,
             "RATELIMIT_EXEMPT_PATHS",
-            ["/", "/api/health/", "/ping", "/robots.txt"],
+            ["/", "/api/health/", "/api/health/live", "/ping", "/robots.txt"],
         )
     )
     if path in exempt_exact:
@@ -104,7 +109,18 @@ class RateLimitMiddleware:
         now = time.monotonic()
         client_ip = rate_limit_client_ip(request) or "unknown"
 
+        global _rate_limit_last_cleanup
         with _rate_limit_lock:
+            if now - _rate_limit_last_cleanup >= _rate_limit_cleanup_interval:
+                expired = [
+                    ip
+                    for ip, (_, last_seen) in _rate_limit_buckets.items()
+                    if now - last_seen > _rate_limit_bucket_ttl
+                ]
+                for ip in expired:
+                    del _rate_limit_buckets[ip]
+                _rate_limit_last_cleanup = now
+
             tokens, last_seen = _rate_limit_buckets.get(
                 client_ip, (float(burst), now)
             )

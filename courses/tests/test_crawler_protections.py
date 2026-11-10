@@ -1,12 +1,14 @@
 """Crawler protections: robots.txt, per-IP rate limiting, template fix, cache."""
 import logging
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from course_management.middleware import reset_rate_limit_state
+import course_management.middleware as rate_limit_middleware
 from courses.models import Course, Enrollment, Homework, Project, ProjectState, User
 from courses.views.course_list import ANON_HOMEPAGE_CACHE_KEY
 
@@ -85,7 +87,13 @@ class RateLimitTestCase(TestCase):
         self.assertIn(429, statuses)
         for _ in range(3):
             self.assertEqual(self.client.get(self.target).status_code, 429)
-        for path in ["/api/health/", "/", "/ping", "/robots.txt"]:
+        for path in [
+            "/api/health/",
+            "/api/health/live",
+            "/",
+            "/ping",
+            "/robots.txt",
+        ]:
             for _ in range(3):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
@@ -114,6 +122,26 @@ class RateLimitTestCase(TestCase):
             self.target, HTTP_X_FORWARDED_FOR="203.0.113.7"
         )
         self.assertEqual(limited.status_code, 429)
+
+    def test_idle_rate_limit_buckets_are_evicted(self):
+        reset_rate_limit_state()
+        rate_limit_middleware._rate_limit_buckets.update(
+            {
+                "stale-client": (2.0, 0.0),
+                "active-client": (2.0, 50.0),
+            }
+        )
+        rate_limit_middleware._rate_limit_last_cleanup = 0.0
+
+        with patch("course_management.middleware.time.monotonic", return_value=61.0):
+            self.client.get(self.target, HTTP_X_FORWARDED_FOR="new-client")
+
+        self.assertNotIn(
+            "stale-client", rate_limit_middleware._rate_limit_buckets
+        )
+        self.assertIn(
+            "active-client", rate_limit_middleware._rate_limit_buckets
+        )
 
 
 class RateLimitDefaultsTestCase(TestCase):

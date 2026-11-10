@@ -26,7 +26,9 @@ class PrivateAccessLogger(Logger):
     # AC4: the in-container 1/s readiness probe hits /api/health/ (~83k
     # lines/day, ~55% of log volume) at negligible CPU. Skip it in the
     # access log; cadence and alerting are unchanged.
-    ACCESS_LOG_EXCLUDED_PATHS = frozenset({"/api/health/"})
+    ACCESS_LOG_EXCLUDED_PATHS = frozenset(
+        {"/api/health/", "/api/health/live"}
+    )
 
     def access(self, resp, req, environ, request_time):
         if environ.get("PATH_INFO", "") in self.ACCESS_LOG_EXCLUDED_PATHS:

@@ -3,7 +3,11 @@
 # Separate processes also let CPU-heavy Django views use more than one core;
 # threads leave capacity for liveness during database/network waits.
 workers = 4
-threads = 2
+threads = 8
+keepalive = 120
+graceful_timeout = 30
+max_requests = 2000
+max_requests_jitter = 200
 accesslog = '-'
 # Canonical website format: no query, client IP, referrer or user agent.
 access_log_format = (

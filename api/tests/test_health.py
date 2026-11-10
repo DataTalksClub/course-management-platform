@@ -42,9 +42,9 @@ class HealthViewTests(TestCase):
         url = reverse("api_health")
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["status"], "FAIL")
+        self.assertEqual(data["status"], "ok")
         self.assertTrue(data.get("degraded"))
         self.assertEqual(data.get("relay_status"), "FAIL")
         self.assertIn("RELAY_TRANSACTIONAL_DRY_RUN", data.get("relay_error", ""))
@@ -92,9 +92,9 @@ class HealthViewTests(TestCase):
         url = reverse("api_health")
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["status"], "FAIL")
+        self.assertEqual(data["status"], "ok")
         self.assertTrue(data.get("degraded"))
         self.assertEqual(data.get("relay_status"), "FAIL")
         self.assertIn("relay_config_missing", data.get("relay_error", ""))
@@ -106,9 +106,19 @@ class HealthViewTests(TestCase):
         url = reverse("api_health")
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data["status"], "FAIL")
+        self.assertEqual(data["status"], "ok")
         self.assertTrue(data.get("degraded"))
         self.assertEqual(data.get("relay_status"), "FAIL")
         self.assertIn("relay_config_invalid", data.get("relay_error", ""))
+
+    @override_settings(**RELAY_HEALTHY_SETTINGS, VERSION="live-test-version")
+    def test_live_health_does_not_depend_on_relay_configuration(self):
+        response = self.client.get("/api/health/live")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"status": "ok", "version": "live-test-version"},
+        )

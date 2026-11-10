@@ -27,6 +27,11 @@ urlpatterns = [
     ),
     # Public/export endpoints
     path(
+        "health/live",
+        health.live_health_view,
+        name="api_health_live",
+    ),
+    path(
         "health/",
         health.health_view,
         name="api_health",
