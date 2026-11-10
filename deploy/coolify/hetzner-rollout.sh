@@ -3,33 +3,47 @@
 # Its Compose web has traefik.enable=false. The shared rolling-web follower
 # promotes this healthy source to the native public Application; see README.md.
 #
-# Why: GitHub Actions runners cannot reliably reach Coolify
-# http://169.58.119.163:8000 (timeout), so the GHA deploy job may pin the
-# compose but fail to trigger the rollout. This poller runs on RMTHZ
-# (Hetzner, which reaches :8000) every 5 min via cron and converges:
+# This script is installed as a versioned copy by machine-management and runs
+# on a five-minute systemd timer. It reaches Coolify through the supervised
+# SSH tunnel at 127.0.0.1:18000, so API tokens never cross the network in HTTP.
+# GitHub Actions may be unable to reach Coolify; the poller then converges:
 #   newest GHCR tag (YYYYMMDD-HHMMSS-<7>) == Coolify running image.
 #
 # No secrets in this file. Runtime inputs (env, with safe defaults):
 #   GHCR_PAT_FILE    read:packages PAT (default ~/tmp/secrets/coolify-ghcr-read.pat)
 #   COOLIFY_TOKEN_FILE Coolify API token (default ~/tmp/secrets/coolify-api-169.58.119.163.token)
-#   COOLIFY_URL      (default http://169.58.119.163:8000)
+#   COOLIFY_URL      HTTPS endpoint or supervised SSH tunnel
+#                    (default http://127.0.0.1:18000)
 #   SERVICE_UUID     (default avcfd5kwb7cj9r1tx4ygjs6v = cmp-staging)
 #   STATE_DIR        (default ~/.local/state/cmp-coolify-rollout)
-#
-# Cron (RMTHZ):
-#   */5 * * * * flock -n ~/.local/state/cmp-coolify-rollout.lock /home/alexey/git/course-management-platform/deploy/coolify/hetzner-rollout.sh >> ~/.local/state/cmp-coolify-rollout/cron.log 2>&1
+#   HOLD_FILE        touch to pause convergence (default $STATE_DIR/hold)
 set -euo pipefail
 
 GHCR_PAT_FILE="${GHCR_PAT_FILE:-$HOME/tmp/secrets/coolify-ghcr-read.pat}"
 COOLIFY_TOKEN_FILE="${COOLIFY_TOKEN_FILE:-$HOME/tmp/secrets/coolify-api-169.58.119.163.token}"
-COOLIFY_URL="${COOLIFY_URL:-http://169.58.119.163:8000}"
+COOLIFY_URL="${COOLIFY_URL:-http://127.0.0.1:18000}"
+COOLIFY_URL="${COOLIFY_URL%/}"
 SERVICE_UUID="${SERVICE_UUID:-avcfd5kwb7cj9r1tx4ygjs6v}"
 STATE_DIR="${STATE_DIR:-$HOME/.local/state/cmp-coolify-rollout}"
+HOLD_FILE="${HOLD_FILE:-$STATE_DIR/hold}"
 IMAGE_REF="ghcr.io/datatalksclub/course-management-platform"
+
+case "$COOLIFY_URL" in
+  https://?*|http://127.0.0.1:18000) ;;
+  *)
+    echo "COOLIFY_URL must use HTTPS or the supervised SSH tunnel (http://127.0.0.1:18000)" >&2
+    exit 2
+    ;;
+esac
 
 mkdir -p "$STATE_DIR"
 LOG="$STATE_DIR/rollout.log"
 echo "=== $(date -u +%FT%TZ) rollout check ===" | tee -a "$LOG"
+
+if [[ -f "$HOLD_FILE" ]]; then
+  echo "hold file active; automatic release convergence paused" | tee -a "$LOG"
+  exit 0
+fi
 
 export GHCR_PAT_FILE COOLIFY_TOKEN_FILE COOLIFY_URL SERVICE_UUID IMAGE_REF STATE_DIR LOG
 

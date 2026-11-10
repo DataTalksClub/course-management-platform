@@ -1,5 +1,8 @@
+import os
 import re
 from pathlib import Path
+import subprocess
+import tempfile
 import tomllib
 
 import yaml
@@ -90,6 +93,7 @@ class DeploymentWorkflowTestCase(SimpleTestCase):
             ".gitignore",
             "docker-compose.yml",
             "deploy/hetzner/**",
+            "deploy/coolify/hetzner-rollout.sh",
         ):
             with self.subTest(pattern=pattern):
                 self.assertIn(pattern, patterns)
@@ -596,3 +600,79 @@ class BuildConfigurationTestCase(SimpleTestCase):
             r"compose_version.*latest|VERSION.*latest",
             "Hetzner poller must compare/pin VERSION against the newest GHCR tag.",
         )
+
+    def test_hetzner_poller_uses_the_supervised_loopback_tunnel(self):
+        poller_path = self.repo_root() / "deploy/coolify/hetzner-rollout.sh"
+        poller = poller_path.read_text()
+
+        self.assertIn(
+            'COOLIFY_URL="${COOLIFY_URL:-http://127.0.0.1:18000}"',
+            poller,
+        )
+        self.assertNotIn("http://169.58.119.163:8000", poller)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            env = os.environ.copy()
+            env.update(
+                {
+                    "HOME": temp_dir,
+                    "STATE_DIR": temp_dir,
+                    "COOLIFY_URL": "http://example.invalid:8000",
+                    "GHCR_PAT_FILE": str(Path(temp_dir) / "missing-ghcr-pat"),
+                    "COOLIFY_TOKEN_FILE": str(Path(temp_dir) / "missing-coolify-token"),
+                }
+            )
+            env.pop("HOLD_FILE", None)
+            result = subprocess.run(
+                ["bash", str(poller_path)],
+                capture_output=True,
+                check=False,
+                env=env,
+                text=True,
+                timeout=10,
+            )
+
+        output = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0, output)
+        self.assertIn(
+            "COOLIFY_URL must use HTTPS or the supervised SSH tunnel",
+            output,
+        )
+        self.assertNotIn("Traceback", output)
+
+    def test_hetzner_poller_hold_skips_credential_reads_and_api_calls(self):
+        poller_path = self.repo_root() / "deploy/coolify/hetzner-rollout.sh"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            hold_file = Path(temp_dir) / "hold"
+            hold_file.touch()
+            env = os.environ.copy()
+            env.update(
+                {
+                    "HOME": temp_dir,
+                    "STATE_DIR": temp_dir,
+                    "HOLD_FILE": str(hold_file),
+                    "COOLIFY_URL": "http://127.0.0.1:18000",
+                    "GHCR_PAT_FILE": str(Path(temp_dir) / "missing-ghcr-pat"),
+                    "COOLIFY_TOKEN_FILE": str(Path(temp_dir) / "missing-coolify-token"),
+                }
+            )
+            result = subprocess.run(
+                ["bash", str(poller_path)],
+                capture_output=True,
+                check=False,
+                env=env,
+                text=True,
+                timeout=10,
+            )
+
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("hold file active; automatic release convergence paused", output)
+        self.assertNotIn("Traceback", output)
+
+    def test_coolify_workflow_rejects_non_https_api_urls(self):
+        workflow = (
+            self.repo_root() / ".github/workflows/deploy-coolify.yml"
+        ).read_text()
+
+        self.assertEqual(workflow.count("Only HTTPS Coolify endpoints are allowed"), 2)
