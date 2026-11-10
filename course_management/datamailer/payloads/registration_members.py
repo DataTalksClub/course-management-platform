@@ -35,7 +35,7 @@ def approved_registration_recipient_list_payload(
     return _registration_member_payload(
         registration,
         list_key=registration_list_key(registration) + APPROVED_LIST_SUFFIX,
-        list_type="approved-registrants",
+        list_type="registrants",
         list_name=registration_recipient_list_name(registration).replace(
             " registrants", " approved registrants"
         ),
