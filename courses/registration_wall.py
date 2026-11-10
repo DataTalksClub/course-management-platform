@@ -31,47 +31,20 @@ def normalized_wall_email(user) -> str:
     return email.strip().lower()
 
 
-def _gmail_address_key(email: str) -> tuple[str, str] | None:
-    local_part, separator, domain = email.strip().lower().rpartition("@")
-    if not separator or domain not in {"gmail.com", "googlemail.com"}:
-        return None
-    return domain, local_part.replace(".", "")
-
-
 def _registration_for_user(course, user, status=None):
     if not user.is_authenticated:
         return None
-
-    registrations = CourseRegistration.objects.filter(course=course)
-    if status is not None:
-        registrations = registrations.filter(status=status)
-
     email_normalized = normalized_wall_email(user)
     matching_conditions = Q(user=user)
     if email_normalized:
         matching_conditions |= Q(email_normalized=email_normalized)
 
-    registration = (
-        registrations.filter(matching_conditions)
-        .order_by("-updated_at")
-        .first()
-    )
-    if registration is not None:
-        return registration
-
-    account_key = _gmail_address_key(email_normalized)
-    if account_key is None:
-        return None
-
-    gmail_registrations = registrations.filter(
-        Q(email_normalized__iendswith="@gmail.com")
-        | Q(email_normalized__iendswith="@googlemail.com")
-    ).only("email_normalized", "status", "updated_at")
-    for candidate in gmail_registrations.order_by("-updated_at"):
-        if _gmail_address_key(candidate.email_normalized) == account_key:
-            return candidate
-
-    return None
+    registrations = CourseRegistration.objects.filter(
+        course=course,
+    ).filter(matching_conditions)
+    if status is not None:
+        registrations = registrations.filter(status=status)
+    return registrations.order_by("-updated_at").first()
 
 
 def approved_registration_for_user(course, user):
