@@ -1,5 +1,5 @@
 FROM python:3.13.5-slim-bookworm
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /uvx /bin/
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -16,13 +16,14 @@ WORKDIR /code
 
 # Install dependencies
 COPY "pyproject.toml" "uv.lock" ".python-version" ./
-RUN uv sync --locked
+RUN uv sync --locked --no-dev
 
 # Copy project
 COPY . .
 RUN chmod +x entrypoint.sh docker-entrypoint.sh && \
     mkdir -p static && \
-    python manage.py collectstatic --noinput
+    SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')" \
+      python manage.py collectstatic --noinput
 
 EXPOSE 80
 ENTRYPOINT ["/code/entrypoint.sh"]

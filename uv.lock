@@ -1,9 +1,9 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.13"
 
 [options]
-exclude-newer = "2026-10-17T14:26:13.521433353Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -270,6 +270,7 @@ dependencies = [
     { name = "psycopg2-binary" },
     { name = "pyjwt" },
     { name = "python-json-logger" },
+    { name = "pyyaml" },
     { name = "requests" },
     { name = "whitenoise" },
 ]
@@ -302,6 +303,7 @@ requires-dist = [
     { name = "psycopg2-binary" },
     { name = "pyjwt" },
     { name = "python-json-logger" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "requests" },
     { name = "whitenoise" },
 ]
