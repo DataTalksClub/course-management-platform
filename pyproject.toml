@@ -65,4 +65,4 @@ testpaths = [
 ]
 
 [tool.uv]
-exclude-newer = "7 days"
+# Keep resolution open to current releases so Dependabot can lock updates.
