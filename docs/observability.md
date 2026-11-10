@@ -1,14 +1,39 @@
 # Observability
 
-The app uses a small project-owned observability abstraction so product code is
-not tied directly to any vendor or AWS SDK.
+CMP emits structured application events through a small project-owned
+observability interface. Product code does not depend directly on a vendor
+SDK.
 
-For now, CloudWatch is the only deployed observability provider. The app emits
-structured events to stdout, ECS sends those logs to CloudWatch Logs, and the
-CloudWatch backend emits Embedded Metric Format records so CloudWatch can create
-metrics and alarms from the same event stream.
+## Current Coolify deployment
 
-Application code should call:
+The Coolify production and dev compose templates set
+`OBSERVABILITY_EVENT_BACKENDS=log`. Events are written to the application
+logger and stdout. On Contabo, the Docker log collector forwards container
+logs to VictoriaLogs; see the [CMP proxy and log notes](../deploy/coolify/traefik/README.md).
+Host log access, proxy access logs, metrics, and alert rules are managed by
+the infrastructure operators. For a production incident, follow the
+read-only access path in the relevant Hub infrastructure intake and the
+[`cmp-incident-response` skill](../.agents/skills/cmp-incident-response/SKILL.md).
+
+The Coolify release target and public hostname determine whether a deployment
+is production or dev. The historical `OBSERVABILITY_ENVIRONMENT` label should
+not be used to infer the deployment target by itself.
+
+## Event schema
+
+Every event carries these common fields:
+
+- `event`
+- `schema_version`
+- `environment`
+- `release`
+- `distinct_id`
+
+Keep event properties small, structured, and portable. Do not include
+homework answers, peer-review notes, comments, OAuth provider payloads,
+tokens, or other free-form user content.
+
+Application code can record an event with:
 
 ```python
 from course_management.observability import record_event
@@ -24,31 +49,17 @@ record_event(
 )
 ```
 
-Provider-specific code lives under `course_management/observability/`.
-
-## Event Schema
-
-Every event carries these common fields:
-
-- `event`
-- `schema_version`
-- `environment`
-- `release`
-- `distinct_id`
-
-Keep event properties small, structured, and portable. Do not include homework
-answers, peer-review notes, comments, OAuth provider payloads, tokens, or other
-free-form user content.
-
 ## Backends
 
-Configure event backends with `OBSERVABILITY_EVENT_BACKENDS`.
+Configure event backends with `OBSERVABILITY_EVENT_BACKENDS`:
 
-Supported values:
-
-- `noop`: drops events, useful in tests.
-- `log`: writes structured events to the Django logger.
-- `cloudwatch`: writes CloudWatch Embedded Metric Format event counters.
+- `noop` drops events and is useful in tests.
+- `log` writes structured events to the Django logger. This is the backend in
+  the current Coolify templates.
+- `cloudwatch` emits CloudWatch Embedded Metric Format records. The code and
+  `/cadmin/cloudwatch/` dashboard remain available for environments that are
+  explicitly configured with CloudWatch access; they are not the current
+  Contabo logging or deployment path.
 
 Local development should use:
 
@@ -57,228 +68,61 @@ OBSERVABILITY_EVENT_BACKENDS=log
 OBSERVABILITY_ENVIRONMENT=local
 ```
 
-Deployed AWS environments should use:
+## Optional CloudWatch backend
 
-```bash
-OBSERVABILITY_EVENT_BACKENDS=cloudwatch
-OBSERVABILITY_ENVIRONMENT=dev
-CLOUDWATCH_APP_METRIC_NAMESPACE=CourseManagement/App
-```
-
-Use `OBSERVABILITY_ENVIRONMENT=production` in production.
-
-## Cadmin Dashboard
-
-Staff can view the CloudWatch event graphs at:
-
-```text
-/cadmin/cloudwatch/
-```
-
-The page reads the existing `AppEventCount` metrics with `GetMetricData`; it
-does not create more metrics and it does not add a CloudWatch dashboard
-resource. Configure the AWS region with `CLOUDWATCH_APP_METRIC_REGION`, or let
-the app fall back to `AWS_REGION` / `AWS_DEFAULT_REGION`.
-
-## CloudWatch Metrics
-
-The `cloudwatch` backend emits one low-cardinality metric:
+When an environment explicitly uses the `cloudwatch` backend, it emits one
+low-cardinality metric:
 
 - Namespace: `CourseManagement/App` by default.
 - Metric: `AppEventCount`.
 - Dimensions: `environment`, `event`.
 - Unit: `Count`.
 
-This lets CloudWatch alert on events such as:
+The `/cadmin/cloudwatch/` page reads those `AppEventCount` metrics with
+`GetMetricData`; it does not create metrics or a CloudWatch dashboard resource.
+The CloudWatch region comes from `CLOUDWATCH_APP_METRIC_REGION`, falling back
+to `AWS_REGION` or `AWS_DEFAULT_REGION`.
 
-- `datamailer.health_warning`
-- `homework.scoring_failed`
-- `project.scoring_failed`
-- `project.peer_reviews_assignment_failed`
-- `datamailer.outbox_failed`
-- `datamailer.outbox_dispatch_failed`
-- `api.auth_failed`
-- `exception`
+The backend can emit events such as `datamailer.health_warning`,
+`homework.scoring_failed`, `project.scoring_failed`, `api.auth_failed`, and
+`exception`. Detailed event fields remain in the configured log destination;
+they are intentionally not metric dimensions to avoid high-cardinality
+metrics.
 
-Detailed fields such as `course_slug`, `homework_slug`, `project_slug`,
-`submission_id`, `release`, and `distinct_id` remain in CloudWatch Logs for
-Logs Insights queries. They are intentionally not metric dimensions to avoid
-high-cardinality custom metric cost.
+## Datamailer health
 
-## Datamailer Health
-
-Run this command on a schedule:
+Run the health check directly with:
 
 ```bash
 uv run python manage.py monitoring_datamailer_health --json
 ```
 
 The command emits a `datamailer.health_checked` event with compact status
-fields:
+fields, including outbox due, pending, retrying, and failed counts. A warning
+also emits `datamailer.health_warning`.
 
-- `outbox_due_count`
-- `outbox_pending_count`
-- `outbox_retrying_count`
-- `outbox_failed_count`
-- `send_failed_count`
-- `callback_duplicate_count`
+In production, the Coolify `health` scheduled job invokes this command through
+`python manage.py run_cmp_job health` every five minutes. The job and its
+owner are listed in [CMP-WORKERS.md](../deploy/coolify/CMP-WORKERS.md).
 
-If the status is not `ok`, the command also emits
-`datamailer.health_warning`. Use that event for direct CloudWatch alarms.
+## Local checks
 
-In AWS, schedule this with EventBridge Scheduler or an EventBridge rule that
-runs the CMP ECS task with a command override.
-
-## Accounts And Keys
-
-No Sentry, PostHog, Healthchecks.io, Grafana, or third-party observability
-account is required.
-
-CloudWatch uses the existing AWS account and ECS log shipping. For deployment,
-we need:
-
-- AWS account access for Terraform in `aws-infra/main/cmp`.
-- Existing GitHub Actions AWS credentials for CMP releases.
-- An alert email in Terraform variable `alert_email`. AWS sends a confirmation
-  email for the SNS subscription; alerts are not delivered until it is
-  confirmed.
-
-## ECS Environment
-
-Set these variables on both live CMP ECS task definitions with the existing ECS
-environment-variable update script:
-
-Dev:
+Run the focused observability tests with:
 
 ```bash
-OBSERVABILITY_EVENT_BACKENDS=cloudwatch
-OBSERVABILITY_ENVIRONMENT=dev
-CLOUDWATCH_APP_METRIC_NAMESPACE=CourseManagement/App
+IS_LOCAL=1 uv run pytest data/tests/test_observability.py
 ```
 
-Production:
+With the `log` backend, events stay in local application logs and no network
+event is sent.
 
-```bash
-OBSERVABILITY_EVENT_BACKENDS=cloudwatch
-OBSERVABILITY_ENVIRONMENT=production
-CLOUDWATCH_APP_METRIC_NAMESPACE=CourseManagement/App
-```
-
-The Terraform task definition files include these values, but the ECS task
-definitions currently use `ignore_changes = [container_definitions]`, because
-CI/CD owns image and env updates at release time. That means Terraform will not
-overwrite the live task definition env vars by itself.
-
-## Logs Insights
-
-Useful starter queries:
-
-```sql
-fields @timestamp, event, environment, release, course_slug, homework_slug, project_slug
-| filter message = "app_event" or message = "cloudwatch_app_event"
-| sort @timestamp desc
-| limit 100
-```
-
-Registrations by course:
-
-```sql
-filter event = "registration.submitted"
-| stats count(*) as registrations by bin(1h), course_slug
-| sort bin(1h) desc
-```
-
-Homework submissions by course/homework:
-
-```sql
-filter event = "homework.submitted"
-| stats count(*) as submissions by bin(1h), course_slug, homework_slug
-| sort bin(1h) desc
-```
-
-Project submissions by course/project:
-
-```sql
-filter event = "project.submitted"
-| stats count(*) as submissions by bin(1h), course_slug, project_slug
-| sort bin(1h) desc
-```
-
-Failures by release:
-
-```sql
-filter event like /failed|rejected|unauthorized/
-| stats count(*) as failures by release, event
-| sort failures desc
-```
-
-Datamailer status:
-
-```sql
-filter event = "datamailer.health_checked"
-| fields @timestamp, status, outbox_due_count, outbox_retrying_count,
-    outbox_failed_count, send_failed_count, callback_duplicate_count
-| sort @timestamp desc
-| limit 50
-```
-
-## Alerts
-
-Create CloudWatch alarms on the `AppEventCount` metric with dimensions
-`environment` and `event`.
-
-Recommended first alarms for dev:
-
-- `datamailer.health_warning > 0` in 5 minutes.
-- `exception > 0` in 5 minutes.
-- `datamailer.outbox_failed > 0` in 5 minutes.
-- `datamailer.outbox_dispatch_failed > 0` in 5 minutes.
-- `homework.scoring_failed > 0` in 5 minutes.
-- `project.scoring_failed > 0` in 5 minutes.
-- `project.peer_reviews_assignment_failed > 0` in 5 minutes.
-- `api.auth_failed` above a small threshold, for example `>= 10` in 5 minutes.
-
-Configured AWS/service alarms in `aws-infra`:
-
-- ALB 5xx count.
-- ALB target response time.
-- ALB unhealthy targets.
-
-Useful next AWS/service alarms:
-
-- ECS desired task count not met.
-- ECS task restarts/deploy failures.
-- RDS CPU/storage/connections.
-- CloudWatch Synthetics or another public check for `/api/health/` if we want
-  release/version monitoring inside CloudWatch instead of only GitHub e2e smoke.
-
-## Local Testing
-
-Run the focused tests:
-
-```bash
-uv run python manage.py test data.tests.test_observability
-```
-
-Run the Datamailer health event locally:
-
-```bash
-uv run python manage.py monitoring_datamailer_health --json
-```
-
-With no AWS log shipping locally, the command only prints/logs locally and does
-not send network events.
-
-## Migration Strategy
+## Adding another backend
 
 The provider boundary is the `EventBackend` protocol in
-`course_management/observability/events.py`. To move from CloudWatch to another
-system later:
+`course_management/observability/events.py`. To add another provider:
 
-1. Add a new backend implementing `record(event: AppEvent)`.
-2. Configure dual-write, for example
-   `OBSERVABILITY_EVENT_BACKENDS=cloudwatch,new_backend`.
-3. Compare counts and payloads in both systems.
-4. Switch backend configuration when the replacement is verified.
+1. Add a backend implementing `record(event: AppEvent)`.
+2. Configure dual-write and compare counts and payloads.
+3. Switch configuration after the replacement is verified.
 
-The app code that emits events does not need to change.
+The product code that emits events does not need to change.

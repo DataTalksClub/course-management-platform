@@ -35,13 +35,13 @@ reason, then implement the fix and rerun the test to confirm it passes.
 
 ## Production alert incidents
 
-When asked to inspect a GitHub alert issue, pull CMP dev or production logs,
-diagnose a CloudWatch alarm, or carry an incident fix through deployment, use
-the `cmp-incident-response` skill at
-[`.claude/skills/cmp-incident-response/SKILL.md`](.claude/skills/cmp-incident-response/SKILL.md).
-It is the source of truth for assuming the read-only production investigator
-role, handling sensitive log evidence, TDD reproduction, dev verification, and
-the separately authorized production promotion.
+When asked to inspect a CMP GitHub alert issue, investigate production or dev,
+or carry an incident fix through deployment, use the `cmp-incident-response`
+skill at [`.agents/skills/cmp-incident-response/SKILL.md`](.agents/skills/cmp-incident-response/SKILL.md).
+It is the source of truth for read-only evidence handling, focused regression
+tests, dev verification, and separately authorized production promotion. The
+current deployment is Coolify on Contabo; the retired AWS ECS workflow is not a
+production deploy path.
 
 ## Design
 

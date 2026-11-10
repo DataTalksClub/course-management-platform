@@ -79,7 +79,9 @@ migrate. For failover, fence the old application before activating a replacement
 against the promoted database. Do not activate AWS schedules for failover.
 
 The independent host watchdog `check-workers.sh` runs from `cmp-workers.cron`
-every minute, outside Coolify's scheduler. It resolves the stable service runner container, runs `check_cmp_workers`, and alerts through the existing host MTA.
+every minute, outside Coolify's scheduler. It resolves the stable service
+runner container, runs `check_cmp_workers`, and sends alerts through the
+Datamailer CLI.
 Payload-free alarms cover missing/stale success (outbox 300s, health 900s,
 reminders 26h, digest 26h, scoring 600s), failed last attempts, due backlog older than 300s, processing
 older than 540s (scoring backlog older than 600s, stuck scoring processing
