@@ -405,6 +405,8 @@ CACHES = {
         "LOCATION": "default-cache",
     }
 }
+LEADERBOARD_CACHE_TTL = 60
+DASHBOARD_CACHE_TTL = 60
 
 # authentication
 
