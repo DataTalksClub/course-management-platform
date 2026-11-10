@@ -39,6 +39,9 @@ on:
       - ".gitignore"
       - "docker-compose.yml"
       - "deploy/hetzner/**"
+      # The versioned host poller is installed out-of-band and does not affect
+      # the production image.
+      - "deploy/coolify/hetzner-rollout.sh"
       - ".github/workflows/e2e-smoke-dev.yaml"
 
 concurrency:
@@ -194,6 +197,10 @@ jobs:
             echo "Missing Coolify secrets: COOLIFY_URL, COOLIFY_TOKEN, COOLIFY_CMP_SERVICE_UUID" >&2
             exit 1
           fi
+          case "$COOLIFY_URL" in
+            https://?*) ;;
+            *) echo "::error::Only HTTPS Coolify endpoints are allowed" >&2; exit 1 ;;
+          esac
           # Exact release tag (YYYYMMDD-HHMMSS-<7>): pin Coolify compose image AND
           # VERSION env to the same tag, never :latest.
           # /api/health/ reports settings.VERSION, so a stale VERSION env
@@ -202,11 +209,11 @@ jobs:
           # 0c8eaab deploy). The native public rolling Application mirrors
           # this env via the follower, so the source must carry the new tag.
           # Coolify compose services store the image in docker_compose_raw (base64 on write).
-          # NOTE: GHA runners often cannot reach COOLIFY_URL (:8000 timeout), but the
+          # NOTE: GHA runners often cannot reach the Coolify API, but the
           # image was already pushed to GHCR by the build-and-push job. Network-level
           # failures (timeout / connection refused / reset) are therefore SOFT-FAIL
-          # (exit 0): the Hetzner poller (deploy/coolify/hetzner-rollout.sh, cron */5
-          # on RMTHZ) converges running == newest GHCR tag automatically.
+          # (exit 0): the versioned Hetzner poller (deploy/coolify/hetzner-rollout.sh)
+          # uses the supervised loopback tunnel and converges to the newest GHCR tag.
           # Real errors when Coolify IS reachable (HTTP 4xx/5xx, compose pin mismatch)
           # still fail the job.
           set +e
@@ -284,14 +291,14 @@ jobs:
               print(f"::error::Coolify API HTTP {e.code} on {e.url}: {detail}", flush=True)
               sys.exit(1)
           except (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError, OSError) as e:
-              # Coolify unreachable (:8000 timeout / DNS / connection reset).
+              # Coolify unreachable (timeout / DNS / connection reset).
               # GHCR image already pushed; Hetzner poller converges automatically.
               # Exit 47 (not 0) so the wrapper below can record reachable=false
               # and skip post-deploy verification instead of failing it.
               print(
                   f"::warning::Coolify API unreachable ({type(e).__name__}: {e}). "
                   f"Image {prefix}{image_tag} already pushed to GHCR; "
-                  "Hetzner poller (deploy/coolify/hetzner-rollout.sh, cron */5 on RMTHZ) "
+                  "Versioned Hetzner poller (deploy/coolify/hetzner-rollout.sh) "
                   "will converge Contabo to this tag. Treating as soft-fail (exit 47).",
                   flush=True,
               )
@@ -327,6 +334,10 @@ jobs:
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
         run: |
           set -euo pipefail
+          case "$COOLIFY_URL" in
+            https://?*) ;;
+            *) echo "::error::Only HTTPS Coolify endpoints are allowed" >&2; exit 1 ;;
+          esac
           python3 - <<'PY'
           import json, os, sys, time, urllib.error, urllib.request
           from deploy.coolify.release_target import service_uuid, validate_service

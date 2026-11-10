@@ -30,6 +30,14 @@ files. The follower refuses promotion if the reviewed Coolify 4.4.7 drain-hook
 checksum, helper bindings, or native rolling settings change. Review/rebase
 the hook before upgrading Coolify.
 
+The private CMP release service is reconciled by a versioned copy of
+[`hetzner-rollout.sh`](hetzner-rollout.sh), installed and updated through
+machine-management outside the mutable git checkout. Its systemd timer reaches
+Coolify through the supervised SSH tunnel at `http://127.0.0.1:18000`; the
+poller rejects plain remote HTTP. To pause automatic convergence during a
+rollback, create `~/.local/state/cmp-coolify-rollout/hold`; remove the file to
+resume.
+
 CMP currently migrates on container boot while the old public container
 serves. Releases therefore require backward-compatible migrations. Source
 health or a green build alone does not establish public promotion: require
