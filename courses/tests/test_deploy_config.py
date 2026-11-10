@@ -437,6 +437,14 @@ class BuildConfigurationTestCase(SimpleTestCase):
         ).read_text()
         self.assertIn("uv run --with pip-audit pip-audit --local", workflow)
 
+        with (self.repo_root() / "pyproject.toml").open("rb") as file:
+            uv_config = tomllib.load(file)["tool"]["uv"]
+        self.assertNotIn(
+            "exclude-newer",
+            uv_config,
+            "Recent package releases must remain resolvable by Dependabot.",
+        )
+
     def test_collectstatic_uses_an_ephemeral_build_secret(self):
         dockerfile = (self.repo_root() / "Dockerfile").read_text()
 
