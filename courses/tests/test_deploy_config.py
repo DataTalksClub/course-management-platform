@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import tomllib
+from unittest.mock import MagicMock, call, patch
 
 import yaml
 from django.test import SimpleTestCase
@@ -676,3 +677,198 @@ class BuildConfigurationTestCase(SimpleTestCase):
         ).read_text()
 
         self.assertEqual(workflow.count("Only HTTPS Coolify endpoints are allowed"), 2)
+
+    def test_coolify_deploy_patches_migration_roles_before_api_update(self):
+        workflow = (
+            self.repo_root() / ".github/workflows/deploy-coolify.yml"
+        ).read_text()
+
+        role_update = 'raw = set_migration_roles(svc["docker_compose_raw"])'
+        self.assertIn(role_update, workflow)
+        self.assertLess(workflow.index(role_update), workflow.index('"PATCH"'))
+
+    def test_entrypoint_has_one_migration_owner_and_waits_for_checks(self):
+        entrypoint = (self.repo_root() / "entrypoint.sh").read_text()
+
+        self.assertIn('case "${CMP_RUN_MIGRATIONS:-}" in', entrypoint)
+        self.assertIn("python manage.py migrate_with_lock", entrypoint)
+        self.assertIn("python manage.py migrate --check", entrypoint)
+        self.assertIn("CMP_MIGRATION_CHECK_TIMEOUT_SECONDS", entrypoint)
+        self.assertNotIn("python manage.py migrate\n", entrypoint)
+
+    def test_entrypoint_waits_for_migration_owner_before_starting_worker(self):
+        entrypoint = self.repo_root() / "entrypoint.sh"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            bin_dir = temp_path / "bin"
+            bin_dir.mkdir()
+            call_log = temp_path / "calls.log"
+            fake_python = bin_dir / "python"
+            fake_python.write_text(
+                "#!/bin/sh\n"
+                "set -eu\n"
+                'printf "%s\\n" "$*" >> "$CALL_LOG"\n'
+                'case "$FAKE_PYTHON_MODE:$*" in\n'
+                "  wait-once:manage.py\\ migrate\\ --check)\n"
+                '    count=$(cat "$CALL_COUNT" 2>/dev/null || printf "0")\n'
+                "    count=$((count + 1))\n"
+                '    printf "%s\\n" "$count" > "$CALL_COUNT"\n'
+                '    test "$count" -ge 2\n'
+                "    ;;\n"
+                "  *) exit 0 ;;\n"
+                "esac\n"
+            )
+            fake_python.chmod(0o755)
+            fake_sleep = bin_dir / "sleep"
+            fake_sleep.write_text("#!/bin/sh\nexit 0\n")
+            fake_sleep.chmod(0o755)
+            env = os.environ.copy()
+            env.update(
+                {
+                    "PATH": f"{bin_dir}:{env['PATH']}",
+                    "CALL_LOG": str(call_log),
+                    "CALL_COUNT": str(temp_path / "check-count"),
+                    "FAKE_PYTHON_MODE": "wait-once",
+                    "CMP_RUN_MIGRATIONS": "0",
+                    "CMP_MIGRATION_CHECK_TIMEOUT_SECONDS": "10",
+                }
+            )
+            result = subprocess.run(
+                ["bash", str(entrypoint), "sh", "-c", ":"],
+                capture_output=True,
+                check=False,
+                env=env,
+                text=True,
+                timeout=10,
+            )
+            calls = call_log.read_text().splitlines()
+
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertEqual(calls.count("manage.py migrate --check"), 2)
+        self.assertIn("Migrations are pending; waiting for the private web owner", output)
+        self.assertNotIn("manage.py migrate_with_lock", calls)
+
+    def test_entrypoint_migration_owner_runs_locked_migrations(self):
+        entrypoint = self.repo_root() / "entrypoint.sh"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            bin_dir = temp_path / "bin"
+            bin_dir.mkdir()
+            call_log = temp_path / "calls.log"
+            fake_python = bin_dir / "python"
+            fake_python.write_text(
+                "#!/bin/sh\n"
+                'printf "%s\\n" "$*" >> "$CALL_LOG"\n'
+                "exit 0\n"
+            )
+            fake_python.chmod(0o755)
+            env = os.environ.copy()
+            env.update(
+                {
+                    "PATH": f"{bin_dir}:{env['PATH']}",
+                    "CALL_LOG": str(call_log),
+                    "CMP_RUN_MIGRATIONS": "1",
+                }
+            )
+            result = subprocess.run(
+                ["bash", str(entrypoint), "sh", "-c", ":"],
+                capture_output=True,
+                check=False,
+                env=env,
+                text=True,
+                timeout=10,
+            )
+            calls = call_log.read_text().splitlines()
+
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertEqual(calls, ["manage.py migrate_with_lock"])
+
+    def test_private_web_and_worker_migration_roles_are_explicit_in_compose(self):
+        for compose_name in (
+            "docker-compose.staging.yml",
+            "docker-compose.dev.yml",
+        ):
+            with self.subTest(compose=compose_name):
+                compose = yaml.safe_load(
+                    (self.repo_root() / "deploy/coolify" / compose_name).read_text()
+                )
+                self.assertEqual(
+                    compose["services"]["web"]["environment"]["CMP_RUN_MIGRATIONS"],
+                    "1",
+                )
+                self.assertEqual(
+                    compose["services"]["worker"]["environment"]["CMP_RUN_MIGRATIONS"],
+                    "0",
+                )
+
+    def test_release_target_sets_and_validates_migration_roles(self):
+        from deploy.coolify.release_target import set_migration_roles
+
+        compose = """services:
+  web:
+    image: cmp:web
+    environment:
+      VERSION: old
+  worker:
+    image: cmp:worker
+    environment:
+      VERSION: old
+"""
+        updated = set_migration_roles(compose)
+        services = yaml.safe_load(updated)["services"]
+        self.assertEqual(
+            services["web"]["environment"]["CMP_RUN_MIGRATIONS"],
+            "1",
+        )
+        self.assertEqual(
+            services["worker"]["environment"]["CMP_RUN_MIGRATIONS"],
+            "0",
+        )
+        self.assertEqual(set_migration_roles(updated), updated)
+
+        with self.assertRaisesRegex(ValueError, "worker"):
+            set_migration_roles("services:\n  web:\n    image: cmp:web\n")
+
+    def test_migration_command_uses_postgres_lock_and_releases_it(self):
+        from course_management.management.commands.migrate_with_lock import Command
+
+        database = MagicMock()
+        database.vendor = "postgresql"
+        cursor = MagicMock()
+        cursor_context = MagicMock()
+        cursor_context.__enter__.return_value = cursor
+        database.cursor.return_value = cursor_context
+        with (
+            patch(
+                "course_management.management.commands.migrate_with_lock.connections"
+            ) as connections,
+            patch(
+                "course_management.management.commands.migrate_with_lock.call_command"
+            ) as call_command,
+        ):
+            connections.__getitem__.return_value = database
+            Command().handle(database="default")
+
+        self.assertEqual(
+            cursor.execute.call_args_list,
+            [
+                call("SELECT set_config('lock_timeout', %s, false)", ["5s"]),
+                call(
+                    "SELECT set_config('statement_timeout', %s, false)",
+                    ["300000ms"],
+                ),
+                call(
+                    "SELECT pg_advisory_lock(%s)",
+                    [Command.LOCK_KEY],
+                ),
+                call(
+                    "SELECT pg_advisory_unlock(%s)",
+                    [Command.LOCK_KEY],
+                ),
+            ],
+        )
+        call_command.assert_called_once_with(
+            "migrate", database="default", interactive=False, verbosity=1
+        )

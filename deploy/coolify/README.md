@@ -38,12 +38,19 @@ poller rejects plain remote HTTP. To pause automatic convergence during a
 rollback, create `~/.local/state/cmp-coolify-rollout/hold`; remove the file to
 resume.
 
-CMP currently migrates on container boot while the old public container
-serves. Releases therefore require backward-compatible migrations. Source
-health or a green build alone does not establish public promotion: require
-the native deployment to finish and public `/api/health/` to report the
-expected immutable release. Preserve the private source container: existing
-CMP scheduled tasks execute there.
+The private `web` service is the sole migration owner: deploys set
+`CMP_RUN_MIGRATIONS=1` there and `0` on the private worker. Its
+`migrate_with_lock` command takes a PostgreSQL advisory lock, uses a five-second
+lock timeout and a bounded statement timeout, then applies migrations. The
+worker and public web run `migrate --check` and wait up to five minutes for the
+owner; the shared follower must continue forcing `CMP_RUN_MIGRATIONS=0` on
+public web. The deploy workflow repairs these role values in Coolify's stored
+compose before each release. Missing or invalid role values fail startup.
+Releases still require backward-compatible migrations while the old public
+container serves. Source health or a green build alone does not establish
+public promotion: require the native deployment to finish and public
+`/api/health/` to report the expected immutable release. Preserve the private
+source container: existing CMP scheduled tasks execute there.
 
 For a controlled replacement, continuously curl the public homepage and
 `/api/health/` with cache-busting query strings and no-cache headers. Request
