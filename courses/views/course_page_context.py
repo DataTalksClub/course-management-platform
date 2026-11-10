@@ -183,6 +183,12 @@ def course_page_context(data: CoursePageData) -> dict:
         data.course,
         data.user,
     )
+    context["registration_enrollment_missing"] = bool(
+        context["registration_wall"]
+        and context["registration_wall_status"]
+        == CourseRegistration.Status.APPROVED.value
+        and not context["has_enrollment"]
+    )
     context["application_under_review"] = bool(
         context["registration_wall_blocked"]
         and context["registration_wall_status"]

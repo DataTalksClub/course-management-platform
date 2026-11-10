@@ -184,6 +184,55 @@ class RegistrationWallTests(RegistrationCampaignBase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "under review")
 
+    def test_enrolled_user_sees_registered_state_without_apply_cta(self):
+        registration = self.create_pending_registration(user=self.user)
+        registration.status = CourseRegistration.Status.APPROVED
+        registration.save(update_fields=["status"])
+        Enrollment.objects.create(student=self.user, course=self.course)
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("course", kwargs={"course_slug": self.course.slug})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Your application was approved")
+        self.assertContains(response, "registered for this course")
+        self.assertNotContains(response, "Apply for this course")
+        self.assertNotContains(response, "Register")
+
+    def test_approved_gmail_alias_is_reflected_and_missing_enrollment_alerts(
+        self,
+    ):
+        account = CustomUser.objects.create_user(
+            username="gmail-wall-student",
+            email="wallstudent@gmail.com",
+            password="test",
+        )
+        registration = self.create_pending_registration()
+        registration.user = None
+        registration.email = "wall.student@gmail.com"
+        registration.status = CourseRegistration.Status.APPROVED
+        registration.save(
+            update_fields=["user", "email", "email_normalized", "status"]
+        )
+        self.client.force_login(account)
+
+        response = self.client.get(
+            reverse("course", kwargs={"course_slug": self.course.slug})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["registration_wall_status"],
+            CourseRegistration.Status.APPROVED,
+        )
+        self.assertContains(response, "Your application was approved")
+        self.assertContains(response, "could not find your course enrollment")
+        self.assertContains(response, 'role="alert"')
+        self.assertNotContains(response, "Apply for this course")
+        self.assertNotContains(response, "Register")
+
     def test_rejected_registration_stays_blocked(self):
         registration = self.create_pending_registration(user=self.user)
         registration.status = CourseRegistration.Status.REJECTED
