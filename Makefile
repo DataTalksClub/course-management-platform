@@ -1,10 +1,8 @@
 TAG := $(shell date +"%Y%m%d-%H%M%S")
-REPO_ROOT := 387546586013.dkr.ecr.eu-west-1.amazonaws.com
-REPO_URI := $(REPO_ROOT)/course-management
 
 SITE_ID ?= 2
 
-.PHONY: run migrations admin user tests tests-postgres typecheck data load_rds_export test_data shell tunnel_prod notebook docker_build docker_run docker_bash docker_auth docker_publish deploy_dev deploy_prod sync help
+.PHONY: run migrations admin user tests tests-postgres typecheck data load_rds_export test_data shell notebook docker_build docker_run docker_bash sync help
 
 run: ## Run django server
 run:
@@ -53,9 +51,6 @@ shell:
 	uv run python manage.py shell
 
 
-tunnel_prod: ## Open tunnel to prod
-	bash tunnel-prod.sh
-
 notebook: ## Run a jupyter notebook
 notebook:
 	uv run jupyter notebook
@@ -82,27 +77,6 @@ docker_run: docker_build
 docker_bash: ## Run bash in docker container
 docker_bash:
 	docker exec -it course_management bash
-
-
-docker_auth: ## Authenticate to ECR
-docker_auth:
-	aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin $(REPO_ROOT)
-
-
-docker_publish: ## Publish docker image to ECR
-docker_publish: docker_build docker_auth
-	docker tag course_management:$(TAG) $(REPO_URI):$(TAG)
-	docker push $(REPO_URI):$(TAG)
-
-
-deploy_dev:		## Deploy to dev environment
-deploy_dev: docker_publish
-	bash deploy/deploy_dev.sh $(TAG)
-
-
-deploy_prod: ## Deploy to prod environment
-deploy_prod:
-	bash deploy/deploy_prod.sh
 
 
 sync: ## Install dev dependencies

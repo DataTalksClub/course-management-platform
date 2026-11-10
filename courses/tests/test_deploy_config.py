@@ -20,21 +20,61 @@ class DeploymentWorkflowTestCase(SimpleTestCase):
         # BaseLoader preserves GitHub's YAML key `on` as a string.
         return yaml.load(workflow.read_text(), Loader=yaml.BaseLoader)["on"]
 
-    def test_retired_aws_dev_workflow_is_manual_only(self):
-        events = self.workflow_events("deploy-dev.yaml")
-
-        self.assertEqual(
-            set(events),
-            {"workflow_dispatch"},
-            "Automatic AWS dev deployments reference a deleted target "
-            "group. Coolify owns main-push deployments after the "
-            "Contabo migration; keep AWS dev manual-only.",
+    def test_coolify_is_the_only_active_deployment_workflow(self):
+        root = Path(__file__).resolve().parents[2]
+        workflows = sorted(
+            path.name
+            for path in (root / ".github" / "workflows").glob("deploy-*")
+            if path.suffix in {".yaml", ".yml"}
         )
+        self.assertEqual(workflows, ["deploy-coolify.yml"])
+
+        retired_paths = (
+            ".prod-versions",
+            "deploy/deploy_dev.sh",
+            "deploy/deploy_prod.sh",
+            "deploy/update_task_def.py",
+            "tunnel-dev.sh",
+            "tunnel-prod.sh",
+        )
+        for relative_path in retired_paths:
+            with self.subTest(path=relative_path):
+                self.assertFalse((root / relative_path).exists())
+
+        makefile = (root / "Makefile").read_text()
+        retired_targets = (
+            "docker_auth:",
+            "docker_publish:",
+            "deploy_dev:",
+            "deploy_prod:",
+            "tunnel_prod:",
+        )
+        for retired_target in retired_targets:
+            with self.subTest(target=retired_target):
+                self.assertNotIn(retired_target, makefile)
 
     def test_coolify_owns_main_push_deployments(self):
         events = self.workflow_events("deploy-coolify.yml")
 
         self.assertIn("main", events["push"]["branches"])
+
+    def test_production_deploy_waits_for_public_health_to_report_built_tag(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = yaml.load(
+            (root / ".github" / "workflows" / "deploy-coolify.yml").read_text(),
+            Loader=yaml.BaseLoader,
+        )
+        steps = workflow["jobs"]["deploy"]["steps"]
+        public_check = next(
+            step
+            for step in steps
+            if step.get("name") == "Verify public production release is live (F-22)"
+        )
+
+        self.assertEqual(public_check["if"], "${{ !inputs.dev_only }}")
+        self.assertIn("https://courses.datatalks.club/api/health/", public_check["run"])
+        self.assertIn("deadline = time.time() + 900", public_check["run"])
+        self.assertIn('status == "ok" and version == expected', public_check["run"])
 
 
 class DeployConfigTestCase(SimpleTestCase):

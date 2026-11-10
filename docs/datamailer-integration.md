@@ -1940,14 +1940,12 @@ Datamailer applies opt-out and deliverability suppression at send time. The comm
 $ uv run python manage.py send_deadline_reminders
 ```
 
-For deployed environments, EventBridge runs a one-off ECS task with the CMP
-image (command overridden to `python manage.py send_deadline_reminders`),
-provisioned via Terraform in `DataTalksClub/infra-terraform` alongside the CMP
-ECS service. The rule assumes an invocation role that trusts EventBridge and may
-call `ecs:RunTask` for the CMP task definition plus `iam:PassRole`. CMP itself
-does not configure the schedule. The command replaces each transient reminder
-list with the current CMP-computed audience, triggers one list send per reminder
-event, then exits.
+Production reminders run as the daily Coolify task owned by the CMP private
+release service. See [CMP-WORKERS.md](../deploy/coolify/CMP-WORKERS.md) for the
+current command and schedule. The previous ECS/EventBridge deployment path is
+retired; see [legacy-aws-deploy.md](legacy-aws-deploy.md) for historical
+context. The command replaces each transient reminder list with the current
+CMP-computed audience, triggers one list send per reminder event, then exits.
 
 ## Broad course emails
 

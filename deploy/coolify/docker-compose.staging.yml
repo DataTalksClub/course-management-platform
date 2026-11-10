@@ -5,7 +5,7 @@
 # Secrets (SECRET_KEY, DATABASE_URL, RELAY_API_KEY, RELAY_WEBHOOK_TOKEN,
 # AUTH_TOKEN, DEV_AUTH_TOKEN) live in Coolify UI / API environment
 # variables — never inline them here.
-# Image tag: exact ECR format YYYYMMDD-HHMMSS-<7> (never :latest, never sha-<…>).
+# Image tag: exact timestamped format YYYYMMDD-HHMMSS-<7> (never :latest, never sha-<…>).
 # VERSION must equal the image tag: /api/health/ reports it, and the native
 # public rolling Application mirrors this env via the follower. Keep both in
 # lockstep on every release (deploy automation pins both together).
