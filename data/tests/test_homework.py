@@ -33,7 +33,13 @@ class HomeworkDataAPITestCase(TestCase):
             email="testuser@example.com",
             password="password",
         )
-        self.token = Token.objects.create(user=self.user)
+        self.export_user = CustomUser.objects.create(
+            username="export-staff",
+            email="export-staff@example.com",
+            password="password",
+            is_staff=True,
+        )
+        self.token = Token.objects.create(user=self.export_user)
         self.course = Course.objects.create(
             title="Test Course", slug="test-course"
         )
