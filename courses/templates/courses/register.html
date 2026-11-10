@@ -74,6 +74,8 @@
       </div>
     {% endif %}
 
+    {% include "include/course_logistics.html" %}
+
     {% if video_embed_url %}
       <div class="mt-7 aspect-video overflow-hidden rounded-md border app-border">
         <iframe src="{{ video_embed_url }}"

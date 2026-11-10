@@ -11,6 +11,7 @@ from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models import Max, Q
 from django.urls import reverse
+from django.utils.formats import date_format
 from django.utils import timezone
 
 from course_management.observability import record_event
@@ -47,7 +48,7 @@ def notification_context(registration, custom_message=""):
     domain = Site.objects.get_current().domain
     base = getattr(settings, "SITE_URL", "") or f"https://{domain}"
     base = base.rstrip("/")
-    course = registration.course
+    course = registration.course or registration.campaign.current_course
     registration_path = reverse(
         "registration_campaign",
         kwargs={"campaign_slug": registration.campaign.slug},
@@ -61,6 +62,15 @@ def notification_context(registration, custom_message=""):
     if course is not None:
         github_url = (course.github_repo_url or "").strip()
     message_text = (custom_message or "").strip()
+    if registration.status == "approved":
+        if course is None:
+            raise ValueError(
+                "accepted registration has no course for student information"
+            )
+        course_information = _accepted_course_information(course)
+        message_text = "\n\n".join(
+            part for part in (course_information, message_text) if part
+        )
     return {
         "name": (registration.name or "").strip() or "Applicant",
         "applicant_email": registration.email_normalized,
@@ -79,6 +89,52 @@ def notification_context(registration, custom_message=""):
             kwargs={"campaign_slug": registration.campaign.slug},
         ) + "?status=pending",
     }
+
+
+def _accepted_course_information(course):
+    """Build the course-specific logistics included with every acceptance."""
+    sections = []
+    if course.start_date:
+        sections.append(
+            f"Course starts: {date_format(course.start_date, 'D j M Y')}."
+        )
+
+    schedule_details = (course.live_session_schedule_details or "").strip()
+    schedule_url = (course.live_session_schedule_url or "").strip()
+    if schedule_details or schedule_url:
+        schedule = schedule_details or "Live sessions and pre-course Q&A."
+        if schedule_url:
+            schedule += f" [Open the schedule and join details]({schedule_url})."
+        sections.append(schedule)
+
+    github_url = (course.github_repo_url or "").strip()
+    if github_url:
+        sections.append(
+            "All course content is on GitHub: "
+            f"[open the course repository]({github_url})."
+        )
+
+    sections.append(
+        "The platform course page is only for logistics: homework, "
+        "submissions, projects, and leaderboard."
+    )
+
+    support_channel_url = (course.support_channel_url or "").strip()
+    support_channel_name = (course.support_channel_name or "").strip()
+    if support_channel_url:
+        support_channel_name = (
+            support_channel_name or "the course help channel"
+        )
+        sections.append(
+            "Questions? Ask in "
+            f"[{support_channel_name}]({support_channel_url})."
+        )
+
+    support_email = (course.support_email or "").strip()
+    if support_email:
+        sections.append(f"Questions? Email {support_email}.")
+
+    return "\n\n".join(sections)
 
 
 def queue_application_notifications(

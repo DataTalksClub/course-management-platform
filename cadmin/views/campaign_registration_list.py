@@ -6,7 +6,6 @@ from django.db.models import Q
 from django.http import HttpRequest
 
 from courses.decision_messages import (
-    APPROVAL_MESSAGE_LAUNCH,
     REJECTION_MESSAGE_LOCATION,
 )
 from courses.genmedia_policy import CAMPAIGN_SLUG
@@ -91,7 +90,7 @@ def campaign_registrations_context(data):
         "status_choices": CourseRegistration.Status.choices,
         "needs_approval": needs_approval,
         "genmedia": data.campaign.slug == CAMPAIGN_SLUG,
-        "default_bulk_message": APPROVAL_MESSAGE_LAUNCH,
+        "default_bulk_message": "",
         "rejection_message": REJECTION_MESSAGE_LOCATION,
         "status_tabs": status_tabs(data, metrics, needs_approval),
     }

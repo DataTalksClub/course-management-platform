@@ -141,15 +141,22 @@
   {% if needs_approval %}
   <form method="post" action="{% url 'cadmin_campaign_registration_decide' campaign.slug %}" class="mb-5">
     {% csrf_token %}
-    <label for="bulk-custom-message" class="text-sm font-medium app-heading">Message for approval emails (optional)</label>
+    <label for="bulk-custom-message"
+           class="text-sm font-medium app-heading">
+      Additional message for approval emails (optional)
+    </label>
     <textarea
       id="bulk-custom-message"
       name="custom_message"
       rows="4"
       class="form-control mt-1"
       maxlength="2000"
-      placeholder="e.g. Join the workshop today at 18:00 — link is inside the course">{{ default_bulk_message }}</textarea>
-    <p class="settings-helper mt-1">Approving queues an email to the applicant. The message above is included when present. Leave it empty to approve without a custom message.</p>
+      placeholder="Optional note from the review team">{{ default_bulk_message }}</textarea>
+    <p class="settings-helper mt-1">
+      Configured course information (start date, live-session schedule,
+      GitHub repository, and help contact) is included automatically. This
+      note is added after those details.
+    </p>
     <div class="mt-2 flex flex-wrap gap-2">
       <button type="submit" name="action" value="approve_all_pending" class="primer-button">Approve all pending &amp; queue emails</button>
     </div>
@@ -232,7 +239,7 @@
             name="custom_message"
             class="form-control"
             maxlength="2000"
-            placeholder="Optional message (e.g. workshop today at 18:00)"
+            placeholder="Optional note (course information is included automatically)"
             aria-label="Optional message for decision email">
           {% if registration.status != "approved" %}
             <button type="submit" name="action" value="approve" class="primer-button primer-button-primary">Approve</button>
