@@ -115,6 +115,14 @@ class DeploymentWorkflowTestCase(SimpleTestCase):
 
 
 class DeployConfigTestCase(SimpleTestCase):
+    def test_local_database_tunnel_requires_explicit_compose_profile(self):
+        compose = (
+            Path(__file__).resolve().parents[2] / "docker-compose.yml"
+        )
+        ngrok = yaml.safe_load(compose.read_text())["services"]["ngrok"]
+
+        self.assertIn("db-tunnel", ngrok["profiles"])
+
     def test_production_release_service_cannot_advertise_public_traffic(self):
         template = (
             Path(__file__).resolve().parents[2]
