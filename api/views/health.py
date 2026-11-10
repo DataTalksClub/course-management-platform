@@ -1,8 +1,8 @@
 """
-Health check endpoint.
+Health endpoints.
 
-Provides a health check that returns application status and version.
-Surfaces Relay configuration issues and transactional dry-run on production.
+The live endpoint only reports that Django can answer requests. The detailed
+endpoint reports Relay configuration problems as degraded service status.
 """
 
 from django.conf import settings
@@ -14,6 +14,12 @@ from course_management.datamailer.client import (
     get_relay_health_status,
     is_production,
 )
+
+
+@require_GET
+def live_health_view(request):
+    """Return process liveness without depending on Relay or the database."""
+    return JsonResponse({"status": "ok", "version": settings.VERSION})
 
 
 @require_GET
@@ -39,7 +45,7 @@ def health_view(request):
         relay_status = relay_health.get("relay_status", relay_health["status"])
 
     payload = {
-        "status": "ok" if is_healthy else "FAIL",
+        "status": "ok",
         "version": settings.VERSION,
         "relay_status": relay_status,
     }
@@ -62,5 +68,4 @@ def health_view(request):
             "status": "ok",
         }
 
-    status_code = 200 if is_healthy else 503
-    return JsonResponse(payload, status=status_code)
+    return JsonResponse(payload)

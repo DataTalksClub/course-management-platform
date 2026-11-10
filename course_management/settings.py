@@ -127,7 +127,19 @@ WSGI_APPLICATION = "course_management.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/db.sqlite3")
-db_config = dj_database_url.config(default=DATABASE_URL)
+db_config = dj_database_url.config(
+    default=DATABASE_URL,
+    conn_health_checks=True,
+)
+
+if db_config["ENGINE"].endswith("postgresql"):
+    db_options = db_config.setdefault("OPTIONS", {})
+    db_options.setdefault("connect_timeout", 5)
+    db_options.setdefault("keepalives", 1)
+    db_options.setdefault("keepalives_idle", 30)
+    db_options.setdefault("keepalives_interval", 10)
+    db_options.setdefault("keepalives_count", 3)
+    db_options.setdefault("tcp_user_timeout", 20000)
 
 DATABASES = {"default": db_config}
 
@@ -200,7 +212,13 @@ if _RUNNING_TESTS:
 RATELIMIT_ENABLED = (os.getenv("RATELIMIT_ENABLED", "1") == "1") and not _RUNNING_TESTS
 RATELIMIT_AVERAGE = float(os.getenv("RATELIMIT_AVERAGE", "10"))
 RATELIMIT_BURST = int(os.getenv("RATELIMIT_BURST", "30"))
-RATELIMIT_EXEMPT_PATHS = ["/", "/api/health/", "/ping", "/robots.txt"]
+RATELIMIT_EXEMPT_PATHS = [
+    "/",
+    "/api/health/",
+    "/api/health/live",
+    "/ping",
+    "/robots.txt",
+]
 RATELIMIT_EXEMPT_PREFIXES = ["/static/"]
 
 # Homepage cache for anonymous visitors (crawler-facing). Authenticated
