@@ -21,6 +21,7 @@ __pycache__/
 *.tfstate.backup
 
 /deploy/*.json
+.claude/settings.local.json
 
 .envrc
 

@@ -145,7 +145,8 @@ Compose starts:
 
 - `web`: the Django application on port 8000
 - `db`: PostgreSQL 17
-- `ngrok`: optional TCP tunnel for the database
+- `ngrok`: opt-in TCP tunnel for the database; start it with
+  `docker compose --profile db-tunnel up ngrok`
 
 The app will be available at:
 
