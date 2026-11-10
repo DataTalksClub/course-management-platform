@@ -64,7 +64,30 @@
     {% endif %}
   </div>
 
-  {% if registration_wall and registration_wall_blocked %}
+  {% if registration_wall and has_enrollment %}
+    <div class="mt-6 max-w-3xl rounded-md border app-alert-success px-4 py-3"
+         role="status">
+      <p class="font-medium app-heading">You’re registered for this course.</p>
+      {% if registration_wall_status == "approved" %}
+        <p class="mt-1 text-sm app-text">
+          Your application was approved and your course enrollment is active.
+        </p>
+      {% else %}
+        <p class="mt-1 text-sm app-text">
+          Your course enrollment is active.
+        </p>
+      {% endif %}
+    </div>
+  {% elif registration_enrollment_missing %}
+    <div class="mt-6 max-w-3xl rounded-md border app-alert-danger px-4 py-3"
+         role="alert">
+      <p class="font-medium app-heading">Your application was approved.</p>
+      <p class="mt-1 text-sm app-text">
+        We could not find your course enrollment on this account. Do not apply
+        again. Contact course support if your access does not appear.
+      </p>
+    </div>
+  {% elif registration_wall and registration_wall_blocked %}
     <div class="mt-6 max-w-3xl rounded-md border app-alert-warning px-4 py-3">
       {% if registration_wall_status == "pending" %}
         <p class="font-medium app-heading">Your application is under review.</p>
