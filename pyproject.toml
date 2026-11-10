@@ -21,6 +21,7 @@ dependencies = [
     "bleach>=6.2.0",
     "boto3>=1.43.33",
     "dnspython>=2.9.0",
+    "pyyaml>=6.0.2",
 ]
 
 [dependency-groups]

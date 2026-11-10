@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+import tomllib
 
 import yaml
 from django.test import SimpleTestCase
@@ -317,7 +318,7 @@ class EmbeddedScoringWorkerTestCase(SimpleTestCase):
             )
 
 
-class HealthVersionWiringTestCase(SimpleTestCase):
+class BuildConfigurationTestCase(SimpleTestCase):
     """Intake 91dbd820: VERSION must track the deployed image tag.
 
     /api/health/ returns settings.VERSION. If the image tag advances but the
@@ -328,6 +329,53 @@ class HealthVersionWiringTestCase(SimpleTestCase):
 
     def repo_root(self):
         return Path(__file__).resolve().parents[2]
+
+    def test_production_build_pins_uv_and_excludes_dev_dependencies(self):
+        dockerfile = (self.repo_root() / "Dockerfile").read_text()
+
+        self.assertRegex(
+            dockerfile,
+            r"(?m)^COPY --from=ghcr\.io/astral-sh/uv:\d+\.\d+\.\d+ ",
+        )
+        self.assertIn("uv sync --locked --no-dev", dockerfile)
+
+    def test_collectstatic_uses_an_ephemeral_build_secret(self):
+        dockerfile = (self.repo_root() / "Dockerfile").read_text()
+
+        self.assertIn(
+            "SECRET_KEY=\"$(python -c 'import secrets; "
+            "print(secrets.token_urlsafe(64))')\"",
+            dockerfile,
+        )
+        self.assertIn("python manage.py collectstatic --noinput", dockerfile)
+
+    def test_docker_context_excludes_local_secrets_and_dev_files(self):
+        patterns = set(
+            (self.repo_root() / ".dockerignore").read_text().splitlines()
+        )
+
+        for pattern in (
+            ".git/",
+            ".env*",
+            ".tmp/",
+            "notebooks/",
+            "e2e/",
+            "scripts/",
+            "docs/",
+        ):
+            with self.subTest(pattern=pattern):
+                self.assertIn(pattern, patterns)
+
+    def test_pyyaml_is_a_direct_runtime_dependency(self):
+        with (self.repo_root() / "pyproject.toml").open("rb") as file:
+            project = tomllib.load(file)
+
+        self.assertTrue(
+            any(
+                dependency.lower().startswith("pyyaml")
+                for dependency in project["project"]["dependencies"]
+            )
+        )
 
     def test_dockerfile_bakes_version_build_arg(self):
         contents = (self.repo_root() / "Dockerfile").read_text()
