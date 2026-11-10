@@ -7,9 +7,9 @@ from django.views.decorators.http import require_POST
 
 from course_management.observability import record_event
 from courses.models.course import Course, Enrollment
+from courses.leaderboard import advance_leaderboard_cache_version
 from courses.registration_wall import registration_wall_blocks_user
 
-from .course_leaderboard_data import invalidate_leaderboard_cache
 from .forms import EnrollmentForm
 
 ENROLLMENT_TOGGLE_FIELDS = {
@@ -101,7 +101,7 @@ def update_enrollment_toggle_value(toggle_update):
     if previous_display_on_leaderboard == toggle_update.enabled:
         return
 
-    invalidate_leaderboard_cache(toggle_update.course.id)
+    advance_leaderboard_cache_version(toggle_update.course)
 
 
 def _render_enrollment_form(request, course, enrollment, form):
@@ -122,7 +122,7 @@ def _save_enrollment_form(form, course, enrollment) -> None:
     previous_display_on_leaderboard = enrollment.display_on_leaderboard
     form.save()
     if previous_display_on_leaderboard != form.instance.display_on_leaderboard:
-        invalidate_leaderboard_cache(course.id)
+        advance_leaderboard_cache_version(course)
 
 
 def record_enrollment_created(request, course, enrollment):

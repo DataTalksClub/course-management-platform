@@ -32,7 +32,6 @@ import django
 
 django.setup()
 
-from django.core.cache import cache
 from django.db import OperationalError, connection
 from django.utils.text import slugify
 
@@ -777,9 +776,6 @@ def recalculate_course_scores(course, homeworks, projects):
         calculate_project_statistics(project, force=True)
 
     update_leaderboard(course)
-    cache.delete(f"leaderboard:{course.id}")
-    cache.delete(f"leaderboard_data:{course.id}")
-    cache.delete(f"leaderboard_yaml:{course.id}")
 
 
 def top_leaderboard_entry(course):
