@@ -1,8 +1,14 @@
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from .client_chunking import chunk_payload_by_members
 from .client_pacing import PacedMemberRequest
 from .client_types import DatamailerRequest, DatamailerRequestData
+
+# Relay spends ~0.75 s per transient-send chunk; sequential chunks capped a
+# ~1000-recipient fan-out near 35 msg/s. A few in flight keep the Relay send
+# lane (>=40 msg/s) fed. The edge budget in client_pacing is shared.
+TRANSIENT_SEND_CONCURRENCY = 4
 
 
 class DatamailerRecipientListClients:
@@ -200,13 +206,7 @@ class DatamailerRecipientListSendClient:
             "idempotent_replay_count",
         )
         nested_count_keys = ("member_count", "active_member_count")
-        for chunk in chunks:
-            request_data = DatamailerRequestData(
-                method="POST",
-                path="/api/transient-recipient-lists/transactional-send",
-                json=chunk,
-            )
-            response = self.member_request(request_data)
+        for response in self._send_chunks(chunks):
             if response is None:
                 continue
             for key in count_keys:
@@ -229,3 +229,29 @@ class DatamailerRecipientListSendClient:
             aggregated["transient_recipient_list"] = transient_list
             response = aggregated
         return response
+
+    def _send_chunks(self, chunks):
+        """Responses in chunk order; the first chunk alone creates the list.
+
+        Every chunk is attempted; the first error is re-raised afterwards so
+        a failed chunk is loud and never hides behind later successes.
+        """
+
+        def send(chunk):
+            return self.member_request(
+                DatamailerRequestData(
+                    method="POST",
+                    path="/api/transient-recipient-lists/transactional-send",
+                    json=chunk,
+                )
+            )
+
+        responses = [send(chunks[0])]
+        if len(chunks) == 1:
+            return responses
+        with ThreadPoolExecutor(max_workers=TRANSIENT_SEND_CONCURRENCY) as pool:
+            futures = [pool.submit(send, chunk) for chunk in chunks[1:]]
+        errors = [f.exception() for f in futures if f.exception() is not None]
+        if errors:
+            raise errors[0]
+        return responses + [f.result() for f in futures]
