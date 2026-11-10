@@ -24,6 +24,7 @@ services:
     environment:
       DEBUG: "0"
       IS_LOCAL: "0"
+      CMP_RUN_MIGRATIONS: "1"
       SITE_ID: "2"
       VERSION: 20261021-094333-f922dc4
       PUBLIC_BASE_URL: ""
@@ -75,6 +76,7 @@ services:
     environment:
       DEBUG: "0"
       IS_LOCAL: "0"
+      CMP_RUN_MIGRATIONS: "0"
       SITE_ID: "2"
       VERSION: 20261021-094333-f922dc4
       PUBLIC_BASE_URL: ""

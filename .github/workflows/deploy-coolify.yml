@@ -219,7 +219,11 @@ jobs:
           set +e
           python3 - <<'PY'
           import base64, json, os, re, socket, sys, urllib.error, urllib.request
-          from deploy.coolify.release_target import service_uuid, validate_service
+          from deploy.coolify.release_target import (
+              service_uuid,
+              set_migration_roles,
+              validate_service,
+          )
 
           base = os.environ["COOLIFY_URL"].rstrip("/")
           token = os.environ["COOLIFY_TOKEN"]
@@ -249,7 +253,10 @@ jobs:
           def main():
               _st, svc = call("GET", f"/api/v1/services/{uuid}")
               validate_service(uuid, svc, dev_only)
-              raw = svc["docker_compose_raw"]
+              # The private web is the sole schema migration owner. Its worker
+              # waits for the owner, and the shared follower forces public web
+              # to wait as well.
+              raw = set_migration_roles(svc["docker_compose_raw"])
               # Pin every service running our image (web + scoring worker).
               new, n = re.subn(
                   re.escape(prefix) + r"[^\s'\"]+",

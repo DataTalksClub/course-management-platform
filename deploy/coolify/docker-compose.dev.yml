@@ -12,6 +12,7 @@ services:
     environment:
       DEBUG: "0"
       IS_LOCAL: "0"
+      CMP_RUN_MIGRATIONS: "1"
       SITE_ID: "2"
       VERSION: 20261023-065244-8ca95f4
       PUBLIC_BASE_URL: "https://dev.courses.datatalks.club"
@@ -63,6 +64,7 @@ services:
     environment:
       DEBUG: "0"
       IS_LOCAL: "0"
+      CMP_RUN_MIGRATIONS: "0"
       SITE_ID: "2"
       VERSION: 20261023-065244-8ca95f4
       PUBLIC_BASE_URL: "https://dev.courses.datatalks.club"

@@ -1,15 +1,41 @@
 #!/bin/sh
+set -eu
 
-echo "Apply database migrations"
-python manage.py migrate
+case "${CMP_RUN_MIGRATIONS:-}" in
+    1)
+        echo "Applying database migrations under the CMP release lock"
+        python manage.py migrate_with_lock
+        ;;
+    0)
+        migration_wait_timeout="${CMP_MIGRATION_CHECK_TIMEOUT_SECONDS:-300}"
+        case "$migration_wait_timeout" in
+            ''|*[!0-9]*)
+                echo "CMP_MIGRATION_CHECK_TIMEOUT_SECONDS must be a positive integer" >&2
+                exit 1
+                ;;
+        esac
+        if [ "$migration_wait_timeout" -lt 1 ]; then
+            echo "CMP_MIGRATION_CHECK_TIMEOUT_SECONDS must be a positive integer" >&2
+            exit 1
+        fi
 
-# Check if migrate command was successful
-if [ $? -ne 0 ]; then
-    echo "Failed to apply database migrations."
-    exit 1
-else
-    echo "Database migrations applied successfully."
-fi
+        elapsed=0
+        until python manage.py migrate --check; do
+            if [ "$elapsed" -ge "$migration_wait_timeout" ]; then
+                echo "Timed out after ${migration_wait_timeout}s waiting for private web migrations" >&2
+                exit 1
+            fi
+            echo "Migrations are pending; waiting for the private web owner (${elapsed}/${migration_wait_timeout}s)"
+            sleep 5
+            elapsed=$((elapsed + 5))
+        done
+        echo "Database migrations are up to date"
+        ;;
+    *)
+        echo "CMP_RUN_MIGRATIONS must be set to 1 for the private web owner or 0 for a waiting service" >&2
+        exit 1
+        ;;
+esac
 
 # Embedded scoring worker fallback: prod Coolify compose (cmp-staging service)
 # historically runs web-only, so a separate worker service may not exist.
