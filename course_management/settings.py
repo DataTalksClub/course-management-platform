@@ -163,6 +163,12 @@ WSGI_APPLICATION = "course_management.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db/db.sqlite3")
+DATABASE_STATEMENT_TIMEOUT_MS = int(
+    os.getenv("CMP_DB_STATEMENT_TIMEOUT_MS", "30000")
+)
+if DATABASE_STATEMENT_TIMEOUT_MS < 0:
+    raise ImproperlyConfigured("CMP_DB_STATEMENT_TIMEOUT_MS cannot be negative")
+
 db_config = dj_database_url.config(
     default=DATABASE_URL,
     conn_health_checks=True,
@@ -176,6 +182,14 @@ if db_config["ENGINE"].endswith("postgresql"):
     db_options.setdefault("keepalives_interval", 10)
     db_options.setdefault("keepalives_count", 3)
     db_options.setdefault("tcp_user_timeout", 20000)
+    db_options["options"] = " ".join(
+        part
+        for part in (
+            str(db_options.get("options", "")).strip(),
+            f"-c statement_timeout={DATABASE_STATEMENT_TIMEOUT_MS}",
+        )
+        if part
+    )
 
 DATABASES = {"default": db_config}
 
