@@ -86,6 +86,9 @@ class DeploymentWorkflowTestCase(SimpleTestCase):
             "scripts/**",
             "**/tests/**",
             ".agents/**",
+            ".env_template",
+            ".gitignore",
+            "docker-compose.yml",
             "deploy/hetzner/**",
         ):
             with self.subTest(pattern=pattern):
