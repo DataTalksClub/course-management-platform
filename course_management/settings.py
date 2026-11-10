@@ -84,6 +84,7 @@ SILENCED_SYSTEM_CHECKS = ["security.W005", "security.W008", "security.W021"]
 # Application definition
 
 INSTALLED_APPS = [
+    "course_management",
     "unfold",
     "django.contrib.admin",
     "django.contrib.auth",
