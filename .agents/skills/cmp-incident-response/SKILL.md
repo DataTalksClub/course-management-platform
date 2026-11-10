@@ -1,28 +1,31 @@
 ---
 name: cmp-incident-response
-description: Investigate and resolve Course Management Platform CloudWatch alert issues end to end. Use when Codex is asked to inspect a CMP GitHub alert issue, pull dev or production AWS logs, diagnose 5xx responses or failed background work, fix an incident with test-driven development, validate a fix in dev, or deploy and verify an authorized production fix.
+description: Investigate and resolve Course Management Platform alerts in its current Coolify deployment. Use when Codex is asked to inspect a CMP GitHub alert issue, diagnose availability or failed background work, fix an incident, validate a fix in dev, or deploy and verify an authorized production fix.
 ---
 
 # CMP incident response
 
 Use the GitHub alert issue as the incident record. Keep production diagnosis
-read-only, reproduce the failure locally before changing code, and promote one
-tested image from dev to production.
+read-only, reproduce failures locally before changing code, and verify the
+deployed public release after promotion.
 
 ## Respect the requested scope
 
 - For an investigation or status request, stop after diagnosis and report the
   evidence. Do not edit code or deploy.
-- For a fix request, continue through local verification and dev deployment.
-- Dispatch production only when the user explicitly authorizes a production
-  deployment for the incident. General use of this skill is not authorization.
-- Never paste unreviewed CloudWatch output into a GitHub issue. This repository
-  is public and logs can contain personal or sensitive data.
+- For a fix request, continue through focused local verification and dev
+  deployment.
+- Deploy to production only when the user explicitly authorizes it or has
+  already granted standing permission for the task.
+- Never paste unreviewed production logs into a public GitHub issue. Logs may
+  contain personal or sensitive data.
+- Do not use AWS MAIN credentials on Hetzner. The retired AWS ECS workflow is
+  not a current production deploy path.
 
 ## 1. Establish the incident
 
-Read the issue and note the alarm name, state-change time, metric, environment,
-and suggested log window:
+Read the issue and record the alarm name, state-change time, metric,
+environment, and suggested log window:
 
 ```bash
 gh issue view <issue-number> \
@@ -30,142 +33,104 @@ gh issue view <issue-number> \
   --comments
 ```
 
-Confirm the current deployed versions before drawing conclusions:
+Check the deployed versions before drawing conclusions:
 
 ```bash
 curl --fail --silent https://dev.courses.datatalks.club/api/health/
 curl --fail --silent https://courses.datatalks.club/api/health/
 ```
 
-## 2. Assume read-only production access
+Dev and production use separate Coolify services and databases. A dev-only
+workflow dispatch does not promote its image to production.
 
-The default AWS profile is the phone-controlled AWS Gate identity in account
-`817685572750`. Ask the user to open AWS Gate if credential resolution returns
-HTTP 403. Then assume the cross-account diagnostic profile:
+## 2. Use current, read-only evidence sources
 
-```bash
-aws sts get-caller-identity
-aws --profile cmp-alert-investigator sts get-caller-identity
-```
+The live CMP deployment is on Coolify/Contabo. Application events use the
+`log` backend, and Contabo's Docker log collector forwards container logs to
+VictoriaLogs. Host log access and proxy-level evidence are owned by the
+infrastructure operators; use the approved read-only access path documented
+in the relevant Hub infrastructure intake. If that access is unavailable,
+record the gap and stop rather than switching to AWS credentials or a broader
+identity.
 
-Require the second ARN to start with:
+For deployment history and worker ownership, consult:
 
-```text
-arn:aws:sts::387546586013:assumed-role/cmp-alert-investigator/
-```
+- `deploy/coolify/README.md`
+- `deploy/coolify/CMP-WORKERS.md`
+- GitHub Actions runs for `deploy-coolify.yml`
 
-Stop if the account or role differs. Do not fall back to broader credentials.
-The role is diagnostic only; it cannot deploy, mutate services, execute in
-containers, or read Secrets Manager values.
+The app's CloudWatch backend remains available for explicitly configured
+environments, but it is not the current Contabo log or deploy path.
 
 ## 3. Collect and interpret evidence
 
-Run the bundled collector from the repository root using the UTC window in the
-issue:
+Inspect the issue's UTC window and correlate only the evidence needed to
+identify the failure:
 
-```bash
-.claude/skills/cmp-incident-response/scripts/collect_cloudwatch_context.sh \
-  --environment prod \
-  --alarm cmp-prod-alb-target-5xx \
-  --start '2026-08-13T01:48:01Z' \
-  --end '2026-08-13T02:03:01Z'
-```
+- application exceptions and request timings;
+- Coolify deployment and container lifecycle events;
+- public and dev health/version responses;
+- worker success/failure timestamps and due backlog where relevant.
 
-Use `dev` for dev alarms. The collector writes private evidence under
-`.tmp/cmp-incidents/`; never commit that directory. Inspect only the relevant
-events and correlate timestamps across:
+Separate the proximate failure from its root cause. Preserve sensitive log
+evidence in the approved private location and report sanitized findings.
 
-- application logs and tracebacks;
-- alarm history and metric reason;
-- ECS service events, task lifecycle, and task definition;
-- ALB target health;
-- deployed health/version response.
+## 4. Reproduce with a focused test
 
-Separate the proximate failure from its root cause. If permissions are denied,
-record the exact action and resource; update the narrowly scoped investigator
-role in `DataTalksClub/aws-infra` rather than using admin access.
-
-## 4. Reproduce with a failing test
-
-Follow `AGENTS.md` bug rules exactly:
+Follow the repository's reported-bug rules:
 
 1. Add or update the smallest test that exercises the observed failure.
-2. Run that focused test with `uv run python manage.py test <test-label>`.
-3. Confirm it fails for the production reason, not from bad setup.
-4. Preserve the failing output in the incident notes.
-5. Only then change production code.
+2. Run only that focused test locally with `uv run pytest <test-path>`.
+3. Confirm it fails for the reported reason before implementing the fix.
+4. Rerun the focused test and confirm it passes.
+5. Let the pull request CI run the full suite; do not run the full local suite
+   on the Hetzner host.
 
-Do not encode the current implementation into the test. Assert the externally
-correct behavior or the regression boundary demonstrated by the logs.
+Assert the externally correct behavior or the regression boundary shown by
+the evidence, not the current implementation detail.
 
 ## 5. Fix and verify locally
 
-Implement the smallest root-cause fix. Rerun, in order:
+Implement the smallest root-cause fix and run focused tests for the changed
+files. For UI changes, read `docs/design-system.md` and follow the existing
+verification workflow. Review the diff and preserve unrelated worktree
+changes.
+
+## 6. Validate the fix in dev
+
+Use the isolated dev target with a dev-only workflow dispatch:
 
 ```bash
-uv run python manage.py test <test-label>
-uv run python manage.py test <affected-app-or-module>
-make tests
-make typecheck
-```
-
-For UI changes, also read `docs/design-system.md` and use the existing
-`.claude/skills/verify` workflow. Review the diff and preserve unrelated user
-changes in a dirty worktree.
-
-## 6. Deploy and validate dev
-
-Commit only the incident fix and push it directly to `main`, as required by
-`AGENTS.md`. A qualifying push runs `.github/workflows/deploy-coolify.yml`
-(Deploy CMP Coolify), which tests, builds one linux/amd64 image to GHCR, and
-deploys it to dev on Contabo. (The legacy AWS ECS
-`.github/workflows/deploy-dev.yaml` is retired — `workflow_dispatch`-only —
-since the course-management-dev ELB target group was deleted in the Contabo
-migration; see GHA runs 39807898139 / 39806180567.)
-
-Since the 2026-10-22 DNS cutover, both `dev.courses.datatalks.club` and
-`courses.datatalks.club` route to the same Contabo service. The GitHub
-environment is still named `coolify-staging`, but a main push updates the
-service serving both hostnames. Confirm current routing when assessing
-deployment scope; do not assume dev is isolated from production.
-
-```bash
-gh run list --workflow deploy-coolify.yml --branch main --limit 5
+gh workflow run deploy-coolify.yml \
+  --repo DataTalksClub/course-management-platform \
+  --ref <fix-branch> \
+  -f dev_only=true
+gh run list --workflow deploy-coolify.yml --branch <fix-branch> --limit 5
 gh run watch <run-id> --exit-status
 curl --fail --silent https://dev.courses.datatalks.club/api/health/
 ```
 
-Require the workflow to succeed and the dev health version to contain the
-fix commit's seven-character SHA. Exercise the exact regression safely in dev,
-then collect the corresponding dev logs and confirm the original error is gone.
-Do not proceed on a merely green health endpoint if the failing path was not
-verified.
+Require the workflow to succeed and the dev health response to report the
+expected dev-prefixed release tag. Exercise the regression safely in dev and
+confirm the original error is gone. Do not proceed on a green health endpoint
+alone if the failing path was not verified.
 
-## 7. Promote the verified image to production
+If a GitHub environment gate blocks the run, do not approve it. Report the
+run link and the gate that is waiting.
 
-The commands below apply only if production has explicitly returned to AWS
-ECS and that deployment has been authorized. The legacy AWS workflow does
-not update the live Contabo service. For the current shared Contabo target,
-verify both hostnames after the Coolify deployment; a separate AWS dispatch
-is not a promotion of the GHCR image.
+## 7. Promote an authorized production fix
 
-Use the exact version returned by the dev health endpoint. Do not rebuild or
-substitute another tag. Once the user has explicitly authorized production:
+The current production path is `Deploy CMP Coolify (Contabo)`. A push to
+`main` builds and deploys the private release service; the shared release
+follower promotes a healthy image to the public rolling application. Never
+dispatch the removed `deploy-prod.yaml` workflow.
 
-```bash
-gh workflow run deploy-prod.yaml \
-  --repo DataTalksClub/course-management-platform \
-  --ref main \
-  -f confirmProdDeploy=true \
-  -f deployTag='<verified-dev-version>'
-gh run list --workflow deploy-prod.yaml --branch main --limit 5
-gh run watch <run-id> --exit-status
-```
-
-After success, require production `/api/health/` to report that exact version.
-Exercise a safe production verification, inspect the production logs and alarm
-state, and watch for recurrence. If deployment or verification fails, stop and
-report the evidence; do not improvise a rollback without explicit authority.
+After the authorized production deployment, require the public
+`https://courses.datatalks.club/api/health/` response to report `status=ok` and
+the exact built version. Record the workflow link, merge SHA, deployed version,
+and live HTTP status. Do not approve a GitHub environment gate; report its run
+link instead. If deployment or verification fails, stop and report the
+evidence; do not improvise a rollback without explicit authority.
 
 ## 8. Close the loop
 
@@ -176,7 +141,7 @@ Add a concise, sanitized issue comment containing:
 - fix commit;
 - dev workflow, version, and verification;
 - production workflow, version, and verification, if deployed;
-- any follow-up monitoring or remaining risk.
+- follow-up monitoring or remaining risk.
 
 Close the issue only after the requested scope is complete and the relevant
 environment is verified. Keep it open for diagnosis-only work or unresolved
