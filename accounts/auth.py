@@ -1,4 +1,3 @@
-import json
 import logging
 from dataclasses import dataclass
 from functools import wraps
@@ -44,25 +43,18 @@ def sociallogin_email(sociallogin):
     if not sociallogin or not sociallogin.email_addresses:
         return None
 
-    return (
-        verified_social_email(sociallogin.email_addresses)
-        or sociallogin.email_addresses[0].email
-    )
+    return verified_social_email(sociallogin.email_addresses)
 
 
 def extract_email(response_data, sociallogin=None):
-    response_email_value = response_data.get("email")
-    sociallogin_email_value = sociallogin_email(sociallogin)
-    notification_email_value = response_data.get("notification_email")
-    for email in (
-        response_email_value,
-        sociallogin_email_value,
-        notification_email_value,
-    ):
-        if email:
-            return email
+    """Return only an email address allauth marks verified by the provider."""
+    email = verified_social_email(
+        getattr(sociallogin, "email_addresses", ())
+    )
+    if email:
+        return email
 
-    raise KeyError("Email not found in response data")
+    raise KeyError("Verified email not found in social account data")
 
 
 class AccountAdapter(DefaultAccountAdapter):
@@ -75,38 +67,42 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
         return True
 
     def pre_social_login(self, request, sociallogin):
-        response_data = sociallogin.account.extra_data
-        logger.info(f"OAuth response: {json.dumps(response_data)}")
+        account = sociallogin.account
+        logger.info(
+            "Social login provider=%s uid=%s",
+            getattr(account, "provider", "unknown"),
+            getattr(account, "uid", "unknown"),
+        )
 
         if sociallogin.is_existing:
-            logger.info(
-                f"Social login already exists for {sociallogin.user}"
-            )
             return
 
         email = None
         try:
-            email = self._sociallogin_email(response_data, sociallogin)
+            email = self._sociallogin_email(sociallogin)
             if not email:
                 logger.info("No email found in social account data")
                 return
 
             self._connect_sociallogin_by_email(request, sociallogin, email)
         except EmailAddress.DoesNotExist:
-            logger.error(f"No user found with email {email}")
+            logger.error("Matching social email address was not found")
         except KeyError:
-            logger.error("Email key not found in social account data")
+            logger.info(
+                "Social account has no provider-verified email; "
+                "leaving it unlinked"
+            )
 
-    def _sociallogin_email(self, response_data, sociallogin):
-        email = extract_email(response_data, sociallogin=sociallogin)
-        logger.info(f"Extracted email {email} from OAuth response")
+    def _sociallogin_email(self, sociallogin):
+        email = extract_email({}, sociallogin=sociallogin)
         return email
 
     def _connect_sociallogin_by_email(self, request, sociallogin, email):
         existing_emails = EmailAddress.objects.filter(email__iexact=email)
         num_existing_emails = existing_emails.count()
         logger.info(
-            f"Found {num_existing_emails} existing users for email {email}"
+            "Found %s matching verified email address(es)",
+            num_existing_emails,
         )
         connection = SocialLoginConnection(
             request=request,
@@ -120,6 +116,11 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
             if user is None:
                 user = self._create_user_for_email(email)
             else:
+                if self._is_privileged_user(user):
+                    logger.warning(
+                        "Refusing social account link to a privileged user"
+                    )
+                    return
                 self._ensure_user_email(user, email)
                 self._ensure_email_address(user, email)
             sociallogin.connect(request, user)
@@ -153,7 +154,7 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
 
     def _create_user_for_email(self, email):
         logger.info(
-            f"No existing user found with email {email}, creating a new one"
+            "No existing account for verified social email; creating user"
         )
         password_chars = (
             "abcdefghijklmnopqrstuvwxyz"
@@ -173,23 +174,20 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
 
     def _connect_single_existing_user(self, connection):
         user = connection.existing_emails.first().user
-        logger.info(
-            f"Found existing user with email {connection.email}, connecting to it"
-        )
+        if self._is_privileged_user(user):
+            logger.warning("Refusing social account link to a privileged user")
+            return
         connection.sociallogin.connect(connection.request, user)
 
     def _connect_most_recent_user(self, connection):
         logger.warning(
-            f"Multiple users found with email {connection.email} - "
-            "attempting to link to the most recently active account."
+            "Multiple users match a verified social email; "
+            "selecting the most recently active non-staff account"
         )
         most_recent_user = self.select_most_recent_user(
             connection.existing_emails
         )
         if most_recent_user:
-            logger.info(
-                f"Found existing user with email {connection.email}, connecting to it"
-            )
             connection.sociallogin.connect(
                 connection.request, most_recent_user
             )
@@ -204,13 +202,20 @@ class ConsolidatingSocialAccountAdapter(DefaultSocialAccountAdapter):
         users = []
         for email in email_addresses:
             user = email.user
-            if user:
+            if user and not ConsolidatingSocialAccountAdapter._is_privileged_user(
+                user
+            ):
                 users.append(user)
         return max(
             users,
             key=ConsolidatingSocialAccountAdapter.most_recent_user_key,
             default=None,
         )
+
+    @staticmethod
+    def _is_privileged_user(user):
+        return bool(user and (user.is_staff or user.is_superuser))
+
 
 def token_required(f):
     @wraps(f)

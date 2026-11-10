@@ -24,7 +24,7 @@ class ExtractEmailTestCase(TestCase):
         email_address_list = list(email_addresses)
         return SimpleNamespace(email_addresses=email_address_list)
 
-    def test_extract_email_prefers_response_email(self):
+    def test_extract_email_uses_only_verified_social_email(self):
         verified_email = self.email_address(
             "verified@example.com",
             verified=True,
@@ -38,7 +38,7 @@ class ExtractEmailTestCase(TestCase):
             sociallogin=sociallogin,
         )
 
-        self.assertEqual(email, "response@example.com")
+        self.assertEqual(email, "verified@example.com")
 
     def test_extract_email_uses_verified_social_email(self):
         first_email = self.email_address("first@example.com")
@@ -55,7 +55,7 @@ class ExtractEmailTestCase(TestCase):
 
         self.assertEqual(email, "verified@example.com")
 
-    def test_extract_email_falls_back_to_first_social_email(self):
+    def test_extract_email_rejects_unverified_social_emails(self):
         first_email = self.email_address("first@example.com")
         second_email = self.email_address("second@example.com")
         sociallogin = self.sociallogin_with_emails(
@@ -63,16 +63,12 @@ class ExtractEmailTestCase(TestCase):
             second_email,
         )
 
-        email = extract_email({}, sociallogin=sociallogin)
+        with self.assertRaises(KeyError):
+            extract_email({}, sociallogin=sociallogin)
 
-        self.assertEqual(email, "first@example.com")
-
-    def test_extract_email_falls_back_to_notification_email(self):
-        email = extract_email(
-            {"notification_email": "notify@example.com"}
-        )
-
-        self.assertEqual(email, "notify@example.com")
+    def test_extract_email_does_not_trust_notification_email(self):
+        with self.assertRaises(KeyError):
+            extract_email({"notification_email": "notify@example.com"})
 
     def test_extract_email_raises_when_missing(self):
         with self.assertRaises(KeyError):
@@ -87,9 +83,13 @@ class ConsolidatingSocialAccountAdapterTestCase(TestCase):
             email="",
         )
         sociallogin = SimpleNamespace(
-            account=SimpleNamespace(extra_data={"email": email}),
+            account=SimpleNamespace(
+                provider="github",
+                uid="account-123",
+                extra_data={"email": email},
+            ),
             is_existing=False,
-            email_addresses=[],
+            email_addresses=[self._verified_email(email)],
             connect=Mock(),
         )
         adapter = ConsolidatingSocialAccountAdapter()
@@ -103,6 +103,79 @@ class ConsolidatingSocialAccountAdapterTestCase(TestCase):
         self.assertEqual(email_address.email, email)
         self.assertTrue(email_address.primary)
         self.assertTrue(email_address.verified)
+
+    @staticmethod
+    def _verified_email(email):
+        return SimpleNamespace(email=email, verified=True)
+
+    def test_social_login_does_not_link_unverified_email(self):
+        email = "student@example.com"
+        user = CustomUser.objects.create_user(
+            username=email,
+            email=email,
+        )
+        sociallogin = SimpleNamespace(
+            account=SimpleNamespace(
+                provider="github",
+                uid="account-unverified",
+                extra_data={"email": email},
+            ),
+            is_existing=False,
+            email_addresses=[SimpleNamespace(email=email, verified=False)],
+            connect=Mock(),
+        )
+
+        ConsolidatingSocialAccountAdapter().pre_social_login(None, sociallogin)
+
+        sociallogin.connect.assert_not_called()
+        self.assertFalse(user.socialaccount_set.exists())
+
+    def test_social_login_does_not_link_privileged_user(self):
+        email = "staff@example.com"
+        staff = CustomUser.objects.create_user(
+            username=email,
+            email=email,
+            is_staff=True,
+        )
+        sociallogin = SimpleNamespace(
+            account=SimpleNamespace(
+                provider="github",
+                uid="account-staff",
+                extra_data={"email": email},
+            ),
+            is_existing=False,
+            email_addresses=[self._verified_email(email)],
+            connect=Mock(),
+        )
+
+        ConsolidatingSocialAccountAdapter().pre_social_login(None, sociallogin)
+
+        sociallogin.connect.assert_not_called()
+        self.assertFalse(staff.socialaccount_set.exists())
+
+    def test_social_login_logs_provider_and_uid_without_profile_data(self):
+        email = "private-profile@example.com"
+        sociallogin = SimpleNamespace(
+            account=SimpleNamespace(
+                provider="github",
+                uid="safe-uid-42",
+                extra_data={"email": email, "name": "Private Name"},
+            ),
+            is_existing=False,
+            email_addresses=[],
+            connect=Mock(),
+        )
+
+        with self.assertLogs("accounts.auth", level="INFO") as captured:
+            ConsolidatingSocialAccountAdapter().pre_social_login(
+                None, sociallogin
+            )
+
+        output = "\n".join(captured.output)
+        self.assertIn("provider=github", output)
+        self.assertIn("uid=safe-uid-42", output)
+        self.assertNotIn(email, output)
+        self.assertNotIn("Private Name", output)
 
 
 class TokenRequiredAuthTestCase(TestCase):

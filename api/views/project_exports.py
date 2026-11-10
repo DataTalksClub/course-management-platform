@@ -10,6 +10,7 @@ from django.forms.models import model_to_dict
 from django.views.decorators.http import require_GET
 
 from accounts.auth import token_required
+from api.safety import staff_token_required
 
 from courses.models.course import Course
 from courses.models.project import (
@@ -69,6 +70,7 @@ def project_export_payload(course, project, submissions):
 
 @require_GET
 @token_required
+@staff_token_required
 def project_data_view(request, course_slug: str, project_slug: str):
     """Get project data including course info, project details, and all submissions with scores."""
     course = get_object_or_404(Course, slug=course_slug)

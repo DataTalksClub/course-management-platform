@@ -1,4 +1,7 @@
+import socket
+from unittest.mock import patch
 from unittest import TestCase
+import requests
 
 from courses.validators.custom_url_validators import (
     URL_VALIDATION_TIMEOUT,
@@ -95,6 +98,22 @@ class FaqContributionUrlValidationTestCase(TestCase):
 
 
 class UrlStatusValidationTestCase(TestCase):
+    def setUp(self):
+        resolver = patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (
+                    socket.AF_INET,
+                    socket.SOCK_STREAM,
+                    socket.IPPROTO_TCP,
+                    "",
+                    ("93.184.216.34", 443),
+                )
+            ],
+        )
+        resolver.start()
+        self.addCleanup(resolver.stop)
+
     def test_validation_code_200_github_mock(self):
         def mock_get(url, **kwargs):
             return MockResponse(200)
@@ -120,7 +139,8 @@ class UrlStatusValidationTestCase(TestCase):
 
         validate_url_200("https://example.com/", mock_get)
         self.assertIn("timeout", captured)
-        self.assertEqual(captured["timeout"], URL_VALIDATION_TIMEOUT)
+        self.assertIsInstance(captured["timeout"], tuple)
+        self.assertLessEqual(sum(captured["timeout"]), URL_VALIDATION_TIMEOUT)
 
     def test_non_requests_exception_becomes_validation_error(self):
         # e.g. UnicodeError / LocationParseError from a malformed host -
@@ -130,6 +150,101 @@ class UrlStatusValidationTestCase(TestCase):
 
         with self.assertRaises(ValidationError):
             validate_url_200("https://example.com/", mock_get)
+
+    def test_rejects_loopback_before_requesting_url(self):
+        response_method = patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (
+                    socket.AF_INET,
+                    socket.SOCK_STREAM,
+                    socket.IPPROTO_TCP,
+                    "",
+                    ("127.0.0.1", 8000),
+                )
+            ],
+        )
+        with response_method:
+            get_method = patch(
+                "courses.validators.custom_url_validators.requests.head",
+                return_value=MockResponse(200),
+            )
+            with get_method as request:
+                with self.assertRaises(ValidationError):
+                    validate_url_200("http://localhost:8000/", request)
+
+        request.assert_not_called()
+
+    def test_rejects_private_link_local_and_nonstandard_ports(self):
+        unsafe_targets = [
+            ("http://169.254.169.254/", "169.254.169.254"),
+            ("http://10.100.0.2:5432/", "10.100.0.2"),
+            ("http://example.com:8080/", "93.184.216.34"),
+        ]
+        for url, address in unsafe_targets:
+            with self.subTest(url=url):
+                resolver = patch(
+                    "socket.getaddrinfo",
+                    return_value=[
+                        (
+                            socket.AF_INET,
+                            socket.SOCK_STREAM,
+                            socket.IPPROTO_TCP,
+                            "",
+                            (address, 443),
+                        )
+                    ],
+                )
+                with resolver:
+                    with patch(
+                        "courses.validators.custom_url_validators.requests.head",
+                        return_value=MockResponse(200),
+                    ) as request:
+                        with self.assertRaises(ValidationError):
+                            validate_url_200(url, request)
+                        request.assert_not_called()
+
+    def test_http_requests_do_not_follow_redirects(self):
+        captured = {}
+
+        def mock_get(url, **kwargs):
+            captured.update(kwargs)
+            return MockResponse(200)
+
+        validate_url_200("https://example.com/", mock_get)
+
+        self.assertFalse(captured["allow_redirects"])
+
+    def test_get_fallback_is_streamed_and_does_not_follow_redirects(self):
+        captured = {}
+
+        def mock_head(url, **kwargs):
+            return MockResponse(405)
+
+        def mock_get(url, **kwargs):
+            captured.update(kwargs)
+            return MockResponse(200)
+
+        with patch(
+            "courses.validators.custom_url_validators.requests.get",
+            side_effect=mock_get,
+        ):
+            validate_url_200("https://example.com/", mock_head)
+
+        self.assertFalse(captured["allow_redirects"])
+        self.assertTrue(captured["stream"])
+        self.assertLessEqual(sum(captured["timeout"]), URL_VALIDATION_TIMEOUT)
+
+    def test_network_error_is_not_reflected_to_the_user(self):
+        def mock_get(url, **kwargs):
+            raise requests.ConnectionError(
+                "private host 10.100.0.2 refused the connection"
+            )
+
+        with self.assertRaises(ValidationError) as context:
+            validate_url_200("https://example.com/", mock_get)
+
+        self.assertNotIn("10.100.0.2", str(context.exception))
 
 
 class UrlErrorMessageTestCase(TestCase):
