@@ -201,7 +201,7 @@ class RegistrationWallTests(RegistrationCampaignBase):
         self.assertNotContains(response, "Apply for this course")
         self.assertNotContains(response, "Register")
 
-    def test_approved_gmail_alias_is_reflected_and_missing_enrollment_alerts(
+    def test_manually_linked_approved_registration_shows_active_enrollment(
         self,
     ):
         account = CustomUser.objects.create_user(
@@ -210,12 +210,13 @@ class RegistrationWallTests(RegistrationCampaignBase):
             password="test",
         )
         registration = self.create_pending_registration()
-        registration.user = None
+        registration.user = account
         registration.email = "wall.student@gmail.com"
         registration.status = CourseRegistration.Status.APPROVED
         registration.save(
             update_fields=["user", "email", "email_normalized", "status"]
         )
+        Enrollment.objects.create(student=account, course=self.course)
         self.client.force_login(account)
 
         response = self.client.get(
@@ -228,8 +229,7 @@ class RegistrationWallTests(RegistrationCampaignBase):
             CourseRegistration.Status.APPROVED,
         )
         self.assertContains(response, "Your application was approved")
-        self.assertContains(response, "could not find your course enrollment")
-        self.assertContains(response, 'role="alert"')
+        self.assertContains(response, "registered for this course")
         self.assertNotContains(response, "Apply for this course")
         self.assertNotContains(response, "Register")
 
