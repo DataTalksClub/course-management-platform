@@ -556,3 +556,6 @@ UNFOLD = {
 }
 
 SHOW_WRAPPED = False
+
+# Dedicated GET-only course-state capability; never a staff API token.
+CMP_BOT_READ_TOKEN = os.getenv("CMP_BOT_READ_TOKEN", "")

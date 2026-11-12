@@ -188,6 +188,10 @@ def openapi_components():
     token_auth = token_auth_security_scheme()
     security_schemes = {
         "TokenAuth": token_auth,
+        "BotReadAuth": {
+            "type": "http", "scheme": "bearer",
+            "description": "Dedicated CMP_BOT_READ_TOKEN; GET-only bot capability.",
+        },
     }
     schemas = deepcopy(SCHEMAS)
     return {

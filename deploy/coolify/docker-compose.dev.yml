@@ -36,6 +36,7 @@ services:
       CMP_EMBEDDED_SCORING_WORKER: "0"
       # Secrets — populate in Coolify UI/API before first deploy.
       # Names only; no values committed anywhere.
+      CMP_BOT_READ_TOKEN: ${CMP_BOT_READ_TOKEN:-}
       SECRET_KEY: ${SECRET_KEY}
       DATABASE_URL: ${CMP_DEV_DATABASE_URL}
       RELAY_API_KEY: ${RELAY_API_KEY}

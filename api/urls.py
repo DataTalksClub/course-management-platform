@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .openapi.spec import openapi_json_view
+from .views import bot_state
 from .views import course_exports
 from .views import courses
 from .views import datamailer_send_audits
@@ -20,6 +21,11 @@ from .views import review_criteria
 from .views import webhooks
 
 urlpatterns = [
+    path(
+        "bot/courses/<slug:course_slug>/state/",
+        bot_state.bot_course_state_view,
+        name="api_bot_course_state",
+    ),
     path(
         "openapi.json",
         openapi_json_view,
