@@ -202,6 +202,15 @@ class ProjectEvaluationViewTestCase(ProjectEvaluationTestBase):
                     )
                     self.assertNotContains(response, "Review progress")
 
+    def test_eval_view_anonymous_sees_not_open_message_before_peer_review(self):
+        self.project.state = ProjectState.COLLECTING_SUBMISSIONS.value
+        self.project.save()
+
+        response = self.client.get(self.eval_view_url())
+
+        self.assertContains(response, "This form will open after")
+        self.assertNotContains(response, "Peer review form is closed")
+
     def test_eval_view_open_state_shows_neither_message(self):
         self.project.state = ProjectState.PEER_REVIEWING.value
         self.project.save()
