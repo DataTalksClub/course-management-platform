@@ -34,6 +34,8 @@
   {% if not is_authenticated %}
     <div class="mt-6 rounded-md border app-alert-info px-4 py-4 text-sm app-text "> Please <a href="{% url 'login' %}" class="font-medium app-link hover:underline ">log in</a> to see the projects you need to evaluate.
     </div>
+  {% elif eval_not_open %}
+    <div class="mt-6 rounded-md border app-alert-info px-4 py-4 text-sm">This form will open after the Project deadline has passed and Peer Reviewers have been assigned.</div>
   {% elif eval_closed and not has_submission %}
     <div class="mt-6 rounded-md border app-alert-warning px-4 py-4 text-sm">You didn't submit this project, and the submission window is closed.</div>
   {% elif eval_closed %}
