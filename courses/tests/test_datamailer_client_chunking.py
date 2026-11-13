@@ -144,48 +144,49 @@ class BulkUpsertChunkingTest(SimpleTestCase):
         self.assertEqual(response["created_count"], 5)
         self.assertEqual(response["updated_count"], 2)
 
-    def test_transient_send_large_member_list_is_chunked_and_aggregated(self):
+    def test_transient_send_submits_all_members_in_one_request(self):
         members = [member(i) for i in range(150)]
-        session = WafSession(
-            lambda chunk: json_response(
+        seen = []
+
+        def respond(payload):
+            seen.append(payload)
+            return json_response(
                 {
                     "transient_recipient_list": {
                         "key": "transient-list",
                         "name": "HW 1 submitters",
-                        "member_count": len(chunk["members"]),
-                        "active_member_count": len(chunk["members"]),
+                        "member_count": len(payload["members"]),
+                        "active_member_count": len(payload["members"]),
                     },
                     "template_key": "deadline-reminder",
                     "idempotency_key": "deadline-reminders:hw-1:24h",
-                    "created_count": len(chunk["members"]),
-                    "enqueued_count": len(chunk["members"]) - 1,
+                    "created_count": len(payload["members"]),
+                    "enqueued_count": len(payload["members"]) - 1,
                     "skipped_count": 1,
                     "idempotent_replay_count": 0,
                 }
             )
-        )
+
+        class RecordingSession:
+            def __init__(self):
+                self.request_bodies = []
+
+            def request(self, method, url, **kwargs):
+                self.request_bodies.append(json.dumps(kwargs["json"]))
+                return respond(kwargs["json"])
+
+        session = RecordingSession()
         client = DatamailerClient(self.config(), session=session)
 
         response = client.recipient_lists.sends.send_to_transient_list(
             transient_send_payload(members)
         )
 
-        self.assertGreater(len(session.request_bodies), 1)
-        for body in session.request_bodies:
-            self.assertLessEqual(len(body.encode()), MAX_REQUEST_BODY_BYTES)
-        sent_members = sum(
-            len(json.loads(body)["members"]) for body in session.request_bodies
-        )
-        self.assertEqual(sent_members, 150)
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(len(seen[0]["members"]), 150)
         self.assertEqual(response["created_count"], 150)
-        self.assertEqual(response["enqueued_count"], 150 - len(session.request_bodies))
-        self.assertEqual(response["skipped_count"], len(session.request_bodies))
-        self.assertEqual(
-            response["transient_recipient_list"]["member_count"], 150
-        )
-        self.assertEqual(
-            response["transient_recipient_list"]["key"], "transient-list"
-        )
+        self.assertEqual(response["enqueued_count"], 149)
+        self.assertEqual(response["skipped_count"], 1)
 
     def test_transient_send_small_payload_sends_single_unchanged_request(self):
         payload = transient_send_payload([member(i) for i in range(5)])
@@ -215,69 +216,6 @@ class BulkUpsertChunkingTest(SimpleTestCase):
         self.assertEqual(len(session.request_bodies), 1)
         self.assertEqual(seen, payload)
         self.assertEqual(response["enqueued_count"], 5)
-
-    def test_large_reminders_stay_below_edge_rate_limit_across_events(self):
-        # One sender thread so the fake clock is deterministic; parallel
-        # senders share the same lock-guarded window.
-        patch(
-            "course_management.datamailer.client_recipient_lists.TRANSIENT_SEND_CONCURRENCY",
-            1,
-        ).start()
-        starts = []
-
-        def respond(chunk):
-            starts.append(self.clock)
-            recent = [start for start in starts if self.clock - start < 300]
-            if len(recent) > 300:
-                raise requests.HTTPError("403: edge rate limit")
-            self.advance_clock(0.5)
-            return json_response({"created_count": len(chunk["members"])})
-
-        client = DatamailerClient(self.config(), session=WafSession(respond))
-        # Large per-recipient deadline context, as in the production run.
-        members = [member(i) | {"metadata": {"deadline": "x" * 3200}} for i in range(680)]
-        for event in ("homework", "project"):
-            payload = transient_send_payload(members)
-            payload["idempotency_key"] = event
-            response = client.recipient_lists.sends.send_to_transient_list(payload)
-            self.assertEqual(response["created_count"], len(members))
-
-        starts.sort()
-        self.assertGreater(len(starts), 300)
-        # Sliding window: never more than the budget (240) in any 300 s.
-        for index, start in enumerate(starts):
-            in_window = [s for s in starts[index:] if s - start < 300]
-            self.assertLessEqual(len(in_window), 240)
-
-    def test_small_fan_out_bursts_without_fixed_interval_pacing(self):
-        starts = []
-
-        def respond(chunk):
-            starts.append(self.clock)
-            return json_response({"created_count": len(chunk["members"])})
-
-        client = DatamailerClient(self.config(), session=WafSession(respond))
-        # ~1000 recipients -> a few dozen chunks: no request waits.
-        response = client.recipient_lists.sends.send_to_transient_list(
-            transient_send_payload([member(i) for i in range(1000)])
-        )
-        self.assertEqual(response["created_count"], 1000)
-        self.assertGreater(len(starts), 10)
-        self.assertEqual(set(starts), {0.0})
-
-    def test_failed_later_chunk_is_raised_after_all_chunks_attempted(self):
-        def respond(chunk):
-            if chunk["members"][0]["source_object_key"] == "user:0":
-                return json_response({"created_count": len(chunk["members"])})
-            raise requests.HTTPError("502: bad gateway")
-
-        session = WafSession(respond)
-        client = DatamailerClient(self.config(), session=session)
-        with self.assertRaisesMessage(requests.HTTPError, "502: bad gateway"):
-            client.recipient_lists.sends.send_to_transient_list(
-                transient_send_payload([member(i) for i in range(150)])
-            )
-        self.assertGreater(len(session.request_bodies), 2)
 
     def test_edge_errors_remain_visible_without_blind_retries(self):
         def reject(chunk):

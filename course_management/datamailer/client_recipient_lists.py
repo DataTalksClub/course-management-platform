@@ -175,7 +175,6 @@ class DatamailerRecipientListSendClient:
     ):
         self.config = config
         self.request = request
-        self.member_request = PacedMemberRequest(request)
 
     def send_to_list(
         self,
@@ -193,65 +192,10 @@ class DatamailerRecipientListSendClient:
         self,
         payload: dict[str, Any],
     ) -> dict[str, Any] | None:
-        # Chunked so large reminder sends stay under the relay WAF body limit;
-        # member idempotency keys make split requests safe, and chunk response
-        # counts are aggregated.
-        chunks = chunk_payload_by_members(payload)
-        response: dict[str, Any] | None = None
-        totals: dict[str, int] = {}
-        count_keys = (
-            "created_count",
-            "enqueued_count",
-            "skipped_count",
-            "idempotent_replay_count",
+        return self.request(
+            DatamailerRequestData(
+                method="POST",
+                path="/api/transient-recipient-lists/transactional-send",
+                json=payload,
+            )
         )
-        nested_count_keys = ("member_count", "active_member_count")
-        for response in self._send_chunks(chunks):
-            if response is None:
-                continue
-            for key in count_keys:
-                value = response.get(key)
-                if isinstance(value, (int, float)):
-                    totals[key] = totals.get(key, 0) + value
-            transient_list = response.get("transient_recipient_list") or {}
-            for key in nested_count_keys:
-                value = transient_list.get(key)
-                if isinstance(value, (int, float)):
-                    totals[key] = totals.get(key, 0) + value
-        if response is not None and len(chunks) > 1:
-            aggregated = {**response, **totals}
-            transient_list = dict(
-                response.get("transient_recipient_list") or {}
-            )
-            for key in nested_count_keys:
-                if key in totals:
-                    transient_list[key] = totals[key]
-            aggregated["transient_recipient_list"] = transient_list
-            response = aggregated
-        return response
-
-    def _send_chunks(self, chunks):
-        """Responses in chunk order; the first chunk alone creates the list.
-
-        Every chunk is attempted; the first error is re-raised afterwards so
-        a failed chunk is loud and never hides behind later successes.
-        """
-
-        def send(chunk):
-            return self.member_request(
-                DatamailerRequestData(
-                    method="POST",
-                    path="/api/transient-recipient-lists/transactional-send",
-                    json=chunk,
-                )
-            )
-
-        responses = [send(chunks[0])]
-        if len(chunks) == 1:
-            return responses
-        with ThreadPoolExecutor(max_workers=TRANSIENT_SEND_CONCURRENCY) as pool:
-            futures = [pool.submit(send, chunk) for chunk in chunks[1:]]
-        errors = [f.exception() for f in futures if f.exception() is not None]
-        if errors:
-            raise errors[0]
-        return responses + [f.result() for f in futures]

@@ -71,6 +71,27 @@
       </div>
     </div>
 
+    {% if relay_campaign_status %}
+      <div class="cadmin-metrics-grid mt-3" data-relay-campaign-status>
+        <div class="cadmin-metric">
+          <p class="text-xs font-semibold uppercase app-muted">Relay status</p>
+          <p class="mt-1 text-sm app-heading">{{ relay_campaign_status.status }}</p>
+        </div>
+        <div class="cadmin-metric">
+          <p class="text-xs font-semibold uppercase app-muted">Sent (Relay)</p>
+          <p class="mt-1 text-sm app-heading">{{ relay_campaign_status.sent_count }}</p>
+        </div>
+        <div class="cadmin-metric">
+          <p class="text-xs font-semibold uppercase app-muted">Delivered (Relay)</p>
+          <p class="mt-1 text-sm app-heading">{{ relay_campaign_status.delivered_count }}</p>
+        </div>
+        <div class="cadmin-metric">
+          <p class="text-xs font-semibold uppercase app-muted">Pending (Relay)</p>
+          <p class="mt-1 text-sm app-heading">{{ relay_campaign_status.pending_count }}</p>
+        </div>
+      </div>
+    {% endif %}
+
     <div class="mt-4 flex flex-wrap gap-2">
       <form method="post">
         {% csrf_token %}

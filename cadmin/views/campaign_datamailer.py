@@ -66,11 +66,42 @@ def parse_test_recipients(value):
     return emails
 
 
+def fetch_relay_campaign_status(email_campaign):
+    config = DatamailerConfig.from_settings()
+    if config is None or not email_campaign.external_key:
+        return None
+    try:
+        response = DatamailerClient(config).campaigns.campaign(
+            email_campaign.external_key
+        )
+    except requests.RequestException:
+        return None
+    campaign = (response or {}).get("campaign")
+    if not isinstance(campaign, dict):
+        return None
+    recipient_count = int(campaign.get("recipient_count") or 0)
+    sent_count = int(campaign.get("sent_count") or 0)
+    skipped_count = int(campaign.get("skipped_count") or 0)
+    delivered_count = int(campaign.get("delivered_count") or 0)
+    pending_count = campaign.get("pending_count")
+    if pending_count is None:
+        pending_count = max(recipient_count - sent_count - skipped_count, 0)
+    return {
+        "status": campaign.get("status") or "",
+        "recipient_count": recipient_count,
+        "sent_count": sent_count,
+        "delivered_count": delivered_count,
+        "pending_count": int(pending_count),
+        "skipped_count": skipped_count,
+    }
+
+
 def datamailer_campaign_context(email_campaign):
     payload = email_campaign_datamailer_payload(email_campaign)
     return {
         "datamailer_external_key": email_campaign.external_key,
         "datamailer_payload": payload,
+        "relay_campaign_status": fetch_relay_campaign_status(email_campaign),
     }
 
 
