@@ -39,7 +39,15 @@ def split_project_eval_reviews(reviews):
     )
 
 
-def student_project_eval_context(course, project, user, eval_closed):
+EVAL_NOT_OPEN_STATES = (
+    ProjectState.CLOSED.value,
+    ProjectState.COLLECTING_SUBMISSIONS.value,
+)
+
+
+def student_project_eval_context(
+    course, project, user, eval_closed, eval_not_open=False
+):
     student_submissions = ProjectSubmission.objects.filter(
         project=project,
         student=user,
@@ -66,6 +74,7 @@ def student_project_eval_context(course, project, user, eval_closed):
         "number_of_completed_evaluation": review_groups.completed_count,
         "has_submission": has_submission,
         "eval_closed": eval_closed,
+        "eval_not_open": eval_not_open,
     }
 
 
@@ -77,7 +86,11 @@ def projects_eval_view(request, course_slug, project_slug):
 
     user = request.user
     is_authenticated = user.is_authenticated
-    eval_closed = project.state != ProjectState.PEER_REVIEWING.value
+    eval_not_open = project.state in EVAL_NOT_OPEN_STATES
+    eval_closed = (
+        project.state != ProjectState.PEER_REVIEWING.value
+        and not eval_not_open
+    )
 
     if not is_authenticated:
         context = {
@@ -85,6 +98,7 @@ def projects_eval_view(request, course_slug, project_slug):
             "project": project,
             "is_authenticated": False,
             "eval_closed": eval_closed,
+            "eval_not_open": eval_not_open,
         }
     else:
         context = student_project_eval_context(
@@ -92,6 +106,7 @@ def projects_eval_view(request, course_slug, project_slug):
             project,
             user,
             eval_closed,
+            eval_not_open,
         )
 
     response = render(request, "projects/eval.html", context)

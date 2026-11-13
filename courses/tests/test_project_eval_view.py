@@ -172,6 +172,55 @@ class ProjectEvaluationViewTestCase(ProjectEvaluationTestBase):
             status_code=200,
         )
 
+    def test_eval_view_shows_not_open_message_before_peer_review(self):
+        not_open_text = (
+            "This form will open after the Project deadline has passed "
+            "and Peer Reviewers have been assigned."
+        )
+        for state in (
+            ProjectState.CLOSED.value,
+            ProjectState.COLLECTING_SUBMISSIONS.value,
+        ):
+            for has_submission in (True, False):
+                with self.subTest(state=state, has_submission=has_submission):
+                    self.project.state = state
+                    self.project.save()
+                    if not has_submission:
+                        ProjectSubmission.objects.filter(
+                            project=self.project,
+                            student=self.user,
+                        ).delete()
+                    response = self.get_authenticated_eval_view()
+
+                    self.assertEqual(response.status_code, 200)
+                    self.assertContains(response, not_open_text)
+                    self.assertNotContains(
+                        response, "Peer review form is closed"
+                    )
+                    self.assertNotContains(
+                        response, "submission window is closed"
+                    )
+                    self.assertNotContains(response, "Review progress")
+
+    def test_eval_view_open_state_shows_neither_message(self):
+        self.project.state = ProjectState.PEER_REVIEWING.value
+        self.project.save()
+
+        response = self.get_authenticated_eval_view()
+
+        self.assertContains(response, "Review progress")
+        self.assertNotContains(response, "Peer review form is closed")
+        self.assertNotContains(response, "This form will open after")
+
+    def test_eval_view_closed_state_does_not_show_not_open_message(self):
+        self.project.state = ProjectState.COMPLETED.value
+        self.project.save()
+
+        response = self.get_authenticated_eval_view()
+
+        self.assertContains(response, "Peer review form is closed.")
+        self.assertNotContains(response, "This form will open after")
+
     def test_eval_view_shows_no_submission_closed_message_when_completed(self):
         self.project.state = ProjectState.COMPLETED.value
         self.project.save()
