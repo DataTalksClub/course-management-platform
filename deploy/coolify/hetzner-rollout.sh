@@ -17,6 +17,12 @@
 #   SERVICE_UUID     (default avcfd5kwb7cj9r1tx4ygjs6v = cmp-staging)
 #   STATE_DIR        (default ~/.local/state/cmp-coolify-rollout)
 #   HOLD_FILE        touch to pause convergence (default $STATE_DIR/hold)
+#   GITHUB_API_URL   GitHub REST base (default https://api.github.com)
+#
+# A GitHub API rate limit (403/429 with x-ratelimit-remaining: 0 or
+# retry-after) is shared with every other client of the same account. It is
+# transient: the check is skipped with exit 0 and retried on the next timer
+# run, changing nothing. Any other GitHub error still fails the unit.
 set -euo pipefail
 
 GHCR_PAT_FILE="${GHCR_PAT_FILE:-$HOME/tmp/secrets/coolify-ghcr-read.pat}"
@@ -27,6 +33,8 @@ SERVICE_UUID="${SERVICE_UUID:-avcfd5kwb7cj9r1tx4ygjs6v}"
 STATE_DIR="${STATE_DIR:-$HOME/.local/state/cmp-coolify-rollout}"
 HOLD_FILE="${HOLD_FILE:-$STATE_DIR/hold}"
 IMAGE_REF="ghcr.io/datatalksclub/course-management-platform"
+GITHUB_API_URL="${GITHUB_API_URL:-https://api.github.com}"
+GITHUB_API_URL="${GITHUB_API_URL%/}"
 
 case "$COOLIFY_URL" in
   https://?*|http://127.0.0.1:18000) ;;
@@ -45,10 +53,10 @@ if [[ -f "$HOLD_FILE" ]]; then
   exit 0
 fi
 
-export GHCR_PAT_FILE COOLIFY_TOKEN_FILE COOLIFY_URL SERVICE_UUID IMAGE_REF STATE_DIR LOG
+export GHCR_PAT_FILE COOLIFY_TOKEN_FILE COOLIFY_URL SERVICE_UUID IMAGE_REF STATE_DIR LOG GITHUB_API_URL
 
 python3 - <<'PY' 2>&1 | tee -a "$LOG"
-import base64, json, os, re, subprocess, sys, urllib.request
+import base64, json, os, re, subprocess, sys, time, urllib.error, urllib.request
 
 ghcr_pat = open(os.environ["GHCR_PAT_FILE"]).read().strip()
 coolify_token = open(os.environ["COOLIFY_TOKEN_FILE"]).read().strip()
@@ -60,11 +68,27 @@ TAG_RE = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{7}$")
 
 def gh_versions():
     req = urllib.request.Request(
-        "https://api.github.com/orgs/DataTalksClub/packages/container/course-management-platform/versions?per_page=10",
+        os.environ["GITHUB_API_URL"].rstrip("/")
+        + "/orgs/DataTalksClub/packages/container/course-management-platform/versions?per_page=10",
         headers={"Authorization": f"Bearer {ghcr_pat}", "Accept": "application/vnd.github+json"},
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as error:
+        headers = error.headers or {}
+        limited = error.code in (403, 429) and (
+            headers.get("x-ratelimit-remaining") == "0" or headers.get("retry-after")
+        )
+        if not limited:
+            raise
+        reset = headers.get("x-ratelimit-reset") or ""
+        when = (time.strftime("%H:%M:%SZ", time.gmtime(int(reset)))
+                if reset.isdigit() else "unknown")
+        # Shared account quota; nothing was read or written. Retry next run.
+        print(f"GitHub API rate limited (HTTP {error.code}; reset {when}); "
+              "skipping this check, no changes made")
+        sys.exit(0)
 
 def coolify(method, path, payload=None):
     data = None if payload is None else json.dumps(payload).encode()
