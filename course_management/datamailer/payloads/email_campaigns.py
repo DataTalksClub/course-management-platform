@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from courses.registration import render_markdown
+from courses.registration_wall import course_has_registration_wall
 
 from ..client import DatamailerConfig
+from ..keys import approved_registrations_list_key
 from ..preference_categories import EMAIL_PREFERENCE_CATEGORIES
 from .score_notifications import add_from_email_if_configured
 from .urls import public_route_url, unsubscribe_url_template
@@ -21,10 +23,19 @@ def email_campaign_datamailer_payload(email_campaign) -> dict[str, Any]:
     registration_campaign = email_campaign.registration_campaign
     if registration_campaign.current_course_id:
         course = registration_campaign.current_course
-        payload["recipient_list_key"] = course.slug
+        if course_has_registration_wall(course):
+            # Approval-wall courses: only approved registrants may be mailed.
+            payload["recipient_list_key"] = approved_registrations_list_key(
+                course
+            )
+        else:
+            payload["recipient_list_key"] = course.slug
         metadata = payload["metadata"]
         metadata["course_slug"] = course.slug
         metadata["course_title"] = course.title
+    else:
+        # Same fallback as registration_list_key(): never an empty key.
+        payload["recipient_list_key"] = registration_campaign.slug
     config = DatamailerConfig.from_settings()
     if config is not None:
         payload = add_from_email_if_configured(payload, config)

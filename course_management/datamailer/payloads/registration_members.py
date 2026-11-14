@@ -27,10 +27,14 @@ def registration_recipient_list_payload(
 
 
 def approved_registration_recipient_list_payload(
-    registration,
+    registration, *, force=False
 ) -> RecipientListMemberPayload | None:
-    """Approved registrants only, on their own ``<slug>:@approved`` list."""
-    if registration.status != registration.Status.APPROVED:
+    """Approved registrants only, on their own ``<slug>:@approved`` list.
+
+    ``force`` builds the payload regardless of status (used to remove a
+    member that is no longer approved).
+    """
+    if not force and registration.status != registration.Status.APPROVED:
         return None
     return _registration_member_payload(
         registration,

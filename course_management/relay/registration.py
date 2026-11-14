@@ -11,6 +11,7 @@ from course_management.datamailer.payloads.registration_contacts import (
     registration_contact_payload,
 )
 from course_management.datamailer.payloads.registration_members import (
+    approved_registration_recipient_list_payload,
     registration_recipient_list_payload,
 )
 from course_management.datamailer.sync.membership_events import (
@@ -56,5 +57,40 @@ def sync_registration_to_relay(registration) -> None:
         # registration into a 500. The dispatcher retains transport retries.
         logger.exception(
             "Relay registration sync failed registration_id=%s",
+            registration.pk,
+        )
+
+
+def sync_registration_to_approved_list(registration) -> None:
+    """Upsert an approved registration into ``<slug>:@approved``.
+
+    Logs failures; never raises into the approval transaction.
+    """
+    try:
+        valid, reason, config = validate_relay_config()
+        if not valid or config is None:
+            logger.error(
+                "Relay approved-list sync failed registration_id=%s: %s",
+                registration.pk,
+                reason,
+            )
+            return
+        contact_payload = registration_contact_payload(registration)
+        list_payload = approved_registration_recipient_list_payload(
+            registration
+        )
+        if contact_payload is None or list_payload is None:
+            return
+        sync_contact_and_membership(
+            ContactMembershipSyncData(
+                contact_payload=contact_payload,
+                list_payload=list_payload,
+                label="registration approved list",
+                obj=registration,
+            )
+        )
+    except Exception:
+        logger.exception(
+            "Relay approved-list sync failed registration_id=%s",
             registration.pk,
         )

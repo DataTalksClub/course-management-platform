@@ -65,6 +65,10 @@
           {{ datamailer_payload.recipient_list_key|default:"Audience default" }}
         </p>
       </div>
+      <div class="cadmin-metric" data-recipient-list-member-count>
+        <p class="text-xs font-semibold uppercase app-muted">List members (active)</p>
+        <p class="mt-1 text-sm app-heading">{% if recipient_list_member_count is None %}unknown{% else %}{{ recipient_list_member_count }}{% endif %}</p>
+      </div>
       <div class="cadmin-metric">
         <p class="text-xs font-semibold uppercase app-muted">Category</p>
         <p class="mt-1 text-sm app-heading">{{ datamailer_payload.category_tag }}</p>

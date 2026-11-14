@@ -227,3 +227,46 @@ class CampaignDatamailerCadminViewTests(CampaignCadminViewBase):
             email_campaign.status, EmailCampaign.Status.CANCELLED
         )
         self.assertIsNotNone(email_campaign.cancelled_at)
+
+
+class CampaignTargetListDisplayTests(CampaignCadminViewBase):
+    @override_settings(
+        **RELAY_SETTINGS,
+        PUBLIC_BASE_URL="https://courses.example.com",
+    )
+    @patch(
+        "course_management.datamailer.client_recipient_lists."
+        "DatamailerRecipientListMemberClient.list_members"
+    )
+    def test_edit_page_shows_approved_list_key_and_member_count(
+        self, list_members
+    ):
+        self.course.requires_registration_approval = True
+        self.course.save()
+        list_members.return_value = {
+            "members": [
+                {"source_object_key": "registration:1", "status": "active"},
+                {"source_object_key": "registration:2", "status": "active"},
+                {"source_object_key": "registration:3", "status": "removed"},
+            ]
+        }
+        campaign = self.create_llm_registration_campaign()
+        email_campaign = self.create_email_campaign(campaign)
+        url = reverse(
+            "cadmin_email_campaign_edit",
+            kwargs={
+                "campaign_slug": campaign.slug,
+                "email_campaign_id": email_campaign.id,
+            },
+        )
+
+        self.client.login(**admin_credentials)
+        response = self.client.get(url)
+
+        self.assertContains(response, "test-course:@approved")
+        self.assertContains(response, "data-recipient-list-member-count")
+        self.assertEqual(response.context["recipient_list_member_count"], 2)
+        list_members.assert_called_once()
+        self.assertEqual(
+            list_members.call_args.args[0], "test-course:@approved"
+        )
