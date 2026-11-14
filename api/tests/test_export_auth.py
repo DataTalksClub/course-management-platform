@@ -21,6 +21,8 @@ EXPLICIT_TOKEN_POLICY_ALLOWLIST = {
     "api_datamailer_send_audit_detail",
     "api_courses_list",
     "api_course_detail",
+    "api_course_leaderboard_refresh",
+    "api_course_referrals",
     "api_registration_campaigns",
     "api_registration_campaign_detail",
     "api_registration_campaign_registrations",
