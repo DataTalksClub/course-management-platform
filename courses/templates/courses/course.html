@@ -64,6 +64,9 @@
     {% endif %}
   </div>
 
+  {% include "courses/_messages.html" %}
+  {% include "courses/_unconfirmed_email_banner.html" with show_course_name=False %}
+
   {% if registration_wall and has_enrollment %}
     <div class="mt-6 max-w-3xl rounded-md border app-alert-success px-4 py-3"
          role="status">

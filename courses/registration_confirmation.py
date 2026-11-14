@@ -14,6 +14,7 @@ from datetime import timedelta
 
 from django.core import signing
 from django.db import transaction
+from django.db.models import Q
 
 from django.utils import timezone
 
@@ -164,3 +165,28 @@ def managed_registration(model_class, token):
         .filter(pk=pk, email_normalized=email)
         .first()
     )
+
+
+def user_unconfirmed_registrations(user, course=None):
+    """Return unconfirmed CourseRegistrations for an authenticated user.
+
+    Matches via ``user`` FK or normalized email, optionally scoped to a
+    single course (either ``registration.course`` or
+    ``registration.campaign.current_course``).
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return []
+    from courses.models.course import CourseRegistration
+
+    email_normalized = (getattr(user, "email", "") or "").strip().lower()
+    identity = Q(user=user)
+    if email_normalized:
+        identity = identity | Q(email_normalized=email_normalized)
+    qs = (
+        CourseRegistration.objects.filter(identity, email_confirmed=False)
+        .select_related("campaign", "course")
+        .order_by("-created_at")
+    )
+    if course is not None:
+        qs = qs.filter(Q(course=course) | Q(campaign__current_course=course))
+    return list(qs)

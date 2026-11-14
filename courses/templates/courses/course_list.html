@@ -11,6 +11,8 @@
             </p>
         </div>
     </section>
+    {% include "courses/_messages.html" %}
+    {% include "courses/_unconfirmed_email_banner.html" with show_course_name=True %}
     {% if SHOW_WRAPPED %}
         <section class="mb-8 border-y app-border py-6">
             <div class="max-w-3xl">

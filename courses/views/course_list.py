@@ -9,6 +9,7 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from courses.models.course import Course
+from courses.registration_confirmation import user_unconfirmed_registrations
 from courses.views.course_homepage import (
     add_course_homepage_info,
     submitted_project_ids_for_user,
@@ -176,6 +177,7 @@ def course_list_context(user):
         "finished_courses": course_groups.finished_courses,
         "other_active_courses": secondary_active_courses,
         "home_stats": home_stats,
+        "unconfirmed_registrations": user_unconfirmed_registrations(user),
     }
 
 
