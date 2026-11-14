@@ -339,6 +339,30 @@ RELAY_SEND_AUDIT_DETAIL_DATA = OperationData(
 )
 RELAY_SEND_AUDIT_DETAIL_OPERATION = operation(RELAY_SEND_AUDIT_DETAIL_DATA)
 
+APPLICATION_NOTIFICATIONS_DATA = OperationData(
+    "api_datamailer_application_notifications",
+    ["Datamailer"],
+    "List application notification rows",
+    {
+        "200": response("Application notifications", {"type": "object"}),
+        "400": schema_response("Invalid query parameter", "Error"),
+        "403": schema_response("Staff token required", "Error"),
+    },
+    parameters=[
+        {"name": "registration_id", "in": "query", "required": False, "schema": {"type": "integer"}},
+        {"name": "email", "in": "query", "required": False, "schema": {"type": "string"}},
+        {"name": "campaign", "in": "query", "required": False, "schema": {"type": "string"}},
+        {"name": "template_key", "in": "query", "required": False, "schema": {"type": "string"}},
+        {"name": "status", "in": "query", "required": False, "schema": {"type": "string"}},
+        {"name": "limit", "in": "query", "required": False, "schema": {"type": "integer", "default": 25, "maximum": 200}},
+    ],
+    description=(
+        "Lists ApplicationNotification rows and registration diagnostics. "
+        "Requires a staff token."
+    ),
+)
+APPLICATION_NOTIFICATIONS_OPERATION = operation(APPLICATION_NOTIFICATIONS_DATA)
+
 DATA_PATHS_BY_URL_NAME = {
     "api_health_live": {
         "get": API_HEALTH_LIVE_OPERATION,
@@ -381,5 +405,8 @@ DATA_PATHS_BY_URL_NAME = {
     },
     "api_datamailer_send_audit_detail": {
         "get": RELAY_SEND_AUDIT_DETAIL_OPERATION,
+    },
+    "api_datamailer_application_notifications": {
+        "get": APPLICATION_NOTIFICATIONS_OPERATION,
     },
 }

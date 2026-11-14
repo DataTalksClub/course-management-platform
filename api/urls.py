@@ -5,6 +5,7 @@ from .views import bot_state
 from .views import course_exports
 from .views import course_referrals
 from .views import courses
+from .views import datamailer_application_notifications
 from .views import datamailer_send_audits
 from .views import email_campaigns
 from .views import enrollment_certificates
@@ -17,6 +18,7 @@ from .views import project_exports
 from .views import project_system_evaluations
 from .views import projects
 from .views import questions
+from .views import registration_approval_reconciliation
 from .views import registration_campaigns
 from .views import review_criteria
 from .views import webhooks
@@ -103,6 +105,11 @@ urlpatterns = [
         datamailer_send_audits.datamailer_send_audit_detail_view,
         name="api_datamailer_send_audit_detail",
     ),
+    path(
+        "datamailer/application-notifications",
+        datamailer_application_notifications.datamailer_application_notifications_view,
+        name="api_datamailer_application_notifications",
+    ),
     # Courses
     path(
         "courses/",
@@ -118,6 +125,11 @@ urlpatterns = [
         "registration-campaigns/",
         registration_campaigns.registration_campaigns_view,
         name="api_registration_campaigns",
+    ),
+    path(
+        "registration-campaigns/approval-notifications/reconcile/",
+        registration_approval_reconciliation.registration_approval_notifications_reconcile_view,
+        name="api_registration_approval_notifications_reconcile",
     ),
     path(
         "registration-campaigns/<slug:campaign_slug>/",
