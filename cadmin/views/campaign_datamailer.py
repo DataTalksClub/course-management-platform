@@ -96,9 +96,29 @@ def fetch_relay_campaign_status(email_campaign):
     }
 
 
+def fetch_recipient_list_member_count(list_key):
+    """Active member count of the target Relay list, or None if unknown."""
+    config = DatamailerConfig.from_settings()
+    if config is None or not list_key:
+        return None
+    try:
+        response = DatamailerClient(config).recipient_lists.members.list_members(
+            list_key, include_removed=False, limit=10000
+        )
+    except requests.RequestException:
+        return None
+    members = (response or {}).get("members")
+    if not isinstance(members, list):
+        return None
+    return sum(1 for m in members if m.get("status", "active") != "removed")
+
+
 def datamailer_campaign_context(email_campaign):
     payload = email_campaign_datamailer_payload(email_campaign)
     return {
+        "recipient_list_member_count": fetch_recipient_list_member_count(
+            payload.get("recipient_list_key")
+        ),
         "datamailer_external_key": email_campaign.external_key,
         "datamailer_payload": payload,
         "relay_campaign_status": fetch_relay_campaign_status(email_campaign),

@@ -7,6 +7,7 @@ from ..payloads.project_outcomes import (
     project_passed_recipient_list_member_payload,
 )
 from ..payloads.registration_members import (
+    approved_registration_recipient_list_payload,
     registration_recipient_list_payload,
 )
 from ..payloads.submissions import (
@@ -24,8 +25,12 @@ def remove_registration_from_datamailer(registration) -> None:
     if config is None:
         return
 
-    list_payload = registration_recipient_list_payload(registration)
-    list_payloads = [list_payload]
+    list_payloads = [
+        registration_recipient_list_payload(registration),
+        approved_registration_recipient_list_payload(
+            registration, force=True
+        ),
+    ]
     remove_data = RecipientListMembershipRemoveData(
         list_payloads=list_payloads,
         label="registration",
@@ -86,5 +91,23 @@ def remove_project_submission_from_datamailer(submission) -> None:
         list_payloads=list_payloads,
         label="project submission",
         obj=submission,
+    )
+    remove_recipient_list_memberships(remove_data)
+
+
+def remove_registration_from_approved_list(registration) -> None:
+    """Drop a no-longer-approved registration from ``<slug>:@approved``."""
+    config = DatamailerConfig.from_settings()
+    if config is None:
+        return
+
+    remove_data = RecipientListMembershipRemoveData(
+        list_payloads=[
+            approved_registration_recipient_list_payload(
+                registration, force=True
+            )
+        ],
+        label="registration approved list",
+        obj=registration,
     )
     remove_recipient_list_memberships(remove_data)

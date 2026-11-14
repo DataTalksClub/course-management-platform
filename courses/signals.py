@@ -15,6 +15,10 @@ from course_management.datamailer.sync.membership_removals import (
     remove_homework_submission_from_datamailer as remove_homework_submission_recipient_list,
     remove_project_submission_from_datamailer as remove_project_submission_recipient_list,
     remove_registration_from_datamailer as remove_registration_recipient_list,
+    remove_registration_from_approved_list,
+)
+from course_management.relay.registration import (
+    sync_registration_to_approved_list,
 )
 from course_management.datamailer.sync.memberships import (
     sync_enrollment_to_datamailer as sync_enrollment_recipient_list,
@@ -54,6 +58,22 @@ def sync_enrollment_to_datamailer(sender, instance, created, **kwargs):
         return
 
     callback = partial(sync_enrollment_recipient_list, instance)
+    transaction.on_commit(callback)
+
+
+@receiver(post_save, sender=CourseRegistration)
+def sync_registration_approved_list(
+    sender, instance, created, update_fields=None, **kwargs
+):
+    """Keep ``<slug>:@approved`` in step with approval status changes."""
+    if instance.status == CourseRegistration.Status.APPROVED:
+        callback = partial(sync_registration_to_approved_list, instance)
+    elif created or (
+        update_fields is not None and "status" not in update_fields
+    ):
+        return
+    else:
+        callback = partial(remove_registration_from_approved_list, instance)
     transaction.on_commit(callback)
 
 

@@ -207,17 +207,19 @@ def assert_registration_member_removed(
     remove_member,
     registration,
 ):
-    remove_member.assert_called_once()
     expected_list_key = registration_list_key(registration)
+    # Deletion removes the member from the main list and the :@approved list.
     test_case.assertEqual(
-        remove_member.call_args.args[0],
-        expected_list_key,
+        [call.args[0] for call in remove_member.call_args_list],
+        [expected_list_key, f"{expected_list_key}:@approved"],
     )
-    test_case.assertEqual(
-        remove_member.call_args.args[1],
-        f"registration:{registration.pk}",
-    )
-    event = DatamailerOutboxEvent.objects.get()
+    for call in remove_member.call_args_list:
+        test_case.assertEqual(
+            call.args[1], f"registration:{registration.pk}"
+        )
+    events = DatamailerOutboxEvent.objects.order_by("id")
+    test_case.assertEqual(events.count(), 2)
+    event = events.first()
     test_case.assertEqual(
         event.event_type,
         "recipient_list.member_remove",

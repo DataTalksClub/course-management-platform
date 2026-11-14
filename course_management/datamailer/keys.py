@@ -27,6 +27,10 @@ def registration_list_key(registration) -> str:
     return registration.campaign.slug
 
 
+def approved_registrations_list_key(course) -> str:
+    return f"{course.slug}:@approved"
+
+
 def course_enrolled_list_key(course) -> str:
     return f"{course.slug}:@e"
 
