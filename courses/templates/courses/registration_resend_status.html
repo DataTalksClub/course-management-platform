@@ -19,7 +19,7 @@
       <div class="rounded-md border app-alert-success px-4 py-3">
         <h1 class="text-2xl font-semibold app-heading">Confirmation email sent</h1>
         <p class="mt-2 text-sm app-text">
-          Check your inbox at {{ registration.email }} — you MUST click the confirmation link to complete registration.
+          Confirmation email sent to {{ registration.email }}. Check your inbox — you MUST click the confirmation link to complete registration.
         </p>
       </div>
     {% elif already_confirmed %}
@@ -36,7 +36,7 @@
           {% if rate_limited and reason == "too_many_resends" %}
             Too many confirmation emails were requested for this registration. Please try again after 24 hours.
           {% elif rate_limited %}
-            Please wait a minute before requesting another confirmation email.
+            {{ error|default:"Please wait a minute before requesting another confirmation email." }}
           {% else %}
             {{ error|default:"Something went wrong. Please try again." }}
           {% endif %}

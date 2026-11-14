@@ -12,6 +12,7 @@ from courses.models.course import (
 )
 from courses.models.project import ProjectState
 from courses.referrals import invite_url_for_registration
+from courses.registration_confirmation import user_unconfirmed_registrations
 from courses.registration_counts import registered_people_count
 from courses.registration_wall import (
     approved_registration_for_user,
@@ -204,6 +205,10 @@ def course_page_context(data: CoursePageData, base_url: str = "") -> dict:
             course=data.course,
             bonus_points__gt=0,
         ).exists()
+    )
+    context["unconfirmed_registrations"] = user_unconfirmed_registrations(
+        data.user,
+        course=data.course,
     )
     return context
 

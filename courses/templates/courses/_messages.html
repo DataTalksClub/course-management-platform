@@ -1,0 +1,10 @@
+{% if messages %}
+  <div class="mt-4 max-w-3xl space-y-2" data-flash-messages>
+    {% for message in messages %}
+      <div class="rounded-md border px-4 py-3 text-sm {% if 'error' in message.tags %}app-alert-danger{% elif 'warning' in message.tags %}app-alert-warning{% elif 'success' in message.tags %}app-alert-success{% else %}app-alert-info{% endif %}"
+           role="{% if 'error' in message.tags %}alert{% else %}status{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

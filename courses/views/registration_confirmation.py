@@ -10,11 +10,13 @@
 
 import logging
 
+from django.contrib import messages
 from django.db import transaction
 from django.forms import EmailField
 from django.forms import ValidationError as FormValidationError
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
@@ -44,13 +46,47 @@ from courses.views.registration_form import (
 logger = logging.getLogger(__name__)
 
 
-def _queue_confirmation_send(request, registration):
+def _queue_confirmation_send(request, registration, *, immediate=False):
+    if immediate:
+        sync_registration_to_relay(registration)
+        return send_registration_confirmation_email(registration)
     sync_callback = lambda: sync_registration_to_relay(registration)
     email_callback = lambda: send_registration_confirmation_email(
         registration
     )
     transaction.on_commit(sync_callback)
     transaction.on_commit(email_callback)
+    return True
+
+
+def _safe_next_url(request: HttpRequest) -> str:
+    candidate = (request.POST.get("next") or "").strip()
+    if not candidate:
+        return ""
+    if url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return ""
+
+
+def _rate_limit_message(reason: str) -> str:
+    if reason == "too_many_resends":
+        return (
+            "Too many confirmation emails were requested for this "
+            "registration. Please try again after 24 hours."
+        )
+    if reason.startswith("cooldown_") and reason.endswith("s"):
+        seconds = reason.removeprefix("cooldown_").removesuffix("s")
+        return (
+            "Please wait a minute before requesting another confirmation "
+            f"email (try again in {seconds}s)."
+        )
+    return (
+        "Please wait a minute before requesting another confirmation email."
+    )
 
 
 @never_cache
@@ -91,7 +127,6 @@ def registration_confirm_view(request, token):
     return response
 
 
-@transaction.atomic
 def registration_confirmation_resend_view(
     request: HttpRequest,
 ) -> HttpResponse:
@@ -105,52 +140,94 @@ def registration_confirmation_resend_view(
             },
             status=405,
         )
+    next_url = _safe_next_url(request)
     token = (request.POST.get("token") or "").strip()
-    registration = managed_registration(CourseRegistration, token)
     if not token and request.POST.get("email"):
-        return _public_resend(request)
-    if registration is None or not token:
-        return render(
-            request,
-            "courses/registration_resend_status.html",
-            {
-                "sent": False,
-                "error": (
-                    "That confirmation link is invalid. "
-                    "Please register again."
-                ),
-                "registration": None,
-                "campaign": None,
-            },
+        with transaction.atomic():
+            return _public_resend(request)
+
+    with transaction.atomic():
+        registration = managed_registration(CourseRegistration, token)
+        if registration is None or not token:
+            error_message = (
+                "That confirmation link is invalid. Please register again."
+            )
+            if next_url:
+                messages.error(request, error_message)
+                return redirect(next_url)
+            return render(
+                request,
+                "courses/registration_resend_status.html",
+                {
+                    "sent": False,
+                    "error": error_message,
+                    "registration": None,
+                    "campaign": None,
+                },
+            )
+        campaign = registration.campaign
+        if registration.email_confirmed:
+            if next_url:
+                messages.success(
+                    request,
+                    f"{registration.email} is already confirmed. "
+                    f"Your registration for {campaign.title} is complete.",
+                )
+                return redirect(next_url)
+            return render(
+                request,
+                "courses/registration_resend_status.html",
+                {
+                    "sent": False,
+                    "already_confirmed": True,
+                    "registration": registration,
+                    "campaign": campaign,
+                },
+            )
+        allowed, reason = resend_allowed(registration)
+        if not allowed:
+            error_message = _rate_limit_message(reason)
+            if next_url:
+                messages.warning(request, error_message)
+                return redirect(next_url)
+            return render(
+                request,
+                "courses/registration_resend_status.html",
+                {
+                    "sent": False,
+                    "rate_limited": True,
+                    "reason": reason,
+                    "error": error_message,
+                    "registration": registration,
+                    "campaign": campaign,
+                },
+                status=429 if reason != "already_confirmed" else 200,
+            )
+        issue_confirmation_token(registration)
+
+    send_result = _queue_confirmation_send(
+        request, registration, immediate=True
+    )
+    if send_result is None:
+        error_message = (
+            f"Could not send the confirmation email to {registration.email} "
+            "right now. Please try again shortly."
         )
-    campaign = registration.campaign
-    if registration.email_confirmed:
+        if next_url:
+            messages.error(request, error_message)
+            return redirect(next_url)
         return render(
             request,
             "courses/registration_resend_status.html",
             {
                 "sent": False,
-                "already_confirmed": True,
+                "send_failed": True,
+                "error": error_message,
                 "registration": registration,
                 "campaign": campaign,
             },
         )
-    allowed, reason = resend_allowed(registration)
-    if not allowed:
-        return render(
-            request,
-            "courses/registration_resend_status.html",
-            {
-                "sent": False,
-                "rate_limited": True,
-                "reason": reason,
-                "registration": registration,
-                "campaign": campaign,
-            },
-            status=429 if reason != "already_confirmed" else 200,
-        )
-    issue_confirmation_token(registration)
-    _queue_confirmation_send(request, registration)
+
     record_event(
         "registration.confirmation_resent",
         request=request,
@@ -160,6 +237,14 @@ def registration_confirmation_resend_view(
             "registration_id": registration.id,
         },
     )
+    if next_url:
+        messages.success(
+            request,
+            f"Confirmation email sent to {registration.email}. "
+            "Check your inbox and click the confirmation link to complete "
+            "your registration.",
+        )
+        return redirect(next_url)
     return render(
         request,
         "courses/registration_resend_status.html",
