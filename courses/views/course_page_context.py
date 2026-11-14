@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -10,8 +11,10 @@ from courses.models.course import (
     RegistrationCampaign,
 )
 from courses.models.project import ProjectState
+from courses.referrals import invite_url_for_registration
 from courses.registration_counts import registered_people_count
 from courses.registration_wall import (
+    approved_registration_for_user,
     course_has_registration_wall,
     registration_wall_blocks_user,
     registration_wall_status_for_user,
@@ -85,41 +88,35 @@ def _course_enrollment_progress(user, course: Course) -> dict:
         "certificate_url": enrollment.certificate_url,
     }
 
+def _default_base_url() -> str:
+    configured = getattr(settings, "SITE_URL", "")
+    if configured:
+        return configured.rstrip("/")
+    from django.contrib.sites.models import Site
+
+    return f"https://{Site.objects.get_current().domain}"
+
+
 def _invite_url_for_user(
     user,
     course: Course,
     registration_campaign: RegistrationCampaign | None,
-    wall_status,
+    base_url: str = "",
 ) -> str:
-    """Personal invite link for approved applicants, else "".
+    """Personal shareable invite link for approved applicants, else "".
 
-    Relative URL (same host): the registration page plus ?ref=<id> so
-    the invitee's form prefills "who invited you?".
+    Reuses ``invite_url_for_registration`` from ``courses.referrals`` so
+    the main course page and approval emails produce the exact same URL.
     """
-    if (
-        not user.is_authenticated
-        or registration_campaign is None
-        or wall_status != CourseRegistration.Status.APPROVED.value
-    ):
+    if not user.is_authenticated:
         return ""
-    email = (user.email or "").strip().lower()
-    if not email:
+    registration = approved_registration_for_user(course, user)
+    if registration is None or not registration.campaign_id:
         return ""
-    registration = CourseRegistration.objects.filter(
-        campaign=registration_campaign,
-        email_normalized=email,
-    ).first()
-    if registration is None or registration.course_id != course.pk:
+    if not registration.campaign.is_active:
         return ""
-    from django.urls import reverse
-
-    return (
-        reverse(
-            "registration_campaign",
-            kwargs={"campaign_slug": registration_campaign.slug},
-        )
-        + f"?ref={registration.pk}"
-    )
+    resolved_base = (base_url or "").strip() or _default_base_url()
+    return invite_url_for_registration(registration, resolved_base)
 
 
 def _has_course_registration(
@@ -158,7 +155,7 @@ def course_user_context(
     )
 
 
-def course_page_context(data: CoursePageData) -> dict:
+def course_page_context(data: CoursePageData, base_url: str = "") -> dict:
     has_completed_course_projects = has_completed_projects(data.projects)
     context = {
         "course": data.course,
@@ -199,7 +196,14 @@ def course_page_context(data: CoursePageData) -> dict:
         data.user,
         data.course,
         data.registration_campaign,
-        context["registration_wall_status"],
+        base_url=base_url,
+    )
+    context["show_leaderboard"] = bool(
+        data.course.first_homework_scored
+        or Enrollment.objects.filter(
+            course=data.course,
+            bonus_points__gt=0,
+        ).exists()
     )
     return context
 

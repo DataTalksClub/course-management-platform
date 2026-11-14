@@ -43,7 +43,10 @@ def course_view(request: HttpRequest, course_slug: str) -> HttpResponse:
         )
         return response
     data = course_page_data(course_slug, request.user)
-    context = course_page_context(data)
+    context = course_page_context(
+        data,
+        base_url=request.build_absolute_uri("/"),
+    )
     response = render(request, "courses/course.html", context)
     response["Cache-Control"] = "private, max-age=0, must-revalidate"
     return response

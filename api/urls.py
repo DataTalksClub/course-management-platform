@@ -3,6 +3,7 @@ from django.urls import path
 from .openapi.spec import openapi_json_view
 from .views import bot_state
 from .views import course_exports
+from .views import course_referrals
 from .views import courses
 from .views import datamailer_send_audits
 from .views import email_campaigns
@@ -51,6 +52,16 @@ urlpatterns = [
         "courses/<slug:course_slug>/leaderboard.yaml",
         leaderboard_exports.leaderboard_data_view,
         name="api_course_leaderboard",
+    ),
+    path(
+        "courses/<slug:course_slug>/leaderboard/refresh/",
+        course_referrals.course_leaderboard_refresh_view,
+        name="api_course_leaderboard_refresh",
+    ),
+    path(
+        "courses/<slug:course_slug>/referrals/",
+        course_referrals.course_referrals_view,
+        name="api_course_referrals",
     ),
     path(
         "courses/<slug:course_slug>/homeworks/<slug:homework_slug>/submissions",

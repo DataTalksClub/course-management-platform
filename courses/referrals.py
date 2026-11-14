@@ -92,4 +92,7 @@ def award_referral_bonus(registration):
         Enrollment.objects.filter(pk=enrollment.pk).update(
             bonus_points=F("bonus_points") + reward.points
         )
+    from courses.leaderboard import update_leaderboard
+
+    update_leaderboard(enrollment.course)
     return reward

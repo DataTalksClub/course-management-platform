@@ -42,7 +42,7 @@
         <i class="fab fa-github" aria-hidden="true"></i> GitHub
       </a>
     {% endif %}
-    {% if course.first_homework_scored %}
+    {% if show_leaderboard %}
       <a href="{% url 'leaderboard' course.slug %}" class="primer-button primer-button-secondary whitespace-nowrap">
         <i class="fas fa-trophy"></i> Course leaderboard
       </a>
@@ -125,14 +125,23 @@
   {% include "include/course_logistics.html" %}
 
   {% if invite_url %}
-    <div class="mt-6 max-w-3xl rounded-md border app-border px-4 py-3">
+    <div class="mt-6 max-w-3xl rounded-md border app-border px-4 py-3" id="referral-link-box">
       <p class="font-medium app-heading">Invite friends, earn leaderboard points</p>
       <p class="mt-1 text-sm app-text">
         Share your personal link — you earn 1 leaderboard point for each invitee who gets accepted.
       </p>
-      <p class="mt-2 text-sm">
-        <a href="{{ invite_url }}" class="app-link">{{ invite_url }}</a>
-      </p>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <a href="{{ invite_url }}" id="invite-link-url" class="app-link break-all text-sm">{{ invite_url }}</a>
+        <button type="button"
+                id="copy-invite-link-btn"
+                class="primer-button primer-button-secondary w-fit"
+                data-copy-url="{{ invite_url }}">
+          <i class="far fa-copy" aria-hidden="true"></i> Copy link
+        </button>
+        <span id="copy-invite-link-feedback"
+              class="hidden text-xs font-medium app-success-text"
+              role="status">Copied</span>
+      </div>
     </div>
   {% endif %}
 
@@ -144,7 +153,7 @@
     </div>
   {% endif %}
 
-  {% if is_authenticated and course.first_homework_scored %}
+  {% if is_authenticated and show_leaderboard %}
     <div class="mt-6 flex items-baseline gap-2 text-sm">
       <span class="app-muted">Total score</span>
       <span class="text-base font-semibold app-heading">{{ total_score|default:"N/A" }}</span>
@@ -299,4 +308,55 @@
   {% endif %}
   <a href="{% url 'course_calendar' course.slug %}" class="app-link">Calendar feed</a>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+  {% if invite_url %}
+    <script>
+      (function () {
+        var copyBtn = document.getElementById("copy-invite-link-btn");
+        var feedback = document.getElementById("copy-invite-link-feedback");
+        if (!copyBtn) {
+          return;
+        }
+        function showCopied() {
+          if (!feedback) {
+            return;
+          }
+          feedback.classList.remove("hidden");
+          setTimeout(function () {
+            feedback.classList.add("hidden");
+          }, 2000);
+        }
+        function fallbackCopy(text) {
+          var input = document.createElement("textarea");
+          input.value = text;
+          input.setAttribute("readonly", "");
+          input.style.position = "absolute";
+          input.style.left = "-9999px";
+          document.body.appendChild(input);
+          input.select();
+          try {
+            document.execCommand("copy");
+            showCopied();
+          } finally {
+            document.body.removeChild(input);
+          }
+        }
+        copyBtn.addEventListener("click", function () {
+          var url = copyBtn.getAttribute("data-copy-url") || "";
+          if (!url) {
+            return;
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(showCopied).catch(function () {
+              fallbackCopy(url);
+            });
+          } else {
+            fallbackCopy(url);
+          }
+        });
+      })();
+    </script>
+  {% endif %}
 {% endblock %}
