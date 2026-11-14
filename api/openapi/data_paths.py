@@ -86,6 +86,38 @@ COURSE_LEADERBOARD_DATA = OperationData(
 )
 COURSE_LEADERBOARD_OPERATION = operation(COURSE_LEADERBOARD_DATA)
 
+COURSE_LEADERBOARD_REFRESH_SUCCESS_RESPONSE = response(
+    "Leaderboard refreshed",
+    JSON,
+)
+COURSE_LEADERBOARD_REFRESH_RESPONSES = {
+    "200": COURSE_LEADERBOARD_REFRESH_SUCCESS_RESPONSE,
+    "404": COURSE_NOT_FOUND_RESPONSE,
+}
+COURSE_LEADERBOARD_REFRESH_DATA = OperationData(
+    "api_course_leaderboard_refresh",
+    ["Course Data"],
+    "Refresh course leaderboard",
+    COURSE_LEADERBOARD_REFRESH_RESPONSES,
+)
+COURSE_LEADERBOARD_REFRESH_OPERATION = operation(COURSE_LEADERBOARD_REFRESH_DATA)
+
+COURSE_REFERRALS_SUCCESS_RESPONSE = response(
+    "Course referral counts",
+    JSON,
+)
+COURSE_REFERRALS_RESPONSES = {
+    "200": COURSE_REFERRALS_SUCCESS_RESPONSE,
+    "404": COURSE_NOT_FOUND_RESPONSE,
+}
+COURSE_REFERRALS_DATA = OperationData(
+    "api_course_referrals",
+    ["Course Data"],
+    "Get aggregate referral counts for a course",
+    COURSE_REFERRALS_RESPONSES,
+)
+COURSE_REFERRALS_OPERATION = operation(COURSE_REFERRALS_DATA)
+
 HOMEWORK_SUBMISSIONS_EXPORT_SUCCESS_RESPONSE = response(
     "Homework submissions export",
     JSON,
@@ -319,6 +351,12 @@ DATA_PATHS_BY_URL_NAME = {
     },
     "api_course_leaderboard": {
         "get": COURSE_LEADERBOARD_OPERATION,
+    },
+    "api_course_leaderboard_refresh": {
+        "post": COURSE_LEADERBOARD_REFRESH_OPERATION,
+    },
+    "api_course_referrals": {
+        "get": COURSE_REFERRALS_OPERATION,
     },
     "api_homework_submissions_export": {
         "get": HOMEWORK_SUBMISSIONS_EXPORT_OPERATION,

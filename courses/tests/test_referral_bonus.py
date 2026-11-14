@@ -196,6 +196,62 @@ class ReferralBonusTests(RegistrationCampaignBase):
         )
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response, f"?ref={self.inviter_registration.pk}"
+        expected_path = reverse(
+            "registration_campaign",
+            kwargs={"campaign_slug": self.campaign.slug},
         )
+        expected_url = (
+            f"http://testserver{expected_path}?ref={self.inviter_registration.pk}"
+        )
+        self.assertContains(response, expected_url)
+        self.assertContains(response, 'id="copy-invite-link-btn"')
+        self.assertContains(response, f'data-copy-url="{expected_url}"')
+        self.assertContains(response, "Copy link")
+
+    def test_course_page_hides_invite_link_for_pending_user(self):
+        self.client.force_login(self.inviter)
+        url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="copy-invite-link-btn"')
+        self.assertNotContains(response, f"?ref={self.inviter_registration.pk}")
+
+    def test_course_page_shows_leaderboard_when_bonus_points_exist(self):
+        self.course.first_homework_scored = False
+        self.course.save(update_fields=["first_homework_scored"])
+        Enrollment.objects.create(
+            student=self.inviter,
+            course=self.course,
+            bonus_points=REFERRAL_BONUS_POINTS,
+        )
+        self.client.force_login(self.inviter)
+        url = reverse(
+            "course", kwargs={"course_slug": self.course.slug}
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Course leaderboard")
+        self.assertContains(
+            response,
+            reverse("leaderboard", kwargs={"course_slug": self.course.slug}),
+        )
+
+    def test_approve_updates_leaderboard_score_immediately(self):
+        invitee = CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="invitee@example.com",
+            name="Invitee",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            referred_by=self.inviter_registration,
+        )
+        approve_registration(invitee)
+        enrollment = Enrollment.objects.get(
+            student=self.inviter, course=self.course
+        )
+        self.assertEqual(enrollment.total_score, REFERRAL_BONUS_POINTS)
+        self.assertEqual(enrollment.position_on_leaderboard, 1)
