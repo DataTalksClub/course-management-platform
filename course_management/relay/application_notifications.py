@@ -141,7 +141,7 @@ def queue_application_notifications(
     registration, previous_status, custom_message=""
 ):
     created = previous_status is None
-    if created:
+    if created and registration.status not in {"approved", "rejected"}:
         # Per-registration operator emails are disabled: operators receive
         # one daily registration digest instead (see registration_digest).
         # Registrant-facing decision mail below is unchanged.
@@ -261,14 +261,17 @@ def dispatch_notification(pk, now, lease_expired):
         notification.save()
     try:
         message_id = send_notification(notification)
-    except (requests.RequestException, ValueError, ValidationError) as exc:
+    except Exception as exc:
         # Never persist response bodies, credentials or recipient data in
         # logs/alerts. The failed row retains the identity for safe retry.
         # Permanent Relay 4xx (e.g. unknown template_key) backs off 24h to
-        # avoid hot retry loops; transient errors retry in 5min.
-        error = type(exc).__name__
+        # avoid hot retry loops; transient or unexpected errors retry in 5min.
+        error = type(exc).__name__[:100]
         logger.error("Relay application notification failed id=%s error=%s", pk, error)
-        if is_permanent_relay_error(exc):
+        if (
+            isinstance(exc, (requests.RequestException, ValueError, ValidationError))
+            and is_permanent_relay_error(exc)
+        ):
             delay = PERMANENT_BACKOFF
         else:
             delay = RETRYABLE_BACKOFF
@@ -286,3 +289,28 @@ def dispatch_notification(pk, now, lease_expired):
             status="sent", relay_message_id=message_id, last_error="",
             updated_at=timezone.now(),
         )
+
+
+def approved_registrations_without_sent_notification(
+    now=None, grace_minutes=10, campaign_slug=None
+):
+    """Return approved registrations missing a sent application-approved row."""
+    from django.db.models import Exists, OuterRef
+    from courses.models.course import CourseRegistration
+
+    sent_approval = ApplicationNotification.objects.filter(
+        registration=OuterRef("pk"),
+        template_key="application-approved",
+        status=ApplicationNotification.Status.SENT,
+    )
+    qs = CourseRegistration.objects.filter(
+        status=CourseRegistration.Status.APPROVED,
+    ).annotate(
+        has_sent_approval=Exists(sent_approval),
+    ).filter(has_sent_approval=False)
+    if campaign_slug:
+        qs = qs.filter(campaign__slug=campaign_slug)
+    if grace_minutes:
+        cutoff = (now or timezone.now()) - timedelta(minutes=grace_minutes)
+        qs = qs.filter(updated_at__lt=cutoff)
+    return qs

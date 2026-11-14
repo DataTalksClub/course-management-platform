@@ -2,6 +2,9 @@ import json
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from data.models import CmpJobState, DatamailerOutboxEvent
+from course_management.relay.application_notifications import (
+    approved_registrations_without_sent_notification,
+)
 from courses.models import ApplicationNotification
 from courses.models.scoring_job import ScoringJob
 
@@ -34,6 +37,8 @@ def worker_alarms(now=None):
         created_at__lt=now-timezone.timedelta(seconds=600),
     ).exists():
         alarms.append('application_notifications:backlog_age')
+    if approved_registrations_without_sent_notification(now=now).exists():
+        alarms.append('application_notifications:approved_without_send')
     if ScoringJob.objects.filter(
         status__in=['queued', 'processing'],
         created_at__lt=now-timezone.timedelta(seconds=600),

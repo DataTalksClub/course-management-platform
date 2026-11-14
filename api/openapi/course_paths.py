@@ -4,6 +4,7 @@ from .primitives import (
     ref,
     request_body,
     response,
+    schema_response,
 )
 
 
@@ -357,6 +358,28 @@ COURSE_PATHS_BY_URL_NAME = {
     "api_registration_campaigns": {
         "get": REGISTRATION_CAMPAIGNS_OPERATION,
         "post": REGISTRATION_CAMPAIGN_CREATE_OPERATION,
+    },
+    "api_registration_approval_notifications_reconcile": {
+        "get": operation(
+            OperationData(
+                "api_registration_approval_notifications_reconcile",
+                ["Registration Campaigns"],
+                "Reconcile approved registrations without sent approval emails",
+                {
+                    "200": response("Reconciliation report", {"type": "object"}),
+                    "403": schema_response("Staff token required", "Error"),
+                },
+                parameters=[
+                    {"name": "campaign", "in": "query", "required": False, "schema": {"type": "string"}},
+                    {"name": "active_only", "in": "query", "required": False, "schema": {"type": "boolean", "default": True}},
+                    {"name": "include_registrations", "in": "query", "required": False, "schema": {"type": "boolean", "default": True}},
+                ],
+                description=(
+                    "Reports approved registrations lacking a sent application-approved "
+                    "ApplicationNotification row. Requires a staff token."
+                ),
+            )
+        ),
     },
     "api_registration_campaign_detail": {
         "get": REGISTRATION_CAMPAIGN_DETAIL_OPERATION,

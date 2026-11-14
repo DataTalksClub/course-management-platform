@@ -241,3 +241,52 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
         self.assertEqual(self.notifications().count(), 1)
         for notification in self.notifications():
             self.assertEqual(notification.context["name"], "Applicant")
+
+    def test_creating_registration_already_approved_queues_notification(self):
+        registration = CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="direct-approved@example.com",
+            name="Direct Approved",
+            status=CourseRegistration.Status.APPROVED,
+        )
+        self.assertEqual(
+            self.notifications().filter(
+                registration=registration,
+                template_key="application-approved",
+            ).count(),
+            1,
+        )
+
+    @patch("course_management.relay.application_notifications.send_notification")
+    def test_unexpected_exception_in_dispatch_marks_failed_and_emits_warning(self, send_mock):
+        from course_management.relay.application_notifications import process_application_notifications
+
+        registration = self.registration()
+        approve_registration(registration)
+        send_mock.side_effect = RuntimeError("unexpected")
+        with self.assertLogs("course_management.relay.application_notifications", level="ERROR"):
+            process_application_notifications()
+        notification = self.notifications().get()
+        self.assertEqual(notification.status, "failed")
+        self.assertEqual(notification.last_error, "RuntimeError")
+
+    def test_worker_alarms_flags_approved_registration_without_sent_notification(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from data.management.commands.check_cmp_workers import LIMITS, worker_alarms
+        from data.models import CmpJobState
+
+        now = timezone.now()
+        for job in LIMITS:
+            CmpJobState.objects.update_or_create(
+                job=job,
+                defaults={"last_success_at": now, "last_failed_at": None},
+            )
+        registration = self.registration()
+        CourseRegistration.objects.filter(pk=registration.pk).update(
+            status=CourseRegistration.Status.APPROVED,
+            updated_at=now - timedelta(minutes=15),
+        )
+        alarms = worker_alarms(now=now)
+        self.assertIn("application_notifications:approved_without_send", alarms)

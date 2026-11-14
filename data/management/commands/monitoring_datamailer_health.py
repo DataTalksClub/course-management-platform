@@ -11,6 +11,9 @@ from course_management.datamailer_outbox_status import (
     datamailer_outbox_status_summary,
 )
 from course_management.observability import record_event
+from course_management.relay.application_notifications import (
+    approved_registrations_without_sent_notification,
+)
 from data.management.commands.datamailer_callback_status import (
     callback_event_aggregate,
     callback_event_counts,
@@ -54,19 +57,28 @@ def datamailer_health_payload():
     due_count = outbox_summary["due_count"]
     failed_outbox = event_counts.get("failed", 0)
     retrying_outbox = event_counts.get("retrying", 0)
+    approved_without_send_count = (
+        approved_registrations_without_sent_notification().count()
+    )
     relay_configured = (
         datamailer_enabled() and relay_health["relay_config"] == "ok"
     )
 
     if relay_health["status"] != "ok":
         status = "FAIL"
-    elif failed_sends or failed_outbox or retrying_outbox:
+    elif (
+        failed_sends
+        or failed_outbox
+        or retrying_outbox
+        or approved_without_send_count
+    ):
         status = "warning"
     else:
         status = "ok"
 
     payload = {
         "status": status,
+        "approved_without_send_count": approved_without_send_count,
         "relay_configured": relay_configured,
         "relay_status": relay_health["status"],
         "relay_error": relay_health["error"],
