@@ -112,3 +112,25 @@ class CmpWorkerAlarmTests(TestCase):
         self.assertEqual(state.last_failed_at, self.now - timedelta(seconds=1))
         self.assertGreater(state.last_success_at, state.last_failed_at)
         self.command_result([])
+
+    def test_recent_failed_outbox_event_triggers_outbox_failed_alarm(self):
+        event = DatamailerOutboxEvent.objects.create(
+            event_id="failed-recent",
+            event_type="recipient_list.member_upsert",
+            idempotency_key="failed-recent",
+            status="failed",
+        )
+        DatamailerOutboxEvent.objects.filter(pk=event.pk).update(
+            updated_at=self.now - timedelta(hours=25)
+        )
+        self.command_result([])
+
+        DatamailerOutboxEvent.objects.filter(pk=event.pk).update(
+            updated_at=self.now - timedelta(minutes=5)
+        )
+        self.command_result(["outbox:failed"])
+
+        DatamailerOutboxEvent.objects.filter(pk=event.pk).update(
+            status="acked"
+        )
+        self.command_result([])

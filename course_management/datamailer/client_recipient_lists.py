@@ -1,14 +1,16 @@
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from .client_chunking import chunk_payload_by_members
+from .client_chunking import (
+    MAX_REQUEST_BODY_BYTES,
+    chunk_payload_by_members,
+    request_body_size,
+)
 from .client_pacing import PacedMemberRequest
 from .client_types import DatamailerRequest, DatamailerRequestData
 
-# Relay spends ~0.75 s per transient-send chunk; sequential chunks capped a
-# ~1000-recipient fan-out near 35 msg/s. A few in flight keep the Relay send
-# lane (>=40 msg/s) fed. The edge budget in client_pacing is shared.
-TRANSIENT_SEND_CONCURRENCY = 4
+# Keep inline /members/reconcile only for small lists; larger lists (1.3k+)
+# can exceed CloudFront's origin timeout (504) or WAF's 8 KiB body limit.
+RECONCILE_INLINE_MAX_MEMBERS = 100
 
 
 class DatamailerRecipientListClients:
@@ -16,13 +18,17 @@ class DatamailerRecipientListClients:
         self,
         config: Any,
         request: DatamailerRequest,
+        *,
+        paced_request: DatamailerRequest | None = None,
     ):
-        self.members = DatamailerRecipientListMemberClient(config, request)
-        self.imports = DatamailerRecipientListImportClient(config, request)
+        member_request = paced_request or PacedMemberRequest(request)
+        self.members = DatamailerRecipientListMemberClient(
+            config, member_request
+        )
+        self.imports = DatamailerRecipientListImportClient(
+            config, member_request
+        )
         self.sends = DatamailerRecipientListSendClient(config, request)
-        paced_request = PacedMemberRequest(request)
-        self.members.member_request = paced_request
-        self.sends.member_request = paced_request
 
 
 class DatamailerRecipientListMemberClient:
@@ -33,7 +39,7 @@ class DatamailerRecipientListMemberClient:
     ):
         self.config = config
         self.request = request
-        self.member_request = PacedMemberRequest(request)
+        self.member_request = request
 
     def upsert(
         self,
@@ -118,68 +124,64 @@ class DatamailerRecipientListMemberClient:
         list_key: str,
         payload: dict[str, Any],
     ) -> dict[str, Any] | None:
-        if len(chunk_payload_by_members(payload)) == 1:
+        members = payload.get("members") or []
+        if (
+            len(members) <= RECONCILE_INLINE_MAX_MEMBERS
+            and len(chunk_payload_by_members(payload)) == 1
+        ):
             request_data = DatamailerRequestData(
                 method="POST",
                 path=f"/api/recipient-lists/{list_key}/members/reconcile",
                 json=payload,
             )
-            return self.request(request_data)
-        # One reconcile body for a large list (e.g. ~1.3k approved
-        # registrations) dies at the Relay edge (WAF body limit / CloudFront
-        # 504), so stale members were never removed. Reconcile client-side:
-        # chunked upsert, then remove the active members absent from payload.
+            return self.member_request(request_data)
         return self._chunked_reconcile(list_key, payload)
 
     def _chunked_reconcile(
         self,
         list_key: str,
         payload: dict[str, Any],
-    ) -> dict[str, Any] | None:
-        upsert_response = self.bulk_upsert(list_key, payload) or {}
-        listing = self.member_request(
-            DatamailerRequestData(
-                method="GET",
-                path=f"/api/recipient-lists/{list_key}/members",
-                params={
-                    "audience": self.config.audience,
-                    "client": self.config.client,
-                    "include_removed": "false",
-                    "limit": 10000,
-                },
-            )
+    ) -> dict[str, Any]:
+        # Chunked bulk_upsert + list_members + per-member remove avoids
+        # CloudFront origin 504s and 8 KiB WAF body limits on 1.3k+ lists.
+        bulk_response = self.bulk_upsert(list_key, payload) or {}
+        listed = self.list_members(
+            list_key,
+            include_removed=False,
+            limit=10000,
         ) or {}
-        if listing.get("has_more"):
+        if listed.get("has_more"):
             raise RuntimeError(
                 f"Relay list {list_key} has more active members than one page; "
                 "refusing a partial reconcile."
             )
+
         expected_keys = {
-            member["source_object_key"] for member in payload["members"]
+            member["source_object_key"]
+            for member in (payload.get("members") or [])
+            if member.get("source_object_key")
         }
         active_keys = [
             member["source_object_key"]
-            for member in listing.get("members", [])
+            for member in (listed.get("members") or [])
             if member.get("status", "active") != "removed"
+            and member.get("source_object_key")
         ]
         stale_keys = [key for key in active_keys if key not in expected_keys]
-        for key in stale_keys:
-            self.member_request(
-                DatamailerRequestData(
-                    method="DELETE",
-                    path=f"/api/recipient-lists/{list_key}/members/{key}",
-                    json={
-                        "audience": self.config.audience,
-                        "client": self.config.client,
-                    },
-                )
-            )
-        recipient_list = dict(upsert_response.get("recipient_list") or {})
+        for source_object_key in stale_keys:
+            self.remove(list_key, source_object_key)
+
+        created_count = bulk_response.get("created_count", 0) or 0
+        updated_count = bulk_response.get("updated_count", 0) or 0
+        recipient_list = dict(bulk_response.get("recipient_list") or {})
         recipient_list["active_member_count"] = len(active_keys) - len(stale_keys)
+
         return {
-            **upsert_response,
+            **bulk_response,
             "recipient_list": recipient_list,
-            "upsert_count": len(payload["members"]),
+            "created_count": created_count,
+            "updated_count": updated_count,
+            "upsert_count": len(payload.get("members") or []),
             "removed_count": len(stale_keys),
         }
 

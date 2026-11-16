@@ -191,3 +191,10 @@ class CmpJobState(models.Model):
     last_started_at = models.DateTimeField(null=True)
     last_success_at = models.DateTimeField(null=True)
     last_failed_at = models.DateTimeField(null=True)
+
+
+class RelayPacingState(models.Model):
+    """Shared GCRA pacing cursor across containers sharing outbound IPv4."""
+
+    key = models.CharField(max_length=64, primary_key=True)
+    next_available_at = models.DateTimeField()

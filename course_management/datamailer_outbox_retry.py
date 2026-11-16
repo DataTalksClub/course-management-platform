@@ -1,8 +1,11 @@
 import random
 from datetime import timedelta
 
-import requests
-
+from course_management.relay.retry_policy import (
+    is_permanent_relay_error,
+    is_rate_limit_error,
+    retry_after_seconds,
+)
 from data.models import DatamailerOutboxStatus
 
 
@@ -11,6 +14,7 @@ from data.models import DatamailerOutboxStatus
 # notification was silently lost. 900s x 24 attempts keeps retrying for
 # roughly half a day before giving up.
 RETRY_DELAY_CAP_SECONDS = 900
+RATE_LIMIT_RETRY_FLOOR_SECONDS = 120
 RETRY_JITTER_FRACTION = 0.25
 
 
@@ -23,15 +27,7 @@ def http_error_status_code(exc):
 
 
 def is_non_retryable_http_error(exc):
-    if not isinstance(exc, requests.HTTPError):
-        return False
-
-    status_code = http_error_status_code(exc)
-    if not status_code:
-        return False
-    is_server_error = status_code >= 500
-    is_rate_limited = status_code == 429
-    return not is_server_error and not is_rate_limited
+    return is_permanent_relay_error(exc)
 
 
 def status_for_error(exc, event):
@@ -42,11 +38,17 @@ def status_for_error(exc, event):
     return DatamailerOutboxStatus.RETRYING
 
 
-def retry_delay(attempt_count):
+def retry_delay(attempt_count, exc=None):
     base_seconds = min(
         RETRY_DELAY_CAP_SECONDS,
         2 ** max(attempt_count - 1, 0),
     )
+    if exc is not None and is_rate_limit_error(exc):
+        retry_after = retry_after_seconds(exc) or 0
+        base_seconds = min(
+            RETRY_DELAY_CAP_SECONDS,
+            max(base_seconds, RATE_LIMIT_RETRY_FLOOR_SECONDS, retry_after),
+        )
     jitter_seconds = random.uniform(
         0,
         base_seconds * RETRY_JITTER_FRACTION,

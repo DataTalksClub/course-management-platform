@@ -81,8 +81,13 @@ def mark_processing(event):
 
 def dispatch_claimed_outbox_event(event, config):
     from course_management.datamailer.client import DatamailerClient
+    from course_management.datamailer.client_pacing import DatabaseRelayPacer
 
-    client = DatamailerClient(config)
+    client = DatamailerClient(
+        config,
+        pacer=DatabaseRelayPacer(),
+        max_retries=0,
+    )
     try:
         response = send_event(client, event.event_type, event.payload)
     except requests.RequestException as exc:
@@ -134,7 +139,7 @@ def mark_retry_or_failed(event, exc):
         "updated_at": now,
     }
     if status == DatamailerOutboxStatus.RETRYING:
-        retry_delta = retry_delay(event.attempt_count)
+        retry_delta = retry_delay(event.attempt_count, exc=exc)
         updates["next_attempt_at"] = now + retry_delta
     DatamailerOutboxEvent.objects.filter(id=event.id).update(**updates)
     record_event(
@@ -147,6 +152,25 @@ def mark_retry_or_failed(event, exc):
             "attempt_count": event.attempt_count,
         },
     )
+    if status == DatamailerOutboxStatus.FAILED:
+        logger.error(
+            "Datamailer outbox event permanently FAILED: "
+            "event_id=%s event_type=%s outbox_event_id=%s error=%s",
+            event.event_id,
+            event.event_type,
+            event.id,
+            last_error,
+        )
+        record_event(
+            "datamailer.outbox_failed",
+            properties={
+                "event_id": event.event_id,
+                "event_type": event.event_type,
+                "outbox_event_id": event.id,
+                "status": status,
+                "reason": last_error,
+            },
+        )
 
 
 def mark_failed(event, message):
@@ -155,6 +179,14 @@ def mark_failed(event, message):
         status=DatamailerOutboxStatus.FAILED,
         last_error=message,
         updated_at=now,
+    )
+    logger.error(
+        "Datamailer outbox event permanently FAILED: "
+        "event_id=%s event_type=%s outbox_event_id=%s reason=%s",
+        event.event_id,
+        event.event_type,
+        event.id,
+        message,
     )
     record_event(
         "datamailer.outbox_failed",

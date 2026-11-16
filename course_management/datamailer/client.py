@@ -1,4 +1,5 @@
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -6,8 +7,15 @@ from urllib.parse import urljoin, urlparse
 import requests
 from django.conf import settings
 
+from course_management.relay.retry_policy import (
+    is_rate_limit_error,
+    is_retryable_relay_http_error,
+    retry_after_seconds,
+)
+
 from .client_campaigns import DatamailerCampaignClient
 from .client_contacts import DatamailerContactClient
+from .client_pacing import PacedMemberRequest
 from .client_recipient_lists import DatamailerRecipientListClients
 from .client_transactional import DatamailerTransactionalClient
 from .client_types import DatamailerRequestData
@@ -170,13 +178,27 @@ class DatamailerClient:
         self,
         config: DatamailerConfig,
         session: requests.Session | None = None,
+        *,
+        pacer: Any = None,
+        max_retries: int = 0,
     ):
         self.config = config
         self.session = session or requests.Session()
-        self.contacts = DatamailerContactClient(config, self.request)
+        self.max_retries = max(0, int(max_retries))
+        self.pacer = pacer
+        paced_once = (
+            pacer.wrap(self._send_once)
+            if pacer is not None
+            else PacedMemberRequest(self._send_once)
+        )
+        self.paced_request = lambda data: self._send_with_retry(
+            data, paced_once
+        )
+        self.contacts = DatamailerContactClient(config, self.paced_request)
         self.recipient_lists = DatamailerRecipientListClients(
             config,
             self.request,
+            paced_request=self.paced_request,
         )
         self.transactional = DatamailerTransactionalClient(
             config,
@@ -184,7 +206,41 @@ class DatamailerClient:
         )
         self.campaigns = DatamailerCampaignClient(config, self.request)
 
-    def request(self, data: DatamailerRequestData) -> dict[str, Any] | None:
+    def _retry_delay_seconds(self, exc: requests.HTTPError, attempt: int) -> float:
+        if is_rate_limit_error(exc):
+            retry_after = retry_after_seconds(exc) or 0.0
+            return max(retry_after, min(300.0, 30.0 * (2**attempt)))
+        return min(60.0, 2.0 * (2**attempt))
+
+    def _send_with_retry(
+        self,
+        data: DatamailerRequestData,
+        sender: Any,
+    ) -> dict[str, Any] | None:
+        for attempt in range(self.max_retries + 1):
+            try:
+                return sender(data)
+            except requests.HTTPError as exc:
+                if (
+                    attempt >= self.max_retries
+                    or not is_retryable_relay_http_error(exc)
+                ):
+                    raise
+                delay = self._retry_delay_seconds(exc, attempt)
+                logger.warning(
+                    "Retryable Relay error on %s %s (attempt %s/%s); "
+                    "sleeping %.1fs: %s",
+                    data.method,
+                    data.path,
+                    attempt + 1,
+                    self.max_retries + 1,
+                    delay,
+                    exc,
+                )
+                time.sleep(delay)
+        return None
+
+    def _send_once(self, data: DatamailerRequestData) -> dict[str, Any] | None:
         url = f"{self.config.url}{data.path}"
         request_kwargs: dict[str, Any] = {
             "json": data.json,
@@ -208,6 +264,9 @@ class DatamailerClient:
             return None
 
         return response.json()
+
+    def request(self, data: DatamailerRequestData) -> dict[str, Any] | None:
+        return self._send_with_retry(data, self._send_once)
 
 
 def datamailer_enabled() -> bool:
