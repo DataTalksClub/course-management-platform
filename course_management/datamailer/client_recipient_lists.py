@@ -118,12 +118,70 @@ class DatamailerRecipientListMemberClient:
         list_key: str,
         payload: dict[str, Any],
     ) -> dict[str, Any] | None:
-        request_data = DatamailerRequestData(
-            method="POST",
-            path=f"/api/recipient-lists/{list_key}/members/reconcile",
-            json=payload,
-        )
-        return self.request(request_data)
+        if len(chunk_payload_by_members(payload)) == 1:
+            request_data = DatamailerRequestData(
+                method="POST",
+                path=f"/api/recipient-lists/{list_key}/members/reconcile",
+                json=payload,
+            )
+            return self.request(request_data)
+        # One reconcile body for a large list (e.g. ~1.3k approved
+        # registrations) dies at the Relay edge (WAF body limit / CloudFront
+        # 504), so stale members were never removed. Reconcile client-side:
+        # chunked upsert, then remove the active members absent from payload.
+        return self._chunked_reconcile(list_key, payload)
+
+    def _chunked_reconcile(
+        self,
+        list_key: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        upsert_response = self.bulk_upsert(list_key, payload) or {}
+        listing = self.member_request(
+            DatamailerRequestData(
+                method="GET",
+                path=f"/api/recipient-lists/{list_key}/members",
+                params={
+                    "audience": self.config.audience,
+                    "client": self.config.client,
+                    "include_removed": "false",
+                    "limit": 10000,
+                },
+            )
+        ) or {}
+        if listing.get("has_more"):
+            raise RuntimeError(
+                f"Relay list {list_key} has more active members than one page; "
+                "refusing a partial reconcile."
+            )
+        expected_keys = {
+            member["source_object_key"] for member in payload["members"]
+        }
+        active_keys = [
+            member["source_object_key"]
+            for member in listing.get("members", [])
+            if member.get("status", "active") != "removed"
+        ]
+        stale_keys = [key for key in active_keys if key not in expected_keys]
+        for key in stale_keys:
+            self.member_request(
+                DatamailerRequestData(
+                    method="DELETE",
+                    path=f"/api/recipient-lists/{list_key}/members/{key}",
+                    json={
+                        "audience": self.config.audience,
+                        "client": self.config.client,
+                    },
+                )
+            )
+        recipient_list = dict(upsert_response.get("recipient_list") or {})
+        recipient_list["active_member_count"] = len(active_keys) - len(stale_keys)
+        return {
+            **upsert_response,
+            "recipient_list": recipient_list,
+            "upsert_count": len(payload["members"]),
+            "removed_count": len(stale_keys),
+        }
 
 
 class DatamailerRecipientListImportClient:
