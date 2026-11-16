@@ -29,6 +29,7 @@ EXPLICIT_TOKEN_POLICY_ALLOWLIST = {
     "api_registration_campaign_detail",
     "api_registration_campaign_registrations",
     "api_registration_campaign_approve_batch",
+    "api_registration_campaign_registration_change_email",
     "api_registration_campaign_registration_detail",
     "api_registration_campaign_emails",
     "api_homeworks",
