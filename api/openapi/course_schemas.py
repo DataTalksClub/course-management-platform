@@ -227,6 +227,29 @@ COURSE_REGISTRATIONS_BULK_CREATE_RESULT_SCHEMA = {
         "results": array_of(COURSE_REGISTRATION_CREATE_RESULT_SCHEMA),
     },
 }
+COURSE_REGISTRATION_CHANGE_EMAIL_SCHEMA = {
+    "type": "object",
+    "required": ["email"],
+    "properties": {
+        "email": {"type": "string"},
+        "update_user": {"type": "boolean", "default": True},
+        "dry_run": {"type": "boolean", "default": False},
+    },
+}
+COURSE_REGISTRATION_CHANGE_EMAIL_RESULT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "applied": {"type": "boolean"},
+        "old_email": {"type": "string"},
+        "new_email": {"type": "string"},
+        "user_id": {"type": "integer", "nullable": True},
+        "user_action": {"type": "string"},
+        "enrollment_id": {"type": "integer", "nullable": True},
+        "enrollment_created": {"type": "boolean"},
+        "emails_queued": {"type": "integer"},
+        "registration": COURSE_REGISTRATION_REF,
+    },
+}
 COURSE_REGISTRATIONS_APPROVE_BATCH_SCHEMA = {
     "type": "object",
     "required": ["ids"],
@@ -358,4 +381,8 @@ COURSE_SCHEMAS = {
         COURSE_REGISTRATIONS_APPROVE_BATCH_RESULT_SCHEMA
     ),
     "CourseRegistrationPatch": COURSE_REGISTRATION_PATCH_SCHEMA,
+    "CourseRegistrationChangeEmail": COURSE_REGISTRATION_CHANGE_EMAIL_SCHEMA,
+    "CourseRegistrationChangeEmailResult": (
+        COURSE_REGISTRATION_CHANGE_EMAIL_RESULT_SCHEMA
+    ),
 }
