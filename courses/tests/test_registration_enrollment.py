@@ -15,6 +15,11 @@ from courses.tests.registration_campaign_base import RegistrationCampaignBase
 
 
 class ApprovedEnrollmentTests(RegistrationCampaignBase):
+    def setUp(self):
+        super().setUp()
+        self.course.requires_registration_approval = True
+        self.course.save(update_fields=["requires_registration_approval"])
+
     def registration(self, **kwargs):
         return CourseRegistration.objects.create(
             campaign=self.campaign,
