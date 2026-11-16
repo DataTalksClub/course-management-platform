@@ -154,6 +154,12 @@ urlpatterns = [
         name="api_registration_campaign_registration_detail",
     ),
     path(
+        "registration-campaigns/<slug:campaign_slug>/registrations/"
+        "<int:registration_id>/change-email/",
+        registration_campaigns.registration_campaign_registration_change_email_view,
+        name="api_registration_campaign_registration_change_email",
+    ),
+    path(
         "registration-campaigns/<slug:campaign_slug>/emails/",
         email_campaigns.registration_campaign_emails_view,
         name="api_registration_campaign_emails",

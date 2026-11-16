@@ -346,6 +346,37 @@ COURSE_REGISTRATION_PATCH_OPERATION = operation(
     COURSE_REGISTRATION_PATCH_DATA
 )
 
+COURSE_REGISTRATION_CHANGE_EMAIL_RESPONSES = {
+    "200": response(
+        "Email change result",
+        ref("CourseRegistrationChangeEmailResult"),
+    ),
+    "400": INVALID_REQUEST_RESPONSE,
+    "404": COURSE_REGISTRATION_NOT_FOUND_RESPONSE,
+    "409": response(
+        "duplicate_registration, conflicting_user or unchanged",
+        ERROR_REF,
+    ),
+}
+COURSE_REGISTRATION_CHANGE_EMAIL_OPERATION = operation(
+    OperationData(
+        "api_registration_campaign_registration_change_email",
+        ["Registration Campaigns"],
+        "Change a registration email (no mail sent)",
+        COURSE_REGISTRATION_CHANGE_EMAIL_RESPONSES,
+        body=request_body(ref("CourseRegistrationChangeEmail")),
+        description=(
+            "Staff correction of a registration email. Rejects (409) a "
+            "duplicate registration in the same campaign or a user "
+            "conflict. Recomputes email_normalized, links the single "
+            "matching user (or updates the linked user's email/username "
+            "when update_user is true), creates the Enrollment for an "
+            "approved registration, and re-syncs Relay lists. Never "
+            "queues or sends email. dry_run=true validates only."
+        ),
+    )
+)
+
 COURSE_PATHS_BY_URL_NAME = {
     "api_courses_list": {
         "get": COURSES_LIST_OPERATION,
@@ -395,6 +426,9 @@ COURSE_PATHS_BY_URL_NAME = {
     "api_registration_campaign_registration_detail": {
         "get": COURSE_REGISTRATION_DETAIL_OPERATION,
         "patch": COURSE_REGISTRATION_PATCH_OPERATION,
+    },
+    "api_registration_campaign_registration_change_email": {
+        "post": COURSE_REGISTRATION_CHANGE_EMAIL_OPERATION,
     },
     "api_registration_campaign_emails": {
         "get": EMAIL_CAMPAIGNS_OPERATION,

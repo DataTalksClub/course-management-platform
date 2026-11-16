@@ -15,6 +15,9 @@ from api.views.registration_campaign_registration_mutations import (
     bulk_create_registrations_payload,
     update_registration_payload,
 )
+from api.views.registration_campaign_email_change import (
+    change_registration_email_payload,
+)
 from api.views.registration_campaign_registrations import (
     registration_campaign_registrations_payload,
 )
@@ -186,3 +189,24 @@ def registration_campaign_registration_detail_view(
 
     response = JsonResponse(registration_to_dict(registration))
     return response
+
+
+@token_required
+@csrf_exempt
+@require_methods("POST")
+def registration_campaign_registration_change_email_view(
+    request, campaign_slug, registration_id
+):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
+    registration = get_object_or_404(
+        CourseRegistration.objects.select_related("campaign", "course"),
+        campaign__slug=campaign_slug,
+        id=registration_id,
+    )
+    payload, err = change_registration_email_payload(registration, request)
+    if err:
+        return err
+    return JsonResponse(payload)

@@ -145,6 +145,31 @@ not award peer-review participation credit. A new evaluation returns `201`; an
 exact idempotent replay returns `200`; reusing the key for different content
 returns `409`.
 
+## Change a registration email (staff, no mail)
+
+Use this instead of the Django shell when an applicant registered with the
+wrong address. `POST
+/api/registration-campaigns/<campaign>/registrations/<id>/change-email/`
+with `{"email": "new@example.com", "update_user": true, "dry_run": false}`.
+
+```bash
+curl -s -X POST -H "Authorization: Token $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "new@example.com", "dry_run": true}' \
+  "https://courses.datatalks.club/api/registration-campaigns/<campaign>/registrations/<id>/change-email/" \
+  | python3 -m json.tool
+```
+
+Always do a `dry_run` first. Guards return `409`: `duplicate_registration`
+(new email already registered in the campaign), `conflicting_user` (another
+user owns the email, or several do), `unchanged`. On success it recomputes
+`email_normalized`, links the single matching user (or, for an already-linked
+user, updates their email/username when `update_user` is true), creates the
+Enrollment for approved registrations, and re-syncs the Relay
+registration/`<slug>:@approved` lists. It never queues or sends email
+(`emails_queued` is always 0). Verify with a GET on the registration.
+Offline equivalent: `manage.py change_registration_email <id> <email> [--apply]`.
+
 ## Where the code is
 
 - Routes: `api/urls.py`
