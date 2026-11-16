@@ -6,6 +6,7 @@ from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
 )
+from course_management.datamailer.client_pacing import DatabaseRelayPacer
 from course_management.datamailer.recipient_list_batches import (
     build_batches as build_recipient_list_batches,
 )
@@ -164,7 +165,11 @@ def write_dry_run(write_line, batches, options):
 
 
 def sync_batches(request, write_line):
-    client = DatamailerClient(request.config)
+    client = DatamailerClient(
+        request.config,
+        pacer=DatabaseRelayPacer(),
+        max_retries=4,
+    )
     import_options = ImportJobOptions(
         remove_absent=request.options["reconcile"],
         wait_for_import=request.options["wait_for_import"],

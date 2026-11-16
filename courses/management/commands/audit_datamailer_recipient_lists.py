@@ -4,6 +4,7 @@ from course_management.datamailer.client import (
     DatamailerClient,
     DatamailerConfig,
 )
+from course_management.datamailer.client_pacing import DatabaseRelayPacer
 from course_management.datamailer.recipient_list_audit import (
     AuditRunData,
     audit_batches_against_datamailer,
@@ -120,7 +121,11 @@ class Command(BaseCommand):
 
 
 def recipient_list_audit_run_data(config, batches, options):
-    client = DatamailerClient(config)
+    client = DatamailerClient(
+        config,
+        pacer=DatabaseRelayPacer(),
+        max_retries=4,
+    )
     audit_data = AuditRunData(
         client=client,
         config=config,

@@ -1,3 +1,5 @@
+import logging
+import time
 from datetime import timedelta
 
 from django.db.models import Q
@@ -14,9 +16,18 @@ from data.models import (
     DatamailerOutboxStatus,
 )
 
+logger = logging.getLogger(__name__)
+
+# Keep each minutely outbox tick well under the 300s Coolify/alarm timeout
+# when pacing a large backlog.
+OUTBOX_RUN_MAX_SECONDS = 45.0
+
 
 def process_due_datamailer_outbox(
-    *, limit=100, record_run=True
+    *,
+    limit=100,
+    record_run=True,
+    max_duration_seconds: float | None = OUTBOX_RUN_MAX_SECONDS,
 ) -> dict[str, int]:
     started_at = timezone.now()
     run = None
@@ -34,11 +45,21 @@ def process_due_datamailer_outbox(
     }
 
     try:
-        process_outbox_event_ids(event_ids, counts)
+        process_outbox_event_ids(
+            event_ids,
+            counts,
+            max_duration_seconds=max_duration_seconds,
+        )
     except Exception as exc:
         last_error = str(exc)
         finish_failed_dispatch_run(run, counts, last_error)
         raise
+
+    if counts["failed"] > 0:
+        logger.error(
+            "Datamailer outbox dispatch run finished with %s failed event(s).",
+            counts["failed"],
+        )
 
     finish_successful_dispatch_run(run, counts)
     return counts
@@ -58,12 +79,43 @@ def due_outbox_event_ids(limit):
     return result
 
 
-def process_outbox_event_ids(event_ids, counts):
+def _is_rate_limit_retry(event) -> bool:
+    if event.status != DatamailerOutboxStatus.RETRYING:
+        return False
+    error = (event.last_error or "").lower()
+    return "429" in error or "403" in error
+
+
+def process_outbox_event_ids(
+    event_ids,
+    counts,
+    *,
+    max_duration_seconds: float | None = OUTBOX_RUN_MAX_SECONDS,
+):
+    started_monotonic = time.monotonic()
     for event_id in event_ids:
+        if (
+            max_duration_seconds is not None
+            and counts["processed"] > 0
+            and time.monotonic() - started_monotonic >= max_duration_seconds
+        ):
+            logger.info(
+                "Stopping outbox run after %.1fs time budget (%s processed); "
+                "remaining events will run on next tick.",
+                time.monotonic() - started_monotonic,
+                counts["processed"],
+            )
+            break
         event = DatamailerOutboxEvent.objects.get(id=event_id)
         dispatch_datamailer_outbox_event(event)
         event.refresh_from_db()
         count_processed_outbox_event(counts, event)
+        if _is_rate_limit_retry(event):
+            logger.warning(
+                "Pausing outbox run after rate-limit/WAF response on event_id=%s.",
+                event.event_id,
+            )
+            break
 
 
 def count_processed_outbox_event(counts, event):

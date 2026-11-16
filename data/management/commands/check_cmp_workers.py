@@ -1,7 +1,11 @@
 import json
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
-from data.models import CmpJobState, DatamailerOutboxEvent
+from data.models import (
+    CmpJobState,
+    DatamailerOutboxEvent,
+    DatamailerOutboxStatus,
+)
 from course_management.relay.application_notifications import (
     approved_registrations_without_sent_notification,
 )
@@ -30,6 +34,12 @@ def worker_alarms(now=None):
     ).exists()
     if overdue or abandoned:
         alarms.append('outbox:backlog_age')
+    recent_failed_outbox = DatamailerOutboxEvent.objects.filter(
+        status=DatamailerOutboxStatus.FAILED,
+        updated_at__gte=now - timezone.timedelta(hours=24),
+    ).exists()
+    if recent_failed_outbox and 'outbox:failed' not in alarms:
+        alarms.append('outbox:failed')
     if ApplicationNotification.objects.filter(status='failed').exists():
         alarms.append('application_notifications:failed')
     if ApplicationNotification.objects.filter(
