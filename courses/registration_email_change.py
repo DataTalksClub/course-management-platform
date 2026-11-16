@@ -137,9 +137,9 @@ def change_registration_email(
     registration, new_email, *, update_user=True, apply=True, sync=True,
 ):
     new_email = clean_new_email(new_email)
-    registration = CourseRegistration.objects.select_for_update().select_related(
-        "user", "course", "campaign",
-    ).get(pk=registration.pk)
+    registration = CourseRegistration.objects.select_for_update(
+        of=("self",),
+    ).select_related("user", "course", "campaign").get(pk=registration.pk)
     old_email = registration.email_normalized
     if new_email == old_email:
         raise EmailChangeError(
