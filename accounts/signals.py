@@ -1,3 +1,5 @@
+from allauth.account.signals import user_signed_up
+
 from django.contrib.auth.signals import (
     user_logged_in,
     user_logged_out,
@@ -66,3 +68,17 @@ def record_user_created(sender, instance, created, **kwargs):
             "is_superuser": instance.is_superuser,
         },
     )
+
+
+@receiver(user_logged_in)
+def reconcile_enrollment_on_login(sender, request, user, **kwargs):
+    from courses.registration_enrollment import (
+        reconcile_user_approved_registrations,
+    )
+
+    reconcile_user_approved_registrations(user)
+
+
+@receiver(user_signed_up)
+def reconcile_enrollment_on_signup(sender, request, user, **kwargs):
+    reconcile_enrollment_on_login(sender, request, user, **kwargs)

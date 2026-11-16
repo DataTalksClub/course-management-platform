@@ -98,26 +98,12 @@ def approve_registration(registration, custom_message=""):
     in the same transaction; empty means a plain approval email.
 
     Returns the ``Enrollment`` when a user account could be matched,
-    otherwise ``None`` (the applicant enrolls on next login-gated
-    access once their account email matches).
+    otherwise ``None`` (login/signup reconciles the enrollment once
+    a matching account exists).
     """
-    from accounts.models import CustomUser
+    from courses.registration_enrollment import reconcile_approved_registration
 
     registration.status = CourseRegistration.Status.APPROVED
     registration._decision_custom_message = custom_message or ""
     registration.save(update_fields=["status", "updated_at"])
-    user = registration.user
-    if user is None and registration.email_normalized:
-        user = CustomUser.objects.filter(
-            email__iexact=registration.email_normalized
-        ).first()
-        if user is not None:
-            registration.user = user
-            registration.save(update_fields=["user", "updated_at"])
-    if user is None or registration.course_id is None:
-        return None
-    enrollment, _ = Enrollment.objects.get_or_create(
-        student=user,
-        course_id=registration.course_id,
-    )
-    return enrollment
+    return reconcile_approved_registration(registration)

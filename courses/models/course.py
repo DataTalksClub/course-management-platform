@@ -516,6 +516,12 @@ class CourseRegistration(models.Model):
                     previous,
                     custom_message=custom_message,
                 )
+            if self.status == CourseRegistration.Status.APPROVED:
+                from courses.registration_enrollment import (
+                    reconcile_approved_registration,
+                )
+
+                reconcile_approved_registration(self)
             if status_changed_to_approved:
                 from courses.referrals import award_referral_bonus
 

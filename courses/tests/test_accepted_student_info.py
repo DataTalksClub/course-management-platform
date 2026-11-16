@@ -58,7 +58,9 @@ class AcceptedStudentInfoTests(RegistrationCampaignBase):
             role=CourseRegistration.Role.DATA_ENGINEER,
             status=CourseRegistration.Status.APPROVED,
         )
-        Enrollment.objects.create(student=user, course=self.course)
+        self.assertTrue(Enrollment.objects.filter(
+            student=user, course=self.course,
+        ).exists())
         self.client.force_login(user)
         url = reverse("course", kwargs={"course_slug": self.course.slug})
 
