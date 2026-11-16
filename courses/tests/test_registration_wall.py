@@ -188,7 +188,9 @@ class RegistrationWallTests(RegistrationCampaignBase):
         registration = self.create_pending_registration(user=self.user)
         registration.status = CourseRegistration.Status.APPROVED
         registration.save(update_fields=["status"])
-        Enrollment.objects.create(student=self.user, course=self.course)
+        self.assertTrue(Enrollment.objects.filter(
+            student=self.user, course=self.course,
+        ).exists())
         self.client.force_login(self.user)
 
         response = self.client.get(
@@ -216,7 +218,9 @@ class RegistrationWallTests(RegistrationCampaignBase):
         registration.save(
             update_fields=["user", "email", "email_normalized", "status"]
         )
-        Enrollment.objects.create(student=account, course=self.course)
+        self.assertTrue(Enrollment.objects.filter(
+            student=account, course=self.course,
+        ).exists())
         self.client.force_login(account)
 
         response = self.client.get(
