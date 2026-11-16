@@ -200,3 +200,20 @@ class AcceptedStudentInfoTests(RegistrationCampaignBase):
             "Course starts: Mon 17 Nov 2026",
             campaign.marketing_markdown,
         )
+
+    def test_schedule_fallback_omits_pre_course_label(self):
+        self.course.live_session_schedule_details = ""
+        self.course.save(update_fields=["live_session_schedule_details"])
+        registration = CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="fallback-schedule@example.com",
+            name="Fallback Student",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            status=CourseRegistration.Status.APPROVED,
+        )
+        context = notification_context(registration)
+        self.assertIn("Live sessions and Q&A.", context["custom_message"])
+        self.assertNotIn("pre-course Q&A", context["custom_message"])
