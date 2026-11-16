@@ -15,7 +15,7 @@ class PendingConfirmationRegressionTests(RegistrationCampaignBase):
             response, "You MUST click the confirmation link"
         )
         self.assertContains(response, "Student@Example.com")
-        self.assertContains(response, "Resend confirmation")
+        self.assertContains(response, "Resend the email")
 
     def test_pending_page_does_not_expose_email_confirmation_secret(
         self,
@@ -284,6 +284,6 @@ class PendingConfirmationRegressionTests(RegistrationCampaignBase):
         self.assertContains(response, "Email updated")
         response = self.client.get(self.campaign_url())
         self.assertContains(response, "Fixed@Example.com")
-        self.assertContains(response, "Resend confirmation")
+        self.assertContains(response, "Resend the email")
         user.refresh_from_db()
         self.assertEqual(user.email, "signed@example.com")

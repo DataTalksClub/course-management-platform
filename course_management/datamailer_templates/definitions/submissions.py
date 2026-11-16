@@ -16,6 +16,7 @@ SUBMISSION_TEMPLATES = {
             '<p><a href="{{ confirmation_url }}">Confirm registration</a></p>'
             "<p>You MUST click this confirmation link to complete registration. "
             "The link expires after 7 days. If you did not register, ignore this email.</p>"
+            "<p>Tip: if this email landed in Spam, click Not spam; if it is in the Promotions tab, drag it to Primary so you get all course updates.</p>"
             "{% endif %}"
             "{% if course_url %}"
             '<p><a href="{{ course_url }}">Open the course workspace</a></p>'
@@ -32,7 +33,8 @@ SUBMISSION_TEMPLATES = {
             "{{ intro_text }}\n\n"
             "{% if confirmation_url %}Confirm registration: {{ confirmation_url }}\n"
             "You MUST click this confirmation link to complete registration. "
-            "The link expires after 7 days. If you did not register, ignore this email.\n\n{% endif %}"
+            "The link expires after 7 days. If you did not register, ignore this email.\n"
+            "Tip: if this email landed in Spam, click Not spam; if it is in Promotions, drag it to Primary so you get all course updates.\n\n{% endif %}"
             "{% if course_url %}Course workspace: {{ course_url }}\n{% endif %}"
             "{% if registration_url %}Registration page: {{ registration_url }}\n{% endif %}"
             "\n{{ notification_footer_text }}\n"
