@@ -167,7 +167,10 @@ class RegistrationPendingFlowTests(RegistrationCampaignBase):
             response, "MUST click the confirmation link"
         )
         self.assertContains(response, "Wrong email? Fix it")
-        self.assertContains(response, "Resend confirmation email")
+        self.assertContains(response, "Resend the email")
+        self.assertContains(response, "Not spam")
+        self.assertContains(response, "Promotions")
+        self.assertContains(response, "Primary")
         sync_datamailer.assert_called_once_with(registration)
         send_confirmation.assert_called_once_with(registration)
 
@@ -243,7 +246,7 @@ class RegistrationPendingFlowTests(RegistrationCampaignBase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Check your inbox")
         self.assertContains(response, "Again@Example.com")
-        self.assertContains(response, "Resend confirmation email")
+        self.assertContains(response, "Resend the email")
         self.assertEqual(CourseRegistration.objects.count(), 1)
 
     def test_confirmation_payload_contains_confirm_link(self):
