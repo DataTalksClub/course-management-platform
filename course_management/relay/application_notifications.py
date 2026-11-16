@@ -102,7 +102,7 @@ def _accepted_course_information(course):
     schedule_details = (course.live_session_schedule_details or "").strip()
     schedule_url = (course.live_session_schedule_url or "").strip()
     if schedule_details or schedule_url:
-        schedule = schedule_details or "Live sessions and pre-course Q&A."
+        schedule = schedule_details or "Live sessions and Q&A."
         if schedule_url:
             schedule += f" [Open the schedule and join details]({schedule_url})."
         sections.append(schedule)
