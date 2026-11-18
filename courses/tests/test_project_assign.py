@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from courses.models import PeerReview, ProjectState
+from courses.models import PeerReview, ProjectState, ReviewCriteria
 from courses.project_assignment import (
     ProjectActionStatus,
     assign_peer_reviews_for_project,
@@ -28,6 +28,20 @@ class ProjectActionsTestCase(ProjectActionsTestBase):
         self.assertEqual(status, ProjectActionStatus.OK)
 
         self.assert_assignment_created(num_submissions)
+
+    def test_assign_blocked_without_review_criteria(self):
+        ReviewCriteria.objects.filter(course=self.course).delete()
+        self.generate_submissions(10)
+
+        status, message = self.assign_peer_reviews()
+
+        self.assertEqual(status, ProjectActionStatus.FAIL)
+        self.assertIn("no review criteria", message.lower())
+        self.assert_no_peer_reviews()
+        self.assertEqual(
+            fetch_fresh(self.project).state,
+            ProjectState.COLLECTING_SUBMISSIONS.value,
+        )
 
     def test_assign_sets_peer_review_deadline_to_seven_days_next_hour(self):
         self.project.peer_review_due_date = timezone.now() - timedelta(days=30)

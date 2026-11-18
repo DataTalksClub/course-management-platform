@@ -13,6 +13,8 @@ from courses.models import (
     Project,
     ProjectSubmission,
     ProjectState,
+    ReviewCriteria,
+    ReviewCriteriaTypes,
     User,
 )
 from courses.project_assignment import assign_peer_reviews_for_project
@@ -222,4 +224,16 @@ class ProjectActionsTestBase(TestCase):
             title="Test Project",
             submission_due_date=submission_due_date,
             peer_review_due_date=peer_review_due_date,
+        )
+        self.create_review_criteria()
+
+    def create_review_criteria(self):
+        return ReviewCriteria.objects.create(
+            course=self.course,
+            description="Code quality",
+            options=[
+                {"criteria": "Poor", "score": 0},
+                {"criteria": "Good", "score": 1},
+            ],
+            review_criteria_type=ReviewCriteriaTypes.RADIO_BUTTONS.value,
         )

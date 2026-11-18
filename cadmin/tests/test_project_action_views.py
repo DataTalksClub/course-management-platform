@@ -3,8 +3,10 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.urls import reverse
+from django.utils import timezone
 
-from courses.models import ProjectState
+from courses.models import PeerReview, ProjectState, ReviewCriteria
+from courses.models.scoring_job import ScoringJob
 from courses.project_assignment import ProjectActionStatus
 from cadmin.tests.project_view_base import ProjectCadminViewTestBase
 
@@ -119,6 +121,27 @@ class ProjectActionViewTests(ProjectCadminViewTestBase):
         self.assertIn("queued", messages[0].message.lower())
         enqueue_mock.assert_called_once()
         send_assignment_notification.assert_not_called()
+
+    def test_project_assign_reviews_blocked_without_review_criteria(self):
+        ReviewCriteria.objects.filter(course=self.course).delete()
+        self.project.submission_due_date = timezone.now() - timedelta(hours=1)
+        self.project.save()
+        self.login_admin()
+
+        response = self.client.post(
+            self.cadmin_project_assign_reviews_url(), follow=True
+        )
+
+        self.assertRedirects(response, self.cadmin_course_url())
+        messages = [m.message for m in response.context["messages"]]
+        self.assertEqual(len(messages), 1)
+        self.assertIn("no review criteria", messages[0].lower())
+        self.assertEqual(ScoringJob.objects.count(), 0)
+        self.assertEqual(PeerReview.objects.count(), 0)
+        self.project.refresh_from_db()
+        self.assertEqual(
+            self.project.state, ProjectState.COLLECTING_SUBMISSIONS.value
+        )
 
     @patch(
         "cadmin.views.projects.send_peer_review_assignment_notification"
