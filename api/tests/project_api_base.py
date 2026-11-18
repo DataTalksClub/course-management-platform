@@ -9,6 +9,7 @@ from courses.models import (
     Enrollment,
     Project,
     ProjectSubmission,
+    ReviewCriteria,
 )
 from courses.models.project import ProjectState
 
@@ -36,6 +37,12 @@ class ProjectAPITestBase(TestCase):
             title="Test Course",
             slug="test-course",
             description="Test",
+        )
+        ReviewCriteria.objects.create(
+            course=self.course,
+            description="Code quality",
+            options=[{"criteria": "Poor", "score": 0}, {"criteria": "Good", "score": 1}],
+            review_criteria_type="RB",
         )
 
     def _create_project(

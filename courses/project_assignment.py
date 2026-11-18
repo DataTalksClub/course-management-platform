@@ -15,6 +15,7 @@ from courses.models.project import (
     Project,
     ProjectState,
     ProjectSubmission,
+    ReviewCriteria,
 )
 from courses.project_assignment_selection import (
     select_random_assignment as _select_random_assignment,
@@ -46,6 +47,11 @@ class PeerReviewAssignmentData:
     num_evaluations: int
     started_at: float
 
+NO_REVIEW_CRITERIA_MESSAGE = (
+    "Cannot assign peer reviews: this course has no review criteria defined. "
+    "Add review criteria before starting peer reviews."
+)
+
 
 def _assignment_precondition_failure(
     project: Project,
@@ -57,6 +63,9 @@ def _assignment_precondition_failure(
             ProjectActionStatus.FAIL,
             PROJECT_NOT_COLLECTING_SUBMISSIONS_MESSAGE,
         )
+
+    if not ReviewCriteria.objects.filter(course_id=project.course_id).exists():
+        return (ProjectActionStatus.FAIL, NO_REVIEW_CRITERIA_MESSAGE)
 
     now = timezone.now()
     if project.submission_due_date > now:

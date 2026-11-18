@@ -9,6 +9,7 @@ from django.utils import timezone
 from courses.models import (
     Answer, AnswerTypes, Course, Enrollment, Homework, Question,
     QuestionTypes, Submission, User, PeerReview, Project, ProjectSubmission,
+    ReviewCriteria,
 )
 from courses.project_assignment import assign_peer_reviews_for_project, ProjectActionStatus
 from courses.project_scoring import score_project
@@ -66,6 +67,11 @@ class HomeworkScoringScaleTests(TestCase):
         self.assertEqual(positions, list(range(1, 1201)))
 
     def test_1200_project_submissions_assignment_and_scoring_queries(self):
+        ReviewCriteria.objects.create(
+            course=self.course, description="Quality",
+            options=[{"criteria": "Poor", "score": 0}, {"criteria": "Good", "score": 1}],
+            review_criteria_type="RB",
+        )
         project = Project.objects.create(
             course=self.course, title="Scale project", slug="scale",
             submission_due_date=timezone.now() - timedelta(days=2),

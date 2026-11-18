@@ -4,7 +4,9 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from api.tests.project_api_base import ProjectAPITestBase
+from courses.models import PeerReview, ReviewCriteria
 from courses.models.project import ProjectState
+from courses.models.scoring_job import ScoringJob
 
 
 class ProjectActionsAPITestCase(ProjectAPITestBase):
@@ -72,6 +74,34 @@ class ProjectActionsAPITestCase(ProjectAPITestBase):
         self.assertEqual(data["project_slug"], "closed-project")
         self.assertEqual(data["state"], ProjectState.CLOSED.value)
         self.assertEqual(data["assigned_peer_reviews_count"], 0)
+
+    def test_assign_reviews_blocked_when_course_has_no_review_criteria(self):
+        project = self._create_project(
+            state=ProjectState.COLLECTING_SUBMISSIONS.value
+        )
+        project.submission_due_date = timezone.now() - timedelta(hours=1)
+        project.number_of_peers_to_evaluate = 2
+        project.save()
+        for index in range(4):
+            self._create_project_submission(project, f"student-{index}")
+        ReviewCriteria.objects.filter(course=self.course).delete()
+        url = (
+            f"/api/courses/{self.course.slug}/projects/{project.id}/"
+            "assign-reviews/"
+        )
+
+        response = self.client.post(url)
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertEqual(data["status"], "FAIL")
+        self.assertIn("no review criteria", data["message"].lower())
+        self.assertEqual(ScoringJob.objects.count(), 0)
+        self.assertEqual(PeerReview.objects.count(), 0)
+        project.refresh_from_db()
+        self.assertEqual(
+            project.state, ProjectState.COLLECTING_SUBMISSIONS.value
+        )
 
     def test_project_actions_require_staff_token(self):
         project = self._create_project(
