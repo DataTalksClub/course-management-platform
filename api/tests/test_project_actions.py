@@ -10,7 +10,19 @@ from courses.models.scoring_job import ScoringJob
 
 
 class ProjectActionsAPITestCase(ProjectAPITestBase):
+    def _add_review_criteria(self):
+        return ReviewCriteria.objects.create(
+            course=self.course,
+            description="Code quality",
+            options=[
+                {"criteria": "Poor", "score": 0},
+                {"criteria": "Good", "score": 1},
+            ],
+            review_criteria_type="RB",
+        )
+
     def test_assign_project_peer_reviews_queues_and_worker_assigns(self):
+        self._add_review_criteria()
         project = self._create_project(
             state=ProjectState.COLLECTING_SUBMISSIONS.value
         )
@@ -84,7 +96,6 @@ class ProjectActionsAPITestCase(ProjectAPITestBase):
         project.save()
         for index in range(4):
             self._create_project_submission(project, f"student-{index}")
-        ReviewCriteria.objects.filter(course=self.course).delete()
         url = (
             f"/api/courses/{self.course.slug}/projects/{project.id}/"
             "assign-reviews/"
