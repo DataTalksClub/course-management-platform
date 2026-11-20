@@ -12,6 +12,7 @@ class ApplicationNotification(models.Model):
         PROCESSING = "processing", "Processing"
         SENT = "sent", "Accepted by Relay"
         FAILED = "failed", "Failed"
+        SKIPPED = "skipped", "Suppressed by Relay (terminal)"
 
     registration = models.ForeignKey(
         "courses.CourseRegistration", on_delete=models.CASCADE,

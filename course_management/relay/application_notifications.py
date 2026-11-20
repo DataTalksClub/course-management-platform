@@ -29,6 +29,17 @@ RETRYABLE_BACKOFF = timedelta(minutes=5)
 PERMANENT_BACKOFF = timedelta(hours=24)
 
 
+class RelaySuppressionRejected(Exception):
+    """The relay will not deliver to this recipient: their contact state
+    (hard bounce, unsubscribe, category opt-out) makes the send permanently
+    not allowed. Every retry replays the same stored decision, so dispatch
+    parks the notification terminal instead of backing off forever."""
+
+    def __init__(self, reason=""):
+        self.reason = str(reason or "suppressed")[:100]
+        super().__init__(f"relay_suppressed:{self.reason}")
+
+
 def operator_recipients():
     configured = getattr(settings, "APPLICATION_NOTIFICATION_OPERATORS", [])
     if isinstance(configured, str):
@@ -191,6 +202,24 @@ def relay_request(method, path, payload):
     return result
 
 
+def skipped_rejection_message(exc):
+    """The relay's skipped message from a TransactionalSendRejected 409
+    body, or None when the error is some other relay rejection."""
+    response = getattr(exc, "response", None)
+    if getattr(response, "status_code", None) != 409:
+        return None
+    try:
+        payload = response.json()
+    except ValueError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    message = payload.get("message")
+    if isinstance(message, dict) and message.get("status") == "skipped":
+        return message
+    return None
+
+
 def send_transactional_message(
     template_key, recipient, context, idempotency_key,
     source="cmp-application-notifications",
@@ -209,11 +238,24 @@ def send_transactional_message(
         payload["from_email"] = settings.RELAY_FROM_EMAIL
     if getattr(settings, "RELAY_TRANSACTIONAL_DRY_RUN", False):
         payload["dry_run"] = True
-    result = relay_request("POST", "/api/transactional/send", payload)
+    try:
+        result = relay_request("POST", "/api/transactional/send", payload)
+    except requests.HTTPError as exc:
+        # The relay rejects a send it skipped at acceptance time with 409
+        # and the skipped message in the body. That is the same terminal
+        # contact-side decision a 202 replay reports; surface it as such.
+        message = skipped_rejection_message(exc)
+        if message is not None:
+            raise RelaySuppressionRejected(message.get("last_error")) from exc
+        raise
     message = result.get("message") or {}
     if not isinstance(message, dict):
         raise ValueError("relay_invalid_message")
-    if message.get("status") in {"failed", "skipped", "cancelled"}:
+    if message.get("status") == "skipped":
+        # Terminal: the relay stored its refusal (hard bounce, unsubscribe)
+        # and replays it for every retry.
+        raise RelaySuppressionRejected(message.get("last_error"))
+    if message.get("status") in {"failed", "cancelled"}:
         raise ValueError("relay_message_not_accepted")
     dry_run_accepted = payload.get("dry_run") and result.get("would_deliver") is True
     if not message.get("id") and not dry_run_accepted:
@@ -261,12 +303,29 @@ def dispatch_notification(pk, now, lease_expired):
         notification.save()
     try:
         message_id = send_notification(notification)
+    except RelaySuppressionRejected as exc:
+        # Terminal: the recipient's contact state (hard bounce, unsubscribe)
+        # makes delivery permanently not allowed, so no retry can succeed.
+        # The applicant still needs reaching (e.g. a corrected address) —
+        # approved_registrations_without_sent_notification keeps counting
+        # them, but the retry loop and the failed-run alarm stop.
+        error = str(exc)[:100]
+        logger.info("Relay application notification suppressed id=%s error=%s", pk, error)
+        ApplicationNotification.objects.filter(pk=pk).update(
+            status="skipped", last_error=error,
+            updated_at=timezone.now(),
+        )
+        record_event("datamailer.health_warning", properties={
+            "source": "application-notifications", "notification_id": pk,
+            "status": "suppressed", "error": error,
+        })
     except Exception as exc:
         # Never persist response bodies, credentials or recipient data in
         # logs/alerts. The failed row retains the identity for safe retry.
         # Permanent Relay 4xx (e.g. unknown template_key) backs off 24h to
         # avoid hot retry loops; transient or unexpected errors retry in 5min.
-        error = type(exc).__name__[:100]
+        status_code = getattr(getattr(exc, "response", None), "status_code", None)
+        error = (f"HTTP {status_code}" if status_code else type(exc).__name__)[:100]
         logger.error("Relay application notification failed id=%s error=%s", pk, error)
         if (
             isinstance(exc, (requests.RequestException, ValueError, ValidationError))

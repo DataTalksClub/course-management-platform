@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from django.utils import timezone
+
 from django.test import override_settings
 
 from courses.models import CourseRegistration
@@ -208,14 +210,62 @@ class ApplicationNotificationTests(RegistrationCampaignBase):
         self.assertEqual(self.notifications().get().relay_message_id, "")
 
     @patch("course_management.relay.application_notifications.requests.request")
-    def test_unacknowledged_or_suppressed_send_is_failed(self, request):
+    def test_relay_skipped_send_is_terminal_suppressed_not_retried(self, request):
+        # The relay refuses a send when the recipient's contact state makes
+        # delivery permanently not allowed (hard bounce, unsubscribe). It
+        # answers 202 and stores the message as skipped; it will replay the
+        # same decision for every retry, so dispatch parks the notification
+        # terminal instead of retrying forever and keeping the worker alarm
+        # alive.
         from course_management.relay.application_notifications import process_application_notifications
+        from data.management.commands.check_cmp_workers import worker_alarms
         registration = self.registration()
         approve_registration(registration)
-        request.return_value.json.return_value = {"message": {"id": 123, "status": "skipped"}}
-        with self.assertLogs("course_management.relay.application_notifications", level="ERROR"):
-            process_application_notifications()
-        self.assertEqual(self.notifications().get().status, "failed")
+        request.return_value.json.return_value = {
+            "message": {"id": 123, "status": "skipped", "last_error": "hard_bounce"},
+        }
+        process_application_notifications()
+        notification = self.notifications().get()
+        self.assertEqual(notification.status, "skipped")
+        self.assertEqual(notification.last_error, "relay_suppressed:hard_bounce")
+        self.assertEqual(
+            [alarm for alarm in worker_alarms() if alarm.startswith("application_notifications:failed")],
+            [],
+        )
+        calls = request.call_count
+        self.notifications().update(next_attempt_at=timezone.now())
+        process_application_notifications()
+        self.assertEqual(request.call_count, calls)
+
+    @patch("course_management.relay.application_notifications.requests.request")
+    def test_relay_409_skipped_rejection_is_terminal_suppressed(self, request):
+        # The same skip decision can arrive as a TransactionalSendRejected
+        # 409 when the relay skips at acceptance time.
+        import requests
+        from course_management.relay.application_notifications import process_application_notifications
+        from data.management.commands.check_cmp_workers import worker_alarms
+        registration = self.registration()
+        approve_registration(registration)
+        response = requests.Response()
+        response.status_code = 409
+        response._content = (
+            '{"message": {"id": 123, "status": "skipped", "last_error": "hard_bounce"}}'
+        ).encode("utf-8")
+        error = requests.HTTPError("Relay 409")
+        error.response = response
+        request.side_effect = error
+        process_application_notifications()
+        notification = self.notifications().get()
+        self.assertEqual(notification.status, "skipped")
+        self.assertEqual(notification.last_error, "relay_suppressed:hard_bounce")
+        self.assertEqual(
+            [alarm for alarm in worker_alarms() if alarm.startswith("application_notifications:failed")],
+            [],
+        )
+        calls = request.call_count
+        self.notifications().update(next_attempt_at=timezone.now())
+        process_application_notifications()
+        self.assertEqual(request.call_count, calls)
 
     def test_admin_bulk_decisions_send_once_per_selected_applicant(self):
         from django.contrib.admin.sites import AdminSite

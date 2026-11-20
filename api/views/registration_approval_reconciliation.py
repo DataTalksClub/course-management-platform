@@ -31,6 +31,8 @@ def _diagnose_missing(notifications):
     statuses = {n.status for n in notifications}
     if ApplicationNotification.Status.FAILED in statuses:
         return "notification_failed"
+    if ApplicationNotification.Status.SKIPPED in statuses:
+        return "notification_suppressed"
     return "notification_pending"
 
 
