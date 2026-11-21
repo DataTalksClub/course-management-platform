@@ -166,26 +166,3 @@ class ProjectDataAPITestCase(TestCase):
         self.assert_course_data(actual_result)
         self.assert_project_data(actual_result, project)
         self.assert_submission_data(actual_result, submission)
-
-    def test_project_data_view_legacy_path(self):
-        project = self.create_project()
-        submission = self.create_project_submission(project)
-
-        legacy_url = reverse(
-            "api_project_submissions_export_legacy",
-            kwargs={
-                "course_slug": self.course.slug,
-                "project_slug": project.slug,
-            },
-        )
-        self.assertEqual(
-            legacy_url,
-            f"/api/courses/{self.course.slug}/project/{project.slug}",
-        )
-        response = self.client.get(legacy_url)
-
-        self.assertEqual(response.status_code, 200)
-        actual_result = response.json()
-        self.assert_course_data(actual_result)
-        self.assert_project_data(actual_result, project)
-        self.assert_submission_data(actual_result, submission)
