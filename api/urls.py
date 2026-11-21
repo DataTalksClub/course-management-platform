@@ -76,6 +76,11 @@ urlpatterns = [
         name="api_project_submissions_export",
     ),
     path(
+        "courses/<slug:course_slug>/project/<slug:project_slug>",
+        project_exports.project_data_view,
+        name="api_project_submissions_export_legacy",
+    ),
+    path(
         "courses/<slug:course_slug>/graduates",
         enrollment_graduates.graduates_data_view,
         name="api_course_graduates",
