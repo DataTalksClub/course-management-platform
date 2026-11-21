@@ -8,7 +8,6 @@ from api.urls import urlpatterns
 STAFF_TOKEN_VIEWS = {
     "api_homework_submissions_export",
     "api_project_submissions_export",
-    "api_project_submissions_export_legacy",
 }
 
 # Other token routes have intentionally public or method-specific policies;

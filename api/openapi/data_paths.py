@@ -150,20 +150,6 @@ PROJECT_SUBMISSIONS_EXPORT_DATA = OperationData(
 )
 PROJECT_SUBMISSIONS_EXPORT_OPERATION = operation(PROJECT_SUBMISSIONS_EXPORT_DATA)
 
-PROJECT_SUBMISSIONS_EXPORT_LEGACY_DATA = OperationData(
-    "api_project_submissions_export_legacy",
-    ["Course Data"],
-    "Export project submissions (legacy path)",
-    PROJECT_SUBMISSIONS_EXPORT_RESPONSES,
-    description=(
-        "Legacy alias for "
-        "/api/courses/{course_slug}/projects/{project_slug}/submissions."
-    ),
-)
-PROJECT_SUBMISSIONS_EXPORT_LEGACY_OPERATION = operation(
-    PROJECT_SUBMISSIONS_EXPORT_LEGACY_DATA
-)
-
 COURSE_GRADUATES_SUCCESS_RESPONSE = schema_response(
     "Course graduates",
     "Graduates",
@@ -401,9 +387,6 @@ DATA_PATHS_BY_URL_NAME = {
     },
     "api_project_submissions_export": {
         "get": PROJECT_SUBMISSIONS_EXPORT_OPERATION,
-    },
-    "api_project_submissions_export_legacy": {
-        "get": PROJECT_SUBMISSIONS_EXPORT_LEGACY_OPERATION,
     },
     "api_course_graduates": {
         "get": COURSE_GRADUATES_OPERATION,
