@@ -7,6 +7,11 @@ from api.views.registration_campaign_serializers import (
 )
 from courses.models.course import CourseRegistration
 
+MAX_LIMIT = 500
+BOOLEAN_FILTER_FIELDS = ("accepted_nebius_sharing",)
+TRUE_VALUES = ("true", "1", "yes")
+FALSE_VALUES = ("false", "0", "no")
+
 
 def registration_campaign_registrations_payload(campaign, params):
     registrations = filtered_registrations(campaign, params)
@@ -14,8 +19,13 @@ def registration_campaign_registrations_payload(campaign, params):
     limit, err = registration_limit(params)
     if err:
         return None, err
+    offset, err = registration_offset(params)
+    if err:
+        return None, err
 
-    payload = registration_list_payload(campaign, registrations, stats, limit)
+    payload = registration_list_payload(
+        campaign, registrations, stats, limit, offset
+    )
     return payload, None
 
 
@@ -46,6 +56,12 @@ def apply_registration_exact_filters(queryset, params):
         value = params.get(field, "").strip()
         if value:
             queryset = queryset.filter(**{field: value})
+    for field in BOOLEAN_FILTER_FIELDS:
+        value = params.get(field, "").strip().lower()
+        if value in TRUE_VALUES:
+            queryset = queryset.filter(**{field: True})
+        elif value in FALSE_VALUES:
+            queryset = queryset.filter(**{field: False})
     return queryset
 
 
@@ -80,7 +96,7 @@ def registration_limit(params):
     try:
         raw_limit = params.get("limit", 100)
         limit = int(raw_limit)
-        capped_limit = min(limit, 500)
+        capped_limit = min(limit, MAX_LIMIT)
         return capped_limit, None
     except ValueError:
         error = error_response(
@@ -91,10 +107,27 @@ def registration_limit(params):
         return None, error
 
 
-def registration_list_payload(campaign, registrations, stats, limit):
+def registration_offset(params):
+    try:
+        offset = int(params.get("offset", 0))
+    except ValueError:
+        offset = -1
+    if offset < 0:
+        error = error_response(
+            "offset must be a non-negative integer",
+            "invalid_offset",
+            details={"field": "offset"},
+        )
+        return None, error
+    return offset, None
+
+
+def registration_list_payload(campaign, registrations, stats, limit, offset=0):
     registration_records = []
-    ordered_registrations = registrations.order_by("-created_at")[:limit]
-    for registration in ordered_registrations:
+    # The id tie-breaker keeps offset pages stable when created_at collides.
+    ordered_registrations = registrations.order_by("-created_at", "-id")
+    page = ordered_registrations[offset:offset + limit]
+    for registration in page:
         registration_record = registration_to_dict(registration)
         registration_records.append(registration_record)
 
@@ -102,5 +135,8 @@ def registration_list_payload(campaign, registrations, stats, limit):
     return {
         "campaign": campaign_data,
         "stats": stats,
+        "count": registrations.count(),
+        "limit": limit,
+        "offset": offset,
         "registrations": registration_records,
     }

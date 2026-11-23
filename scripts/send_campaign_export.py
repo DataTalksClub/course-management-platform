@@ -38,16 +38,76 @@ def cmp_env(name, default=None, required=False):
     return value
 
 
-def fetch_status(base_url, token, campaign, status):
-    """All registrations of one status (500 per page; per-status counts fit)."""
+PAGE_SIZE = 500
+
+
+class IncompleteExportError(RuntimeError):
+    pass
+
+
+def fetch_status(base_url, token, campaign, status, page_size=PAGE_SIZE,
+                 extra_params=None):
+    """Every registration of one status, paged until the API count is reached.
+
+    The API caps one page at 500 rows, so a single request silently truncates
+    large campaigns. Refuse to return anything if the server does not report
+    ``count`` (an older API without pagination) or if the rows fetched do not
+    match it.
+    """
+    url = (
+        f"{base_url.rstrip('/')}/api/registration-campaigns/{campaign}/"
+        "registrations/"
+    )
+    rows = []
+    expected = None
+    while True:
+        params = {"status": status, "limit": page_size, "offset": len(rows)}
+        params.update(extra_params or {})
+        response = requests.get(
+            url,
+            params=params,
+            headers={"Authorization": f"Token {token}"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if "count" not in data:
+            raise IncompleteExportError(
+                "CMP registrations API does not report count; it cannot page "
+                "past 500 rows, refusing a possibly truncated export"
+            )
+        if expected is None:
+            expected = data["count"]
+        elif data["count"] != expected:
+            raise IncompleteExportError(
+                f"{status} registrations changed during the export "
+                f"({expected} -> {data['count']}); rerun"
+            )
+        page = data["registrations"]
+        rows.extend(page)
+        if not page or len(rows) >= expected:
+            break
+    if len(rows) != expected:
+        raise IncompleteExportError(
+            f"fetched {len(rows)} {status} registrations, API reports {expected}"
+        )
+    return rows
+
+
+def fetch_count(base_url, token, campaign, params):
+    """Server-side count of registrations matching ``params``."""
     response = requests.get(
         f"{base_url.rstrip('/')}/api/registration-campaigns/{campaign}/"
-        f"registrations/?status={status}&limit=500",
+        "registrations/",
+        params={**params, "limit": 1},
         headers={"Authorization": f"Token {token}"},
         timeout=30,
     )
     response.raise_for_status()
-    return response.json()["registrations"]
+    data = response.json()
+    if "count" not in data:
+        raise IncompleteExportError("CMP registrations API does not report count")
+    return data["count"]
 
 
 def fetch_all(base_url, token, campaign):
