@@ -1,4 +1,7 @@
+import logging
+
 from django.contrib import messages
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
 from course_management.datamailer.client import check_relay_availability
@@ -20,6 +23,10 @@ from courses.scoring_queue import (
     latest_homework_job,
     scoring_banner,
 )
+from cadmin.correct_answers import (
+    CorrectAnswerError,
+    save_question_correct_answer,
+)
 from cadmin.deadline_extension import extend_deadlines
 from cadmin.views.homework_submission_edit import (
     homework_submission_edit_response,
@@ -34,6 +41,9 @@ from .helpers import (
     redirect_after_action,
     staff_required,
 )
+
+
+logger = logging.getLogger("cadmin.correct_answers")
 
 
 @staff_required
@@ -289,19 +299,37 @@ def homework_save_answers(request, course_slug, homework_slug):
     questions = list(
         Question.objects.filter(homework=homework).order_by("id")
     )
-    for question in questions:
-        field_name = f"correct_answer_{question.id}"
-        if question.has_choice_answers():
-            indices = request.POST.getlist(field_name)
-            correct_answer = ",".join(indices)
-        else:
-            correct_answer = request.POST.get(field_name, "")
-        answer_type = request.POST.get(
-            f"answer_type_{question.id}", ""
+    try:
+        with transaction.atomic():
+            for question in questions:
+                field_name = f"correct_answer_{question.id}"
+                if question.has_choice_answers():
+                    correct_answer = request.POST.getlist(field_name)
+                else:
+                    correct_answer = request.POST.get(field_name, "")
+                answer_type = request.POST.get(f"answer_type_{question.id}")
+                if answer_type is None:
+                    save_question_correct_answer(question, correct_answer)
+                else:
+                    save_question_correct_answer(
+                        question, correct_answer, answer_type
+                    )
+    except CorrectAnswerError as exc:
+        logger.error(
+            "correct_answer_save_failed course=%s homework=%s question=%s "
+            "reason=%s",
+            course.slug,
+            homework.slug,
+            question.id,
+            exc,
         )
-        question.correct_answer = correct_answer
-        question.answer_type = answer_type or None
-        question.save(update_fields=["correct_answer", "answer_type"])
+        messages.error(
+            request,
+            f"Correct answers for {homework.title} were NOT saved: {exc}",
+        )
+        return redirect_after_action(
+            request, "cadmin_course", course_slug=course_slug
+        )
 
     messages.success(
         request,

@@ -466,6 +466,11 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        "cadmin": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "courses": {
             "handlers": ["console"],
             "level": "INFO",
