@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   inspect:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, contabo]
     timeout-minutes: 10
     steps:
       - name: Read DEV homework counts (no student data or writes)

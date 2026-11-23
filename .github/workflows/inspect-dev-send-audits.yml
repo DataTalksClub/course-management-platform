@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   inspect:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, contabo]
     timeout-minutes: 10
     steps:
       - name: Read DEV send audits (GET only, no emails printed)

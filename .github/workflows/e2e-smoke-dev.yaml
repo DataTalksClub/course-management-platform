@@ -16,7 +16,7 @@ on:
 
 jobs:
   smoke:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, contabo]
 
     # Email verification no longer uses a mock/real inbox. The suite reads CMP's
     # own DatamailerSendAudit rows over HTTP (GET /api/datamailer/send-audits):
@@ -53,7 +53,7 @@ jobs:
           uv sync --locked
 
       - name: Install Playwright browser
-        run: uv run playwright install --with-deps chromium
+        run: uv run playwright install chromium
 
       - name: Wait for target health endpoint
         run: |
