@@ -1,11 +1,23 @@
-"""Send the weekly Genmedia statistics and one CSV attachment via Relay.
+"""Send the Genmedia participant list to Nebius: one CSV, one recipient.
 
-The Hetzner cron runs on Mondays at 20:15 Europe/Berlin. Its first scheduled
-send is Monday 16 November 2026. The daily approval job does not send this
-report.
+This is the one entry point for the partner list (manual sends included):
+run it with ``--dry-run`` first, check the printed counts, then run it
+without the flag. Do not build the CSV by hand.
 
-The weekly run makes one Relay CLI call, with exactly one recipient and one
-CSV attachment. Failures are logged and sent to the internal ops alert hook.
+Source: every approved registration of the campaign, paged through the CMP
+API until the server-reported count is reached (the API caps one page at
+500 rows). Only rows with ``accepted_nebius_sharing`` true are exported; the
+run fails if the API does not serialize that field or if the client-side
+consent count disagrees with the server-side filter.
+
+CSV: a fixed schema (``REPORT_FIELDS``), UTF-8 with BOM, one physical line
+per participant, ordered by ``created_at``. It matches the 23 Nov 2026 file
+approved for Mikhail, including his ``country`` and ``role`` columns.
+
+The Hetzner cron line (Mondays 20:15 Europe/Berlin) is on HOLD since
+2026-11-23; see deploy/hetzner/genmedia-crontab. The weekly run makes one
+Relay CLI call, with exactly one recipient and one CSV attachment. Failures
+are logged and sent to the internal ops alert hook.
 
 Environment: CMP_BASE_URL, CMP_API_TOKEN, DATAMAILER_URL,
 DATAMAILER_API_KEY, GENMEDIA_WEEKLY_REPORT_TO (defaults to the Nebius
@@ -13,6 +25,9 @@ recipient), and optionally GENMEDIA_EXPORT_DIR.
 """
 
 import argparse
+import csv
+import hashlib
+import io
 import os
 import subprocess
 import sys
@@ -23,8 +38,8 @@ from zoneinfo import ZoneInfo
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.genmedia_alerts import report_failure  # noqa: E402
-from scripts.send_big_csv import rows_to_csv_text  # noqa: E402
-from scripts.send_campaign_export import fetch_all  # noqa: E402
+from scripts.send_big_csv import flatten  # noqa: E402
+from scripts.send_campaign_export import fetch_count, fetch_status  # noqa: E402
 
 
 class ExportError(RuntimeError):
@@ -35,6 +50,24 @@ REPORT_TIMEZONE = ZoneInfo("Europe/Berlin")
 REPORT_START_DATE = date(2026, 11, 16)
 RELAY_TIMEOUT_SECONDS = 60
 REPORT_SEND_TIME = time(20, 15)
+REPORT_STATUS = "approved"
+CONSENT_FIELD = "accepted_nebius_sharing"
+# Fixed column order agreed for Mikhail on 2026-11-23. Changing it changes
+# the partner's import; update the tests and tell the recipient first.
+REPORT_FIELDS = (
+    "id",
+    "email",
+    "name",
+    "company_name",
+    "linkedin_url",
+    "github_url",
+    "status",
+    "created_at",
+    "auto_approved_at",
+    CONSENT_FIELD,
+    "country",
+    "role",
+)
 
 
 def env(name, default=None, required=False):
@@ -101,18 +134,55 @@ def build_relay_command(binary, url, api_key, recipients, subject, body_text,
     return command
 
 
-def weekly_subject(total, report_day):
-    return f"Genmedia weekly stats as of {report_day}: {total} registrations"
+def fetch_all(base_url, token, campaign):
+    """Every approved registration; raises unless the API count is reached."""
+    rows = fetch_status(base_url, token, campaign, REPORT_STATUS)
+    ids = [row["id"] for row in rows]
+    if len(set(ids)) != len(ids):
+        raise ExportError("duplicate registration ids in the export")
+    statuses = Counter(row.get("status") for row in rows)
+    if set(statuses) - {REPORT_STATUS}:
+        raise ExportError(f"unexpected statuses in the export: {dict(statuses)}")
+    return rows
 
 
-def weekly_body(total, counts, report_day):
+def shareable_rows(rows):
+    """Rows whose owner agreed to share their details with Nebius."""
+    if any(CONSENT_FIELD not in row for row in rows):
+        raise ExportError(
+            f"CMP API does not serialize {CONSENT_FIELD}; refusing to export "
+            "without a consent check"
+        )
+    shared = [row for row in rows if row[CONSENT_FIELD] is True]
+    return shared, len(rows) - len(shared)
+
+
+def report_csv_text(rows):
+    """Fixed-schema CSV, one physical line per participant, BOM for Excel."""
+    ordered = sorted(
+        rows, key=lambda row: (row.get("created_at") or "", row["id"])
+    )
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\r\n")
+    writer.writerow(REPORT_FIELDS)
+    for row in ordered:
+        writer.writerow([flatten(row.get(field)) for field in REPORT_FIELDS])
+    text = buffer.getvalue()
+    if len(text.splitlines()) != len(rows) + 1:
+        raise ExportError("every participant row must be a single line")
+    return "\ufeff" + text
+
+
+def weekly_subject(shared, report_day):
+    return f"Genmedia participants as of {report_day}: {shared} approved"
+
+
+def weekly_body(shared, report_day):
     return (
-        f"Weekly statistics as of {report_day}: {total} registrations "
-        f"({counts['approved']} approved, {counts['pending']} pending, "
-        f"{counts['rejected']} rejected).\n\n"
-        "The current registration list is attached as a single CSV file with "
-        "all participant fields. Line breaks inside comments are flattened "
-        "to spaces."
+        f"Participant list as of {report_day}: {shared} approved participants "
+        "who agreed to share their details with Nebius.\n\n"
+        "Attached as a single CSV file (UTF-8) with the columns "
+        f"{', '.join(REPORT_FIELDS)}."
     )
 
 
@@ -140,11 +210,21 @@ def run(dry_run=False, now=None):
     recipients = weekly_report_recipients()
 
     rows = fetch_all(base_url, token, campaign)
-    counts = Counter(row["status"] for row in rows)
-    total = len(rows)
+    shared, withheld = shareable_rows(rows)
+    server_shared = fetch_count(
+        base_url,
+        token,
+        campaign,
+        {"status": REPORT_STATUS, CONSENT_FIELD: "true"},
+    )
+    if server_shared != len(shared):
+        raise ExportError(
+            f"consent count mismatch: {len(shared)} in rows, "
+            f"{server_shared} from the API filter"
+        )
     print(
-        f"fetched {total} ({counts['approved']} approved, "
-        f"{counts['pending']} pending, {counts['rejected']} rejected)"
+        f"fetched {len(rows)} approved (complete); {len(shared)} shareable, "
+        f"{withheld} withheld without {CONSENT_FIELD}"
     )
 
     export_dir = env("GENMEDIA_EXPORT_DIR", default="/tmp/opencode")
@@ -152,12 +232,20 @@ def run(dry_run=False, now=None):
     csv_path = os.path.join(
         export_dir, f"genmedia-weekly-report-{report_day.isoformat()}.csv"
     )
-    with open(csv_path, "w", encoding="utf-8") as handle:
-        handle.write(rows_to_csv_text(rows))
-    print(f"csv bytes: {os.path.getsize(csv_path)} -> {csv_path}")
+    csv_text = report_csv_text(shared)
+    with open(csv_path, "w", encoding="utf-8", newline="") as handle:
+        handle.write(csv_text)
+    digest = hashlib.sha256(csv_text.encode("utf-8")).hexdigest()
+    print(f"columns: {','.join(REPORT_FIELDS)}")
+    print(
+        f"csv rows: {len(shared)}, bytes: {os.path.getsize(csv_path)}, "
+        f"sha256: {digest} -> {csv_path}"
+    )
 
     if dry_run:
-        print("dry-run: one recipient and one CSV prepared; no email sent")
+        print(
+            "dry-run: 1 recipient, 1 CSV attachment prepared; no email sent"
+        )
         return
 
     url = env("DATAMAILER_URL", default="https://relay.datatalks.club")
@@ -167,8 +255,8 @@ def run(dry_run=False, now=None):
         url,
         api_key,
         recipients,
-        weekly_subject(total, report_day.isoformat()),
-        weekly_body(total, counts, report_day.isoformat()),
+        weekly_subject(len(shared), report_day.isoformat()),
+        weekly_body(len(shared), report_day.isoformat()),
         f"genmedia-weekly-report:{report_day.isoformat()}",
         [csv_path],
     )

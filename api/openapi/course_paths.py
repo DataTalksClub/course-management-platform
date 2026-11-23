@@ -215,6 +215,23 @@ REGISTRATION_CAMPAIGN_REGISTRATIONS_DATA = OperationData(
     ["Registration Campaigns"],
     "List registration campaign registrations and stats",
     REGISTRATION_CAMPAIGN_REGISTRATIONS_RESPONSES,
+    parameters=[
+        {"name": name, "in": "query", "required": False, "schema": schema}
+        for name, schema in (
+            ("q", {"type": "string"}),
+            ("role", {"type": "string"}),
+            ("country", {"type": "string"}),
+            ("region", {"type": "string"}),
+            ("status", {"type": "string"}),
+            ("accepted_nebius_sharing", {"type": "boolean"}),
+            ("limit", {"type": "integer", "default": 100, "maximum": 500}),
+            ("offset", {"type": "integer", "default": 0, "minimum": 0}),
+        )
+    ],
+    description=(
+        "Newest first (created_at, then id). Page through every match with "
+        "offset until offset reaches count. Requires a staff token."
+    ),
 )
 REGISTRATION_CAMPAIGN_REGISTRATIONS_OPERATION = operation(
     REGISTRATION_CAMPAIGN_REGISTRATIONS_DATA

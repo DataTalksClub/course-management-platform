@@ -49,5 +49,10 @@ def registration_to_dict(registration):
         "utm_content": registration.utm_content,
         "utm_term": registration.utm_term,
         "landing_referrer": registration.landing_referrer,
+        "linkedin_url": registration.linkedin_url,
+        "github_url": registration.github_url,
+        "accepted_newsletter": registration.accepted_newsletter,
+        "accepted_nebius_sharing": registration.accepted_nebius_sharing,
+        "auto_approved_at": datetime_to_iso(registration.auto_approved_at),
         "created_at": created_at,
     }

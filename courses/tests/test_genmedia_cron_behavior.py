@@ -25,6 +25,14 @@ WEEKLY_RUN_AT = datetime(
 
 
 class GenmediaCronBehaviorTestCase(SimpleTestCase):
+    def setUp(self):
+        # Server-side consent count; matches the rows each test returns.
+        patcher = patch(
+            "scripts.genmedia_full_export.fetch_count", return_value=0
+        )
+        self.fetch_count = patcher.start()
+        self.addCleanup(patcher.stop)
+
     @patch("scripts.genmedia_evening_batch.approve_batches")
     @patch("scripts.genmedia_evening_batch.select_approvable")
     @patch("scripts.genmedia_evening_batch.fetch_pending")
@@ -61,8 +69,14 @@ class GenmediaCronBehaviorTestCase(SimpleTestCase):
         self, send_command, fetch_all
     ):
         fetch_all.return_value = [
-            {"id": 1, "email": "applicant@example.com", "status": "approved"}
+            {
+                "id": 1,
+                "email": "applicant@example.com",
+                "status": "approved",
+                "accepted_nebius_sharing": True,
+            }
         ]
+        self.fetch_count.return_value = 1
         send_command.return_value.stdout = "accepted"
 
         with patch.dict(
@@ -139,6 +153,13 @@ class GenmediaCronBehaviorTestCase(SimpleTestCase):
         self.assertIn("5 20 * * *", cron)
         self.assertIn("15 20 * * 1", cron)
         self.assertIn("GENMEDIA_WEEKLY_REPORT_TO=mnrozhkov@nebius.com", cron)
+        # The partner report is on hold (Alexey, 2026-11-23): its line must
+        # stay commented out so reinstalling this file cannot send.
+        report_lines = [
+            line for line in cron.splitlines() if "genmedia_full_export" in line
+        ]
+        self.assertEqual(len(report_lines), 1)
+        self.assertTrue(report_lines[0].startswith("# HOLD"))
 
     @patch("scripts.genmedia_full_export.report_failure")
     @patch("scripts.genmedia_full_export.fetch_all", return_value=[])
