@@ -604,7 +604,8 @@ class HomeworkCadminRescoreTests(HomeworkCadminViewTestBase):
         response = self.client.get(submissions_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Correct answers")
-        self.assertContains(response, "Save answers")
+        self.assertContains(response, "Changes save automatically.")
+        self.assertNotContains(response, "Save answers")
 
     def test_rescore_queues_and_worker_rescores(self):
         from django.core.management import call_command

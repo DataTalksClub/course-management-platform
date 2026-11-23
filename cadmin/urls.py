@@ -7,6 +7,7 @@ from .views import datamailer
 from .views import email_campaigns
 from .views import enrollment
 from .views import homework
+from .views import homework_correct_answers
 from .views import observability
 from .views import projects
 
@@ -101,6 +102,16 @@ urlpatterns = [
         "<slug:course_slug>/homework/<slug:homework_slug>/save-answers",
         homework.homework_save_answers,
         name="cadmin_homework_save_answers",
+    ),
+    path(
+        "<slug:course_slug>/homework/<slug:homework_slug>/questions/<int:question_id>/correct-answer",
+        homework_correct_answers.homework_question_save_answer,
+        name="cadmin_homework_question_save_answer",
+    ),
+    path(
+        "<slug:course_slug>/homework/<slug:homework_slug>/correct-answers/client-error",
+        homework_correct_answers.homework_correct_answers_client_error,
+        name="cadmin_homework_correct_answers_client_error",
     ),
     path(
         "<slug:course_slug>/homework/<slug:homework_slug>/set-correct-answers",

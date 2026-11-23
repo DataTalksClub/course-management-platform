@@ -127,68 +127,268 @@
     {% endif %}
 
     {% if questions %}
-    <section class="mt-6 overflow-hidden rounded-md border app-border app-surface">
+    <section class="mt-6 overflow-hidden rounded-md border app-border app-surface"
+             data-correct-answers-autosave
+             data-client-error-url="{% url 'cadmin_homework_correct_answers_client_error' course.slug homework.slug %}">
       <div class="border-b app-border app-surface-muted px-4 py-3">
         <h2 class="text-base font-semibold app-heading">Correct answers</h2>
+        <p class="mt-1 text-xs app-muted">Changes save automatically.</p>
       </div>
-      <form method="post" action="{% url 'cadmin_homework_save_answers' course.slug homework.slug %}">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{% url 'cadmin_homework_submissions' course.slug homework.slug %}">
-        <div class="divide-y app-divide">
-          {% for question in questions %}
-            <div class="px-4 py-3">
+      {% csrf_token %}
+      <div class="hidden border-b app-border app-alert-danger px-4 py-3 text-sm"
+           role="alert"
+           data-autosave-alert></div>
+      <div class="divide-y app-divide">
+        {% for question in questions %}
+          <div class="px-4 py-3"
+               data-autosave-question="{{ question.id }}"
+               data-autosave-number="{{ forloop.counter }}"
+               data-autosave-kind="{% if question.has_choice_answers %}choice{% else %}text{% endif %}"
+               data-save-url="{% url 'cadmin_homework_question_save_answer' course.slug homework.slug question.id %}">
+            <div class="flex flex-wrap items-center gap-2">
               <p class="text-sm font-medium app-heading">
                 {{ forloop.counter }}. {{ question.text }}
                 <span class="app-badge app-badge-neutral ml-1 align-middle">{{ question.get_question_type_display }}</span>
               </p>
-
-              {% if question.has_choice_answers %}
-                <input type="hidden" name="correct_answer_{{ question.id }}" value="" id="hidden_correct_{{ question.id }}">
-                <div class="mt-2 space-y-1">
-                  {% for option in question.get_possible_answers %}
-                    {% with forloop.counter as opt_index %}
-                      <div class="form-check">
-                        <input type="checkbox"
-                               id="correct_answer_{{ question.id }}_{{ opt_index }}"
-                               name="correct_answer_{{ question.id }}"
-                               value="{{ opt_index }}"
-                               class="form-check-input"
-                               {% if opt_index in question.get_correct_answer_indices %}checked{% endif %}>
-                        <label class="form-check-label" for="correct_answer_{{ question.id }}_{{ opt_index }}">
-                          {{ opt_index }}. {{ option }}
-                        </label>
-                      </div>
-                    {% endwith %}
-                  {% endfor %}
-                </div>
-              {% else %}
-                <div class="mt-2 flex flex-wrap items-center gap-3">
-                  <div class="flex items-center gap-2">
-                    <label class="text-xs font-semibold uppercase app-muted" for="correct_answer_{{ question.id }}">Correct answer</label>
-                    <input type="text" name="correct_answer_{{ question.id }}" id="correct_answer_{{ question.id }}"
-                           value="{{ question.correct_answer|default:'' }}" class="form-control w-48">
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <label class="text-xs font-semibold uppercase app-muted" for="answer_type_{{ question.id }}">Type</label>
-                    <select name="answer_type_{{ question.id }}" id="answer_type_{{ question.id }}" class="form-control">
-                      <option value="">---</option>
-                      {% for value, label in question.ANSWER_TYPES %}
-                        <option value="{{ value }}" {% if question.answer_type == value %}selected{% endif %}>{{ label }}</option>
-                      {% endfor %}
-                    </select>
-                  </div>
-                </div>
-              {% endif %}
+              <span class="app-badge app-badge-neutral hidden"
+                    data-autosave-status
+                    aria-live="polite"></span>
+              <button type="button"
+                      class="primer-button primer-button-secondary hidden"
+                      data-autosave-retry>
+                Retry
+              </button>
             </div>
-          {% endfor %}
-        </div>
-        <div class="border-t app-border px-4 py-3 flex flex-wrap gap-2">
-          <button type="submit" class="primer-button">
-            <i class="fas fa-save" aria-hidden="true"></i> Save answers
-          </button>
-        </div>
-      </form>
+
+            {% if question.has_choice_answers %}
+              <div class="mt-2 space-y-1">
+                {% for option in question.get_possible_answers %}
+                  {% with forloop.counter as opt_index %}
+                    <div class="form-check">
+                      <input type="checkbox"
+                             id="correct_answer_{{ question.id }}_{{ opt_index }}"
+                             name="correct_answer_{{ question.id }}"
+                             value="{{ opt_index }}"
+                             class="form-check-input"
+                             data-autosave-option
+                             {% if opt_index in question.get_correct_answer_indices %}checked{% endif %}>
+                      <label class="form-check-label" for="correct_answer_{{ question.id }}_{{ opt_index }}">
+                        {{ opt_index }}. {{ option }}
+                      </label>
+                    </div>
+                  {% endwith %}
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="mt-2 flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2">
+                  <label class="text-xs font-semibold uppercase app-muted" for="correct_answer_{{ question.id }}">Correct answer</label>
+                  <input type="text"
+                         name="correct_answer_{{ question.id }}"
+                         id="correct_answer_{{ question.id }}"
+                         value="{{ question.correct_answer|default:'' }}"
+                         class="form-control w-48"
+                         data-autosave-text>
+                </div>
+                <div class="flex items-center gap-2">
+                  <label class="text-xs font-semibold uppercase app-muted" for="answer_type_{{ question.id }}">Type</label>
+                  <select name="answer_type_{{ question.id }}"
+                          id="answer_type_{{ question.id }}"
+                          class="form-control"
+                          data-autosave-answer-type>
+                    <option value="">---</option>
+                    {% for value, label in question.ANSWER_TYPES %}
+                      <option value="{{ value }}" {% if question.answer_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
     </section>
+    <script>
+      (function () {
+        const panel = document.querySelector('[data-correct-answers-autosave]');
+        if (!panel) {
+          return;
+        }
+        const SAVE_TIMEOUT_MS = 10000;
+        const TEXT_DEBOUNCE_MS = 700;
+        const csrfInput = panel.querySelector('input[name="csrfmiddlewaretoken"]');
+        const csrfToken = csrfInput ? csrfInput.value : '';
+        const alertBox = panel.querySelector('[data-autosave-alert]');
+        const clientErrorUrl = panel.dataset.clientErrorUrl;
+        const failed = new Map();
+        let pendingCount = 0;
+
+        const STATUS_CLASSES = ['app-badge-neutral', 'app-badge-info', 'app-badge-success', 'app-badge-danger'];
+
+        function setStatus(row, state, text) {
+          const badge = row.querySelector('[data-autosave-status]');
+          const retry = row.querySelector('[data-autosave-retry]');
+          badge.classList.remove('hidden', ...STATUS_CLASSES);
+          const cls = {
+            saving: 'app-badge-info',
+            saved: 'app-badge-success',
+            error: 'app-badge-danger',
+          }[state] || 'app-badge-neutral';
+          badge.classList.add(cls);
+          badge.textContent = text;
+          badge.dataset.state = state;
+          row.dataset.autosaveState = state;
+          retry.classList.toggle('hidden', state !== 'error');
+        }
+
+        function refreshAlert() {
+          if (failed.size === 0) {
+            alertBox.classList.add('hidden');
+            alertBox.textContent = '';
+            return;
+          }
+          const numbers = Array.from(failed.values()).sort(function (a, b) { return a - b; })
+            .map(function (n) { return 'Q' + n; }).join(', ');
+          alertBox.textContent =
+            'Correct answers NOT saved for ' + numbers +
+            '. Use Retry on the question, or reload the page before scoring.';
+          alertBox.classList.remove('hidden');
+        }
+
+        function reportClientFailure(questionId, reason, detail) {
+          try {
+            fetch(clientErrorUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+              body: JSON.stringify({ question_id: questionId, reason: reason, detail: detail || '' }),
+              keepalive: true,
+            }).catch(function () {});
+          } catch (e) {
+            // Reporting is best effort; the page already shows the error loudly.
+          }
+        }
+
+        function payloadFor(row) {
+          if (row.dataset.autosaveKind === 'choice') {
+            const selected = [];
+            row.querySelectorAll('[data-autosave-option]').forEach(function (box) {
+              if (box.checked) {
+                selected.push(box.value);
+              }
+            });
+            return { correct_answer: selected };
+          }
+          return {
+            correct_answer: row.querySelector('[data-autosave-text]').value,
+            answer_type: row.querySelector('[data-autosave-answer-type]').value,
+          };
+        }
+
+        function markFailed(row, message) {
+          failed.set(row.dataset.autosaveQuestion, Number(row.dataset.autosaveNumber));
+          setStatus(row, 'error', 'Not saved: ' + message);
+          refreshAlert();
+        }
+
+        async function send(row) {
+          const questionId = row.dataset.autosaveQuestion;
+          const controller = new AbortController();
+          const timer = setTimeout(function () { controller.abort(); }, SAVE_TIMEOUT_MS);
+          let response;
+          try {
+            response = await fetch(row.dataset.saveUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify(payloadFor(row)),
+              signal: controller.signal,
+            });
+          } catch (err) {
+            const reason = err && err.name === 'AbortError' ? 'timeout' : 'network';
+            markFailed(row, reason === 'timeout' ? 'request timed out' : 'network error');
+            reportClientFailure(questionId, reason, String(err));
+            return;
+          } finally {
+            clearTimeout(timer);
+          }
+
+          let body = null;
+          try {
+            body = await response.json();
+          } catch (err) {
+            body = null;
+          }
+          if (!response.ok || !body || body.ok !== true) {
+            const message = body && body.error ? body.error : 'server returned ' + response.status;
+            markFailed(row, message);
+            if (!body) {
+              // Non-JSON reply (login redirect, proxy error): the save view never logged it.
+              reportClientFailure(questionId, 'bad_response', 'status ' + response.status);
+            }
+            return;
+          }
+          failed.delete(questionId);
+          refreshAlert();
+          setStatus(row, 'saved', 'Saved');
+        }
+
+        // One request in flight per question; a change during a save queues one more.
+        function save(row) {
+          if (row._saving) {
+            row._dirty = true;
+            return;
+          }
+          row._saving = true;
+          row._dirty = false;
+          pendingCount += 1;
+          setStatus(row, 'saving', 'Saving...');
+          send(row).finally(function () {
+            row._saving = false;
+            pendingCount -= 1;
+            if (row._dirty) {
+              save(row);
+            }
+          });
+        }
+
+        panel.querySelectorAll('[data-autosave-question]').forEach(function (row) {
+          row.querySelectorAll('[data-autosave-option]').forEach(function (box) {
+            box.addEventListener('change', function () { save(row); });
+          });
+          const text = row.querySelector('[data-autosave-text]');
+          if (text) {
+            let debounce = null;
+            text.addEventListener('input', function () {
+              clearTimeout(debounce);
+              setStatus(row, 'idle', 'Unsaved changes');
+              debounce = setTimeout(function () { save(row); }, TEXT_DEBOUNCE_MS);
+            });
+            text.addEventListener('change', function () {
+              clearTimeout(debounce);
+              save(row);
+            });
+          }
+          const answerType = row.querySelector('[data-autosave-answer-type]');
+          if (answerType) {
+            answerType.addEventListener('change', function () { save(row); });
+          }
+          row.querySelector('[data-autosave-retry]').addEventListener('click', function () { save(row); });
+        });
+
+        window.addEventListener('beforeunload', function (event) {
+          const unsaved = panel.querySelector('[data-autosave-state="idle"]');
+          if (pendingCount > 0 || failed.size > 0 || unsaved) {
+            event.preventDefault();
+            event.returnValue = '';
+          }
+        });
+      })();
+    </script>
     {% endif %}
 
     {% if submissions_data or search_query %}

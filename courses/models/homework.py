@@ -159,14 +159,23 @@ class Question(models.Model):
             QuestionTypes.MULTIPLE_CHOICE.value,
         }
 
-    def zero_based_correct_answer_indices(self):
+    def _correct_answer_index_tokens(self):
+        # Blank segments (e.g. ",1,3" saved by an older cadmin form that
+        # posted a hidden empty input next to the checkboxes) are ignored
+        # instead of crashing int("").
         if not self.correct_answer:
             return []
+        tokens = []
+        for index_raw in self.correct_answer.split(","):
+            token = index_raw.strip()
+            if token:
+                tokens.append(token)
+        return tokens
 
-        indices_raw = self.correct_answer.split(",")
+    def zero_based_correct_answer_indices(self):
         indices = []
-        for index_raw in indices_raw:
-            index = int(index_raw) - 1
+        for token in self._correct_answer_index_tokens():
+            index = int(token) - 1
             indices.append(index)
         return indices
 
@@ -188,13 +197,9 @@ class Question(models.Model):
         return ""
 
     def get_correct_answer_indices(self):
-        if not self.correct_answer:
-            return set()
-
-        indices_raw = self.correct_answer.split(",")
         indices = set()
-        for index_raw in indices_raw:
-            index = int(index_raw)
+        for token in self._correct_answer_index_tokens():
+            index = int(token)
             indices.add(index)
         return indices
 
