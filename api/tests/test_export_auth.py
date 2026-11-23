@@ -37,6 +37,7 @@ EXPLICIT_TOKEN_POLICY_ALLOWLIST = {
     "api_homework_score",
     "api_homework_detail_by_slug",
     "api_homework_score_by_slug",
+    "api_homework_notify_scores_by_slug",
     "api_projects",
     "api_project_detail",
     "api_project_assign_reviews",

@@ -190,6 +190,11 @@ urlpatterns = [
         homeworks.homework_score_by_slug_view,
         name="api_homework_score_by_slug",
     ),
+    path(
+        "courses/<slug:course_slug>/homeworks/by-slug/<slug:homework_slug>/notify-scores/",
+        homeworks.homework_notify_scores_by_slug_view,
+        name="api_homework_notify_scores_by_slug",
+    ),
     # Projects
     path(
         "courses/<slug:course_slug>/projects/",

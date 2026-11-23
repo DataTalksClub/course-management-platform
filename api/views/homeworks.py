@@ -33,6 +33,10 @@ from api.views.homework_create import (
     homeworks_create_response,
     homeworks_list_response,
 )
+from api.views.homework_score_notifications import (
+    homework_score_notification_send_response,
+    homework_score_notification_status_response,
+)
 from api.views.homework_upsert import (
     HOMEWORK_PATCH_CONFIG,
     staff_upsert_homework_by_slug,
@@ -251,3 +255,26 @@ def homework_score_by_slug_view(request, course_slug, homework_slug):
     if error:
         return _homework_score_blocked_response(homework, error)
     return _homework_score_enqueued_response(request, homework)
+
+
+@token_required
+@csrf_exempt
+@require_methods("GET", "POST")
+def homework_notify_scores_by_slug_view(request, course_slug, homework_slug):
+    """
+    POST /api/courses/<slug>/homeworks/by-slug/<slug>/notify-scores/ - Queue once.
+    GET /api/courses/<slug>/homeworks/by-slug/<slug>/notify-scores/ - Send audit.
+    """
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
+    course = get_object_or_404(Course, slug=course_slug)
+    homework = get_course_child_or_404(
+        Homework,
+        course,
+        slug=homework_slug,
+    )
+    if request.method == "GET":
+        return homework_score_notification_status_response(homework)
+    return homework_score_notification_send_response(homework)

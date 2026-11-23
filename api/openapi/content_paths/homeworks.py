@@ -243,6 +243,61 @@ HOMEWORK_SCORE_BY_SLUG_STATUS_OPERATION = operation(
     HOMEWORK_SCORE_BY_SLUG_STATUS_DATA
 )
 
+HOMEWORK_SCORE_NOTIFICATION_REF = ref("HomeworkScoreNotificationResponse")
+HOMEWORK_SCORE_NOTIFICATION_STATUS_RESPONSES = {
+    "200": response(
+        "Read-only score notification send status",
+        HOMEWORK_SCORE_NOTIFICATION_REF,
+    ),
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_HOMEWORK_NOT_FOUND_RESPONSE,
+}
+HOMEWORK_SCORE_NOTIFICATION_SEND_RESPONSES = {
+    "200": response(
+        "Queued; returns the send-once audit",
+        HOMEWORK_SCORE_NOTIFICATION_REF,
+    ),
+    "400": response("Homework is not scored", ERROR_REF),
+    "403": STAFF_TOKEN_REQUIRED_RESPONSE,
+    "404": COURSE_OR_HOMEWORK_NOT_FOUND_RESPONSE,
+    "409": response(
+        "Already sent or queued; returns the existing audit",
+        HOMEWORK_SCORE_NOTIFICATION_REF,
+    ),
+    "502": response(
+        "Queue failed; returns the failed audit and retry is allowed",
+        HOMEWORK_SCORE_NOTIFICATION_REF,
+    ),
+}
+HOMEWORK_SCORE_NOTIFICATION_SEND_DATA = OperationData(
+    "api_homework_notify_scores_by_slug",
+    ["Homeworks"],
+    "Queue homework score notifications once",
+    HOMEWORK_SCORE_NOTIFICATION_SEND_RESPONSES,
+    requires_auth=True,
+    description=(
+        "Queues the same score notification as the cadmin 'Notify students "
+        "of scores' button using the existing idempotency key "
+        "homework-score:<course>:<homework>. Requires a staff token and the "
+        "homework in SC state. A succeeded or in-flight audit/outbox event "
+        "(including one created by the cadmin button) returns 409 without "
+        "queueing again. Failed work can be retried."
+    ),
+)
+HOMEWORK_SCORE_NOTIFICATION_STATUS_DATA = OperationData(
+    "api_homework_notify_scores_by_slug",
+    ["Homeworks"],
+    "Get homework score notification send status",
+    HOMEWORK_SCORE_NOTIFICATION_STATUS_RESPONSES,
+    requires_auth=True,
+    description=(
+        "Read-only. Returns the send audit for "
+        "homework-score:<course>:<homework>, or audit=null when no send "
+        "audit exists. Requires a staff token and is available in any "
+        "homework state."
+    ),
+)
+
 HOMEWORK_PATHS_BY_URL_NAME = {
     "api_homeworks": {
         "get": HOMEWORKS_LIST_OPERATION,
@@ -266,6 +321,10 @@ HOMEWORK_PATHS_BY_URL_NAME = {
     "api_homework_score_by_slug": {
         "get": HOMEWORK_SCORE_BY_SLUG_STATUS_OPERATION,
         "post": HOMEWORK_SCORE_BY_SLUG_OPERATION,
-    }
+    },
+    "api_homework_notify_scores_by_slug": {
+        "get": operation(HOMEWORK_SCORE_NOTIFICATION_STATUS_DATA),
+        "post": operation(HOMEWORK_SCORE_NOTIFICATION_SEND_DATA),
+    },
 
 }
