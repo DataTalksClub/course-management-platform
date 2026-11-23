@@ -16,6 +16,17 @@
     <div class="mt-3 text-base leading-7 app-text md:text-lg">
       {{ course.description | urlize_target_blank }}
     </div>
+    {% if course.slug == "ai-dev-tools-2026" %}
+      <p class="mt-3 text-base leading-7 app-text" data-academy-link>
+        The full-time live program based on this Zoomcamp:
+        <a href="https://datatalks.club/academy/agentic-engineering/" class="app-link">Agentic Engineering at DataTalks.Club Academy</a>.
+      </p>
+    {% elif course.slug == "llm-zoomcamp-2026" %}
+      <p class="mt-3 text-base leading-7 app-text" data-academy-link>
+        The full-time live program based on this Zoomcamp:
+        <a href="https://datatalks.club/academy/ai-engineering/" class="app-link">AI Engineering at DataTalks.Club Academy</a>.
+      </p>
+    {% endif %}
     {% if registered_count %}
       <p class="mt-3 inline-flex items-center gap-2 text-sm font-medium app-muted">
         <i class="fas fa-users" aria-hidden="true"></i>
