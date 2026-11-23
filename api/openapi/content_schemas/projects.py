@@ -302,6 +302,35 @@ PROJECT_SCHEMAS = {
             "code": {"type": "string"},
         },
     },
+    "HomeworkScoreNotificationResponse": {
+        "type": "object",
+        "required": [
+            "course_slug",
+            "homework_slug",
+            "idempotency_key",
+            "sent",
+            "audit",
+        ],
+        "properties": {
+            "course_slug": {"type": "string"},
+            "homework_slug": {"type": "string"},
+            "idempotency_key": {"type": "string"},
+            "sent": {"type": "boolean"},
+            "audit": {
+                "oneOf": [
+                    {
+                        "$ref": (
+                            "#/components/schemas/"
+                            "ProjectScoreNotificationSendAudit"
+                        )
+                    },
+                    {"type": "null"},
+                ],
+            },
+            "error": {"type": "string"},
+            "code": {"type": "string"},
+        },
+    },
     "ProjectScoreResponse": {
         "type": "object",
         "required": [
