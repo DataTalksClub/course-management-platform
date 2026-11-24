@@ -106,9 +106,12 @@ def _accepted_course_information(course):
     """Build the course-specific logistics included with every acceptance."""
     sections = []
     if course.start_date:
-        sections.append(
-            f"Course starts: {date_format(course.start_date, 'D j M Y')}."
-        )
+        start = date_format(course.start_date, "D j M Y")
+        # Late acceptances must not read as if the course were still ahead.
+        if course.start_date > timezone.localdate():
+            sections.append(f"Course starts: {start}.")
+        else:
+            sections.append(f"The course has already started ({start}).")
 
     schedule_details = (course.live_session_schedule_details or "").strip()
     schedule_url = (course.live_session_schedule_url or "").strip()
