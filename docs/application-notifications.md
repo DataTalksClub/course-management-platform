@@ -49,6 +49,36 @@ Add ``--live`` to also dry-run render each template in Relay (needs Relay
 configuration). Template bodies live in Relay and are edited there; this
 repo owns only the placeholder values each template receives.
 
+### Reading the live templates
+
+A milestone review starts by reading the bodies back from Relay. The CMP
+client key for ``dtc-courses`` (``RELAY_API_KEY``) can read them; no admin key
+is needed:
+
+```bash
+export DATAMAILER_URL=https://relay.datatalks.club
+export DATAMAILER_API_KEY=<dtc-courses client key>   # never commit it
+
+relay api GET /api/transactional/templates                                 # every key and latest_version
+relay api GET /api/transactional/templates/application-approved            # current draft
+relay api GET /api/transactional/templates/application-approved/versions   # published bodies, newest first
+```
+
+Sends render the newest **published** version, so review ``versions[0]`` and
+not the draft. With plain curl the header must be
+``Authorization: Bearer <key>``. Relay answers ``401`` with a code that names
+the mistake: ``missing_authorization`` (no header), ``invalid_api_key``
+(wrong key), ``invalid_authorization`` (key sent without ``Bearer``, for
+example as ``Token``), ``invalid_admin_api_key`` (client key used on the
+admin API that ``relay operator`` calls).
+
+The acceptance email also carries course text that CMP builds when the
+notification is queued, from the course record: ``Course starts`` or ``The
+course has already started`` (chosen from the start date), the live session
+schedule details and URL, the GitHub repository and the help channel. Edit
+those on the Course in Django admin; no deploy is needed. Remove a passed
+event page there at each milestone, the same as in the Relay bodies.
+
 The existing scheduled outbox command also processes these notifications, so no
 additional scheduler is required. To process just the application queue:
 

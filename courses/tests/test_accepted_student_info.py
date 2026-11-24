@@ -1,5 +1,8 @@
-from datetime import date
+import importlib
+from datetime import date, datetime, timezone as dt_timezone
+from unittest import mock
 
+from django.apps import apps
 from django.contrib.admin.sites import AdminSite
 from django.test import RequestFactory
 from django.urls import reverse
@@ -114,10 +117,14 @@ class AcceptedStudentInfoTests(RegistrationCampaignBase):
             status=CourseRegistration.Status.APPROVED,
         )
 
-        context = notification_context(
-            registration,
-            custom_message="Looking forward to seeing you.",
-        )
+        with mock.patch(
+            "django.utils.timezone.now",
+            return_value=datetime(2026, 11, 9, 12, tzinfo=dt_timezone.utc),
+        ):
+            context = notification_context(
+                registration,
+                custom_message="Looking forward to seeing you.",
+            )
 
         self.assertIn(
             "Course starts: Mon 16 Nov 2026",
@@ -154,6 +161,36 @@ class AcceptedStudentInfoTests(RegistrationCampaignBase):
             context["custom_message_html"],
         )
 
+    def test_approval_email_uses_started_wording_after_course_start(self):
+        registration = CourseRegistration.objects.create(
+            campaign=self.campaign,
+            course=self.course,
+            email="late-accepted-student@example.com",
+            name="Late Accepted Student",
+            country="Germany",
+            region="Europe",
+            role=CourseRegistration.Role.DATA_ENGINEER,
+            status=CourseRegistration.Status.APPROVED,
+        )
+
+        with mock.patch(
+            "django.utils.timezone.now",
+            return_value=datetime(2026, 11, 24, 12, tzinfo=dt_timezone.utc),
+        ):
+            context = notification_context(registration)
+
+        # The course started on 16 Nov: "Course starts" is no longer true.
+        self.assertIn(
+            "The course has already started (Mon 16 Nov 2026).",
+            context["custom_message"],
+        )
+        self.assertNotIn("Course starts:", context["custom_message"])
+        self.assertNotIn("Course starts:", context["custom_message_html"])
+        self.assertIn(
+            "The course has already started (Mon 16 Nov 2026)",
+            context["custom_message_html"],
+        )
+
     def test_course_information_fields_are_editable(self):
         request = RequestFactory().get("/admin/")
         admin_fields = CourseAdmin(Course, AdminSite()).get_fields(request)
@@ -184,9 +221,24 @@ class AcceptedStudentInfoTests(RegistrationCampaignBase):
             "https://github.com/DataTalksClub/"
             "production-ai-agents-for-media-generation",
         )
-        self.assertEqual(
-            course.live_session_schedule_url,
-            "https://luma.com/i4x6x2zy",
+        # The course started on 16 Nov 2026: the pre-course Q&A event
+        # pointer is gone, replaced by the started-course wording.
+        self.assertEqual(course.live_session_schedule_url, "")
+        self.assertIn(
+            "Module 1 is open",
+            course.live_session_schedule_details,
+        )
+        self.assertIn(
+            "https://www.youtube.com/watch?v=Y5__PUmOTdg",
+            course.live_session_schedule_details,
+        )
+        self.assertIn(
+            "https://www.youtube.com/watch?v=iACtrkiXndw",
+            course.live_session_schedule_details,
+        )
+        self.assertNotIn(
+            "Pre-course Q&A: Tue 10 Nov 2026",
+            course.live_session_schedule_details,
         )
         self.assertIn(
             "17:00–18:00 Europe/Berlin",
@@ -217,3 +269,63 @@ class AcceptedStudentInfoTests(RegistrationCampaignBase):
         context = notification_context(registration)
         self.assertIn("Live sessions and Q&A.", context["custom_message"])
         self.assertNotIn("pre-course Q&A", context["custom_message"])
+
+
+class StartedCourseInfoMigrationTests(RegistrationCampaignBase):
+    """0072 replaces the pre-course Q&A pointer once the course has started."""
+
+    def _migration(self):
+        return importlib.import_module(
+            "courses.migrations.0072_genmedia_started_course_info"
+        )
+
+    def test_update_keeps_text_already_edited_by_staff(self):
+        migration = self._migration()
+        course = Course.objects.get(
+            slug="production-ai-agents-generative-media"
+        )
+        course.live_session_schedule_details = "Edited in Django admin."
+        course.live_session_schedule_url = "https://example.com/schedule"
+        course.save(
+            update_fields=[
+                "live_session_schedule_details",
+                "live_session_schedule_url",
+            ]
+        )
+
+        migration.replace_pre_course_schedule(apps, None)
+
+        course.refresh_from_db()
+        self.assertEqual(
+            course.live_session_schedule_details,
+            "Edited in Django admin.",
+        )
+        self.assertEqual(
+            course.live_session_schedule_url,
+            "https://example.com/schedule",
+        )
+
+    def test_update_replaces_unedited_pre_course_pointer(self):
+        migration = self._migration()
+        course = Course.objects.get(
+            slug="production-ai-agents-generative-media"
+        )
+        course.live_session_schedule_details = (
+            "  " + migration.PRE_COURSE_SCHEDULE_DETAILS + "  "
+        )
+        course.live_session_schedule_url = migration.PRE_COURSE_SCHEDULE_URL
+        course.save(
+            update_fields=[
+                "live_session_schedule_details",
+                "live_session_schedule_url",
+            ]
+        )
+
+        migration.replace_pre_course_schedule(apps, None)
+
+        course.refresh_from_db()
+        self.assertEqual(
+            course.live_session_schedule_details,
+            migration.STARTED_SCHEDULE_DETAILS,
+        )
+        self.assertEqual(course.live_session_schedule_url, "")
