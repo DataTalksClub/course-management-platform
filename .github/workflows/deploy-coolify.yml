@@ -79,7 +79,7 @@ jobs:
     steps:
       - name: Point DATABASE_URL at the service container's host port
         run: echo "DATABASE_URL=postgresql://postgres@localhost:${{ job.services.postgres.ports['5432'] }}/cmp_test" >> "$GITHUB_ENV"
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       - name: Install dependencies
         run: uv sync --locked
@@ -110,7 +110,7 @@ jobs:
       image_tag: ${{ steps.identity.outputs.version }}
       image_digest: ${{ steps.push.outputs.digest }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Construct release identity (timestamped release tag)
         id: identity
@@ -176,7 +176,7 @@ jobs:
     env:
       DEPLOY_DEV_ONLY: ${{ inputs.dev_only || false }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Record production version before isolated DEV deployment
         if: inputs.dev_only
