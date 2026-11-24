@@ -13,6 +13,7 @@ from api.views.registration_campaign_mutations import (
 from api.views.registration_campaign_registration_mutations import (
     approve_registrations_batch_payload,
     bulk_create_registrations_payload,
+    reject_registrations_batch_payload,
     update_registration_payload,
 )
 from api.views.registration_campaign_email_change import (
@@ -162,6 +163,23 @@ def registration_campaign_approve_batch_view(request, campaign_slug):
     campaign = get_object_or_404(RegistrationCampaign, slug=campaign_slug)
 
     payload, err = approve_registrations_batch_payload(campaign, request)
+    if err:
+        return err
+    response = JsonResponse(payload)
+    return response
+
+
+@token_required
+@csrf_exempt
+@require_methods("POST")
+def registration_campaign_reject_batch_view(request, campaign_slug):
+    staff_error = require_staff_token(request)
+    if staff_error:
+        return staff_error
+
+    campaign = get_object_or_404(RegistrationCampaign, slug=campaign_slug)
+
+    payload, err = reject_registrations_batch_payload(campaign, request)
     if err:
         return err
     response = JsonResponse(payload)

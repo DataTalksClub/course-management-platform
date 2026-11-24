@@ -107,3 +107,10 @@ def approve_registration(registration, custom_message=""):
     registration._decision_custom_message = custom_message or ""
     registration.save(update_fields=["status", "updated_at"])
     return reconcile_approved_registration(registration)
+
+
+def reject_registration(registration, custom_message=""):
+    """Mark a registration rejected and queue the applicant decision email."""
+    registration.status = CourseRegistration.Status.REJECTED
+    registration._decision_custom_message = custom_message or ""
+    registration.save(update_fields=["status", "updated_at"])
