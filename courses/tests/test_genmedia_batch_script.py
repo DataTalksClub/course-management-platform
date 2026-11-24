@@ -9,7 +9,7 @@ from django.test import SimpleTestCase
 from scripts.genmedia_evening_batch import (
     build_csv,
     chunked,
-    select_approvable,
+    select_decisions,
 )
 
 
@@ -23,36 +23,55 @@ def row(email, country, ukraine_region=""):
     }
 
 
-class SelectApprovableTestCase(SimpleTestCase):
+class SelectDecisionsTestCase(SimpleTestCase):
     def test_eligible_rows_approved(self):
         pending = [row("a@example.com", "Germany")]
-        approvable, skipped = select_approvable(pending, total_count=10)
+        approvable, rejectable, skipped = select_decisions(
+            pending, total_count=10
+        )
         self.assertEqual([r["email"] for r in approvable], ["a@example.com"])
+        self.assertEqual(rejectable, [])
         self.assertEqual(skipped, [])
 
-    def test_restricted_country_skipped(self):
+    def test_restricted_country_rejected_not_skipped(self):
         pending = [
             row("ru@example.com", "Russia"),
             row("ok@example.com", "Germany"),
         ]
-        approvable, skipped = select_approvable(pending, total_count=10)
+        approvable, rejectable, skipped = select_decisions(
+            pending, total_count=10
+        )
         self.assertEqual([r["email"] for r in approvable], ["ok@example.com"])
-        self.assertEqual(len(skipped), 1)
-        self.assertEqual(skipped[0][1], "excluded-country")
+        self.assertEqual(len(rejectable), 1)
+        self.assertEqual(rejectable[0][0]["email"], "ru@example.com")
+        self.assertEqual(rejectable[0][1], "excluded-country")
+        self.assertEqual(skipped, [])
 
-    def test_occupied_ukraine_region_skipped(self):
+    def test_occupied_ukraine_region_rejected_not_skipped(self):
         pending = [
             row("c@example.com", "Ukraine", ukraine_region="crimea"),
             row("l@example.com", "Ukraine", ukraine_region="lviv"),
         ]
-        approvable, skipped = select_approvable(pending, total_count=10)
+        approvable, rejectable, skipped = select_decisions(
+            pending, total_count=10
+        )
         self.assertEqual([r["email"] for r in approvable], ["l@example.com"])
-        self.assertEqual(skipped[0][1], "excluded-Ukraine region")
+        self.assertEqual(len(rejectable), 1)
+        self.assertEqual(rejectable[0][0]["email"], "c@example.com")
+        self.assertEqual(rejectable[0][1], "excluded-Ukraine region")
+        self.assertEqual(skipped, [])
 
-    def test_cap_stops_approvals(self):
-        pending = [row("a@example.com", "Germany")]
-        approvable, skipped = select_approvable(pending, total_count=2000)
+    def test_cap_stops_approvals_but_still_rejects_excluded(self):
+        pending = [
+            row("a@example.com", "Germany"),
+            row("ru@example.com", "Russia"),
+        ]
+        approvable, rejectable, skipped = select_decisions(
+            pending, total_count=2000
+        )
         self.assertEqual(approvable, [])
+        self.assertEqual(len(rejectable), 1)
+        self.assertEqual(rejectable[0][0]["email"], "ru@example.com")
         self.assertEqual(skipped[0][1], "cap-reached")
 
 

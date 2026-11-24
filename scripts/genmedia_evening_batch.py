@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import requests  # noqa: E402
 
+from courses.decision_messages import REJECTION_MESSAGE_LOCATION  # noqa: E402
 from courses.genmedia_policy import (  # noqa: E402
     AUTO_APPROVAL_LIMIT,
     AUTO_APPROVAL_TIMEZONE,
@@ -94,50 +95,70 @@ def fetch_pending(base_url, token, campaign):
     return pending, total
 
 
-def select_approvable(pending_rows, total_count):
-    """Split pending rows into (approvable, skipped) honouring policy+cap."""
+def select_decisions(pending_rows, total_count):
+    """Split pending rows into (approvable, rejectable, skipped) per policy+cap."""
     approvable = []
+    rejectable = []
     skipped = []
     for row in pending_rows:
-        if total_count + len(approvable) >= AUTO_APPROVAL_LIMIT:
-            skipped.append((row, "cap-reached"))
-            continue
         registration = SimpleNamespace(
             country=row.get("country") or "",
             ukraine_region=row.get("ukraine_region") or "",
         )
         reason = excluded_reason(registration)
         if reason:
-            skipped.append((row, f"excluded-{reason}"))
-        else:
-            approvable.append(row)
-    return approvable, skipped
+            rejectable.append((row, f"excluded-{reason}"))
+            continue
+        if total_count + len(approvable) >= AUTO_APPROVAL_LIMIT:
+            skipped.append((row, "cap-reached"))
+            continue
+        approvable.append(row)
+    return approvable, rejectable, skipped
 
 
 def chunked(items, size):
     return [items[i : i + size] for i in range(0, len(items), size)]
 
 
-def approve_batches(base_url, token, campaign, approvable, dry_run):
-    approved = []
-    for chunk in chunked([row["id"] for row in approvable], BATCH_SIZE):
+def _post_batch(
+    base_url, token, campaign, action, rows, result_key, dry_run,
+    extra_payload=None,
+):
+    processed = []
+    for chunk in chunked([row["id"] for row in rows], BATCH_SIZE):
         if dry_run:
-            approved.extend(
-                row for row in approvable if row["id"] in chunk
-            )
+            processed.extend(row for row in rows if row["id"] in chunk)
             continue
+        payload = {"ids": chunk}
+        if extra_payload:
+            payload.update(extra_payload)
         body = api(
             "POST",
             f"/api/registration-campaigns/{campaign}/registrations/"
-            "approve-batch/",
+            f"{action}/",
             token,
             base_url,
-            payload={"ids": chunk},
+            payload=payload,
         )
-        approved.extend(body["approved"])
+        processed.extend(body[result_key])
         for item in body["skipped"]:
             raise BatchError(f"API skipped id={item['id']}: {item['reason']}")
-    return approved
+    return processed
+
+
+def approve_batches(base_url, token, campaign, approvable, dry_run):
+    return _post_batch(
+        base_url, token, campaign, "approve-batch", approvable, "approved",
+        dry_run,
+    )
+
+
+def reject_batches(base_url, token, campaign, rejectable, dry_run):
+    rows = [row for row, _reason in rejectable]
+    return _post_batch(
+        base_url, token, campaign, "reject-batch", rows, "rejected",
+        dry_run, extra_payload={"custom_message": REJECTION_MESSAGE_LOCATION},
+    )
 
 
 def build_csv(approved, day):
@@ -168,30 +189,35 @@ def run(dry_run=False):
     campaign = env("CAMPAIGN_SLUG", default=CAMPAIGN_SLUG)
 
     pending, total = fetch_pending(base_url, token, campaign)
-    approvable, skipped = select_approvable(pending, total)
+    approvable, rejectable, skipped = select_decisions(pending, total)
     print(
         f"day={day_label} pending={len(pending)} "
-        f"approvable={len(approvable)} skipped={len(skipped)} total={total}"
+        f"approvable={len(approvable)} rejectable={len(rejectable)} "
+        f"skipped={len(skipped)} total={total}"
     )
     for row in approvable:
         print(f"  approve {row['email']} ({row.get('country')})")
+    for row, reason in rejectable:
+        print(f"  reject {row['email']} ({reason})")
     for row, reason in skipped:
         print(f"  skip {row.get('email')} ({reason})")
     if dry_run:
-        print("dry-run: no approvals, no emails")
+        print("dry-run: no approvals, no rejections, no emails")
         return
 
+    rejected = reject_batches(base_url, token, campaign, rejectable, dry_run)
     if total >= AUTO_APPROVAL_LIMIT:
         raise BatchError(
             f"Cap reached: campaign total {total} >= {AUTO_APPROVAL_LIMIT}"
         )
     approved = approve_batches(base_url, token, campaign, approvable, dry_run)
-    if not approved and not skipped:
+    if not approved and not rejected and not skipped:
         print("nothing pending: no Nebius report sent")
         return
     print(
-        f"daily approval complete: {len(approved)} approved, "
-        f"{len(skipped)} skipped; no Nebius report sent"
+        f"daily batch complete: {len(approved)} approved, "
+        f"{len(rejected)} rejected, {len(skipped)} skipped; "
+        "no Nebius report sent"
     )
 
 

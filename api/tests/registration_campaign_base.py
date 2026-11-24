@@ -104,6 +104,21 @@ class RegistrationCampaignAPITestBase(TestCase):
             content_type="application/json",
         )
 
+    def reject_batch_url(self):
+        return (
+            "/api/registration-campaigns/llm-zoomcamp/registrations/"
+            "reject-batch/"
+        )
+
+    def post_reject_batch(self, client, payload):
+        url = self.reject_batch_url()
+        request_body = json.dumps(payload)
+        return client.post(
+            url,
+            request_body,
+            content_type="application/json",
+        )
+
     def non_staff_client(self):
         non_staff = CustomUser.objects.create(
             username="plain",

@@ -277,6 +277,29 @@ COURSE_REGISTRATIONS_APPROVE_BATCH_RESULT_SCHEMA = {
         ),
     },
 }
+COURSE_REGISTRATIONS_REJECT_BATCH_SCHEMA = {
+    "type": "object",
+    "required": ["ids"],
+    "properties": {
+        "ids": array_of({"type": "integer"}),
+        "custom_message": {"type": "string"},
+    },
+}
+COURSE_REGISTRATIONS_REJECT_BATCH_RESULT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "rejected": array_of(COURSE_REGISTRATION_REF),
+        "skipped": array_of(
+            {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer"},
+                    "reason": {"type": "string"},
+                },
+            }
+        ),
+    },
+}
 
 COURSE_SCHEMAS = {
     "Error": {
@@ -390,6 +413,12 @@ COURSE_SCHEMAS = {
     ),
     "CourseRegistrationsApproveBatchResult": (
         COURSE_REGISTRATIONS_APPROVE_BATCH_RESULT_SCHEMA
+    ),
+    "CourseRegistrationsRejectBatch": (
+        COURSE_REGISTRATIONS_REJECT_BATCH_SCHEMA
+    ),
+    "CourseRegistrationsRejectBatchResult": (
+        COURSE_REGISTRATIONS_REJECT_BATCH_RESULT_SCHEMA
     ),
     "CourseRegistrationPatch": COURSE_REGISTRATION_PATCH_SCHEMA,
     "CourseRegistrationChangeEmail": COURSE_REGISTRATION_CHANGE_EMAIL_SCHEMA,

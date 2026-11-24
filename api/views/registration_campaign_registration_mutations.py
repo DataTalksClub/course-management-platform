@@ -187,7 +187,74 @@ def apply_registration_patch(registration, data):
         registration.region = region_for_country(registration.country)
 
 
-BATCH_APPROVE_LIMIT = 100
+BATCH_LIMIT = 100
+MAX_DECISION_MESSAGE_LENGTH = 2000
+
+
+def _parse_batch_request(request):
+    data, err = parse_json_body(request)
+    if err:
+        return None, None, err
+
+    if not isinstance(data, dict):
+        return None, None, error_response("Body must be an object", "invalid_body")
+
+    ids = data.get("ids")
+    if not isinstance(ids, list) or not ids or not all(
+        isinstance(item, int) and not isinstance(item, bool) for item in ids
+    ):
+        return (
+            None,
+            None,
+            error_response(
+                "Body must be {ids: [registration id, ...]}",
+                "invalid_ids",
+            ),
+        )
+    if len(ids) > BATCH_LIMIT:
+        return (
+            None,
+            None,
+            error_response(
+                f"At most {BATCH_LIMIT} ids per request",
+                "batch_too_large",
+            ),
+        )
+    return data, ids, None
+
+
+def _run_batch_transition(
+    campaign, ids, target_status, result_key, transition
+):
+    processed = []
+    skipped = []
+    for registration_id in ids:
+        registration = CourseRegistration.objects.filter(
+            campaign=campaign, id=registration_id
+        ).first()
+        if registration is None:
+            skipped.append({"id": registration_id, "reason": "not-found"})
+            continue
+        if registration.status == target_status:
+            processed.append(registration_to_dict(registration))
+            continue
+        if registration.status != CourseRegistration.Status.PENDING:
+            skipped.append(
+                {
+                    "id": registration_id,
+                    "reason": f"unexpected-status-{registration.status}",
+                }
+            )
+            continue
+        transition(registration)
+        processed.append(
+            registration_to_dict(
+                CourseRegistration.objects.select_related(
+                    "campaign", "course"
+                ).get(id=registration.id)
+            )
+        )
+    return {result_key: processed, "skipped": skipped}, None
 
 
 def approve_registrations_batch_payload(campaign, request):
@@ -202,61 +269,61 @@ def approve_registrations_batch_payload(campaign, request):
 
     from courses.registration_wall import approve_registration
 
-    data, err = parse_json_body(request)
+    _data, ids, err = _parse_batch_request(request)
     if err:
         return None, err
 
-    if not isinstance(data, dict):
-        error = error_response("Body must be an object", "invalid_body")
-        return None, error
-
-    ids = data.get("ids")
-    if not isinstance(ids, list) or not ids or not all(
-        isinstance(item, int) for item in ids
-    ):
-        error = error_response(
-            "Body must be {ids: [registration id, ...]}",
-            "invalid_ids",
-        )
-        return None, error
-    if len(ids) > BATCH_APPROVE_LIMIT:
-        error = error_response(
-            f"At most {BATCH_APPROVE_LIMIT} ids per request",
-            "batch_too_large",
-        )
-        return None, error
-
-    approved = []
-    skipped = []
-    for registration_id in ids:
-        registration = CourseRegistration.objects.filter(
-            campaign=campaign, id=registration_id
-        ).first()
-        if registration is None:
-            skipped.append({"id": registration_id, "reason": "not-found"})
-            continue
-        if registration.status == CourseRegistration.Status.APPROVED:
-            approved.append(registration_to_dict(registration))
-            continue
-        if registration.status != CourseRegistration.Status.PENDING:
-            skipped.append(
-                {
-                    "id": registration_id,
-                    "reason": f"unexpected-status-{registration.status}",
-                }
-            )
-            continue
+    def _approve(registration):
         approve_registration(registration)
         registration.auto_approved_at = timezone.now()
         registration.save(update_fields=["auto_approved_at", "updated_at"])
-        approved.append(
-            registration_to_dict(
-                CourseRegistration.objects.select_related(
-                    "campaign", "course"
-                ).get(id=registration.id)
-            )
+
+    return _run_batch_transition(
+        campaign,
+        ids,
+        CourseRegistration.Status.APPROVED,
+        "approved",
+        _approve,
+    )
+
+
+def reject_registrations_batch_payload(campaign, request):
+    """Reject up to 100 pending registrations in one staff call.
+
+    Uses the normal reject path (``reject_registration``), so each
+    rejection queues the applicant decision email exactly like a manual
+    cadmin rejection. Already-rejected rows are reported as rejected
+    without re-sending anything.
+    """
+    from courses.registration_wall import reject_registration
+
+    data, ids, err = _parse_batch_request(request)
+    if err:
+        return None, err
+
+    raw_message = data.get("custom_message")
+    if raw_message is None:
+        custom_message = ""
+    elif isinstance(raw_message, str):
+        custom_message = raw_message.strip()[:MAX_DECISION_MESSAGE_LENGTH]
+    else:
+        return (
+            None,
+            error_response(
+                "custom_message must be a string",
+                "invalid_custom_message",
+            ),
         )
-    return {"approved": approved, "skipped": skipped}, None
+
+    return _run_batch_transition(
+        campaign,
+        ids,
+        CourseRegistration.Status.REJECTED,
+        "rejected",
+        lambda registration: reject_registration(
+            registration, custom_message=custom_message
+        ),
+    )
 
 
 def results_summary(results):

@@ -149,6 +149,12 @@ urlpatterns = [
     ),
     path(
         "registration-campaigns/<slug:campaign_slug>/registrations/"
+        "reject-batch/",
+        registration_campaigns.registration_campaign_reject_batch_view,
+        name="api_registration_campaign_reject_batch",
+    ),
+    path(
+        "registration-campaigns/<slug:campaign_slug>/registrations/"
         "<int:registration_id>/",
         registration_campaigns.registration_campaign_registration_detail_view,
         name="api_registration_campaign_registration_detail",
