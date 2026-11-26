@@ -2,7 +2,7 @@
 
 import re
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from courses.models import Course, Enrollment, User
 
@@ -119,3 +119,57 @@ class GscCrawlerPolicyTests(TestCase):
         response = self.client.get("/api/health/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
+
+    @override_settings(
+        ALLOWED_HOSTS=[
+            "localhost",
+            "127.0.0.1",
+            "dev.courses.datatalks.club",
+            "courses.datatalks.club",
+        ]
+    )
+    def test_dev_host_public_routes_are_noindex_while_prod_is_not(self):
+        base = f"/{self.course.slug}"
+        public_paths = (
+            "/",
+            base + "/",
+            base + "/leaderboard",
+            base + "/leaderboard?page=4",
+        )
+
+        # robots.txt must still allow crawling public dev routes so search
+        # engines can fetch and observe the X-Robots-Tag: noindex directive.
+        robots_resp = self.client.get(
+            "/robots.txt", HTTP_HOST="dev.courses.datatalks.club"
+        )
+        self.assertEqual(robots_resp.status_code, 200)
+        robots_body = robots_resp.content.decode()
+        for path in ("/", base + "/", base + "/leaderboard"):
+            with self.subTest(robots_allowed=path):
+                self.assertTrue(googlebot_allowed(robots_body, path))
+
+        # Dev host receives X-Robots-Tag: noindex on homepage and nested
+        # public course routes, even if X-Forwarded-Host claims prod.
+        for path in public_paths:
+            with self.subTest(dev_path=path):
+                response = self.client.get(
+                    path,
+                    HTTP_HOST="dev.courses.datatalks.club",
+                    HTTP_X_FORWARDED_HOST="courses.datatalks.club",
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    response.headers.get("X-Robots-Tag"), "noindex"
+                )
+
+        # Production host must NOT receive X-Robots-Tag: noindex on public
+        # routes, even if X-Forwarded-Host is spoofed to the dev hostname.
+        for path in public_paths:
+            with self.subTest(prod_path=path):
+                response = self.client.get(
+                    path,
+                    HTTP_HOST="courses.datatalks.club",
+                    HTTP_X_FORWARDED_HOST="dev.courses.datatalks.club",
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertNotIn("X-Robots-Tag", response.headers)

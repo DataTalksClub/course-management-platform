@@ -2,13 +2,27 @@ import threading
 import time
 
 from django.conf import settings
+from django.core.exceptions import DisallowedHost
 from django.http import HttpResponse
+from django.http.request import split_domain_port
 
 from course_management.observability import report_exception
 
+DEV_NOINDEX_HOSTS = frozenset({"dev.courses.datatalks.club"})
+
+
+def _validated_hostname(request):
+    """Return the lowercase, port-free hostname validated against ALLOWED_HOSTS."""
+    try:
+        host = request.get_host()
+    except DisallowedHost:
+        return ""
+    domain, _ = split_domain_port(host)
+    return domain.lower()
+
 
 class CrawlerNoindexMiddleware:
-    """Keep account, API and admin responses out of search results.
+    """Keep dev hosts and account/API/admin responses out of search results.
 
     Headers also cover redirects and non-HTML 401/403 responses. Robots
     exclusions prevent routine crawls; noindex helps clients that do fetch
@@ -20,7 +34,9 @@ class CrawlerNoindexMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        if request.path.startswith(
+        if _validated_hostname(
+            request
+        ) in DEV_NOINDEX_HOSTS or request.path.startswith(
             ("/accounts/", "/api/", "/admin/", "/cadmin/")
         ):
             response["X-Robots-Tag"] = "noindex"
